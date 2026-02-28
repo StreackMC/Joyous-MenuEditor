@@ -1,0 +1,10 @@
+{
+  "product": {
+    "name": "Joyous 菜单编辑器"
+  },
+  "ui": {
+    "tooltip": {
+      "explorerSwitcher": "切换侧栏"
+    }
+  }
+}
