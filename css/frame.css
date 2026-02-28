@@ -83,11 +83,6 @@ s-drawer {
   flex-direction: column;
 }
 
-#editor {
-  display: flex;
-  flex-direction: column;
-}
-
 s-page[dark] {
   background: rgba(5, 2, 3, var(--bg-alpha-d, 0.82));
   backdrop-filter: var(--bg-blur, blur(0px));

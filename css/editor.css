@@ -1,0 +1,26 @@
+/* 卡片通用配置 */
+#editor {
+  display: inline-table;
+}
+
+#editor>s-card {
+  width: max(calc(50% - 20px), 47%);
+  max-width: 50%;
+  height: fit-content;
+  margin: .6em min(10px, 1.5%) 0 min(10px, 1.5%);
+}
+
+@media (max-width: 1024px) {
+  #editor>s-card {
+    width: max(calc(100% - 40px), 94%);
+    max-width: 100%;
+    margin: .6em min(20px, 3%) 0 min(20px, 3%);
+  }
+}
+
+/* welcome */
+#editor>s-card#welcome {
+  width: max(calc(100% - 40px), 94%);
+  max-width: 100%;
+  margin: 20% min(20px, 3%) auto min(20px, 3%);
+}

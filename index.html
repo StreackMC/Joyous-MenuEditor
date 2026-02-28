@@ -9,11 +9,14 @@
   <script type="module" src="./javascript/i18n.js"></script>
   <link rel="stylesheet" href="./css/sober-theme.css" />
   <link rel="stylesheet" href="./css/frame.css" />
+  <link rel="stylesheet" href="./css/editor.css" />
   <link rel="stylesheet" href="./css/predef.css" />
 </head>
 <body>
   <s-page color-theme="green" theme="light">
     <s-appbar>
+      <div id="ui-title" slot="headline"></div>
+
       <s-tooltip data-i18n="ui.tooltip.explorerSwitcher" slot="navigation">
         <s-icon-button type="filled-tonal" slot="trigger" onclick="document.querySelector('s-drawer').toggle()">
           <s-icon>
@@ -26,18 +29,81 @@
         </s-icon-button>
         $$
       </s-tooltip>
+
       <s-tooltip data-i18n="ui.tooltip.appbarToolsFolded" class="mobile-fold" mobile slot="action">
-        <s-icon-button slot="trigger" onclick="">
+        <s-icon-button slot="trigger" data-click="">
           <s-icon name="menu"></s-icon>
         </s-icon-button>
         $$
       </s-tooltip>
-      <div id="ui-title" slot="headline"></div>
+
+      <s-tooltip data-i18n="ui.tooltip.revert" class="mobile-fold" slot="action">
+        <s-icon-button slot="trigger" data-click="editor.revert">
+          <s-icon>
+            <svg viewBox="0 -960 960 960">
+              <path
+                d="M396-200q-97 0-166.5-63T160-420q0-94 69.5-157T396-640h252L544-744l56-56 200 200-200 200-56-56 104-104H396q-63 0-109.5 40T240-420q0 60 46.5 100T396-280h284v80H396Z"
+                transform="translate(960, 0) scale(-1, 1)"></path>
+            </svg>
+          </s-icon>
+        </s-icon-button>
+        $$
+      </s-tooltip>
+      <s-tooltip data-i18n="ui.tooltip.redo" class="mobile-fold" slot="action">
+        <s-icon-button slot="trigger" onclick="">
+          <s-icon>
+            <svg viewBox="0 -960 960 960">
+              <path
+                d="M396-200q-97 0-166.5-63T160-420q0-94 69.5-157T396-640h252L544-744l56-56 200 200-200 200-56-56 104-104H396q-63 0-109.5 40T240-420q0 60 46.5 100T396-280h284v80H396Z">
+              </path>
+            </svg>
+          </s-icon>
+        </s-icon-button>
+        $$
+      </s-tooltip>
+      <s-tooltip data-i18n="ui.tooltip.save" class="mobile-fold" slot="action">
+        <s-icon-button slot="trigger" onclick="">
+          <s-icon>
+            <svg viewBox="0 -960 960 960">
+              <path
+                d="M840-680v480q0 33-23.5 56.5T760-120H200q-33 0-56.5-23.5T120-200v-560q0-33 23.5-56.5T200-840h480l160 160Zm-80 34L646-760H200v560h560v-446ZM480-240q50 0 85-35t35-85q0-50-35-85t-85-35q-50 0-85 35t-35 85q0 50 35 85t85 35ZM240-560h360v-160H240v160Zm-40-86v446-560 114Z">
+              </path>
+            </svg>
+          </s-icon>
+        </s-icon-button>
+        $$
+      </s-tooltip>
+
     </s-appbar>
     <s-drawer>
       <div id="explorer" slot="start"><s-scroll-view class="unselectable" style="height: 100%; padding-bottom: 1rem;">
       </s-scroll-view></div>
-      <s-scroll-view id="editor" class="selectable">
+      <s-scroll-view id="editor">
+
+        <s-card id="welcome" type="outlined">
+          <div slot="headline" data-i18n="ui.editor.welcome.headline">$$</div>
+          <div slot="text">
+            <p data-i18n="ui.editor.welcome.text1">$$</p>
+            <p data-i18n="ui.editor.welcome.text2">$$</p>
+          </div>
+          <s-button data-i18n="editor.actions.openFile" slot="action">$$</s-button>
+          <s-button data-i18n="editor.actions.openFolder" slot="action">$$</s-button>
+        </s-card>
+
+        <s-card id="editor-je" type="outlined" class="hide">
+          <div slot="headline" data-i18n="ui.editor.je.headline">$$</div>
+          <div slot="text">
+            <p data-i18n="ui.editor.je.text1">$$</p>
+          </div>
+        </s-card>
+
+        <s-card id="editor-be" type="outlined" class="hide">
+          <div slot="headline" data-i18n="ui.editor.be.headline">$$</div>
+          <div slot="text">
+            <p data-i18n="ui.editor.be.text1">$$</p>
+          </div>
+        </s-card>
+
       </s-scroll-view>
     </s-drawer>
   </s-page>

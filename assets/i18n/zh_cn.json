@@ -5,7 +5,33 @@
   "ui": {
     "tooltip": {
       "explorerSwitcher": "切换侧栏",
-      "appbarToolsFolded": "工具箱"
+      "appbarToolsFolded": "工具箱",
+      "save": "保存文件<br>按住 Ctrl 以另存为",
+      "revert": "撤销一步",
+      "redo": "恢复一步"
+    },
+    "editor": {
+      "welcome": {
+        "headline": "欢迎！",
+        "text1": "您可以打开一个文件来开始编辑菜单。<br>在支持的浏览器上，我们也支持打开文件夹作为工作区以批量编辑。",
+        "text2": "或者：<a target='_blank' href='https://github.com/StreackMC/Joyous/releases'>获取Joyous插件</a>"
+      },
+      "je": {
+        "headline": "Java版菜单",
+        "text1": ""
+      },
+      "be": {
+        "headline": "基岩版菜单",
+        "text1": ""
+      }
+    }
+  },
+  "editor": {
+    "actions": {
+      "openFile": "打开文件",
+      "openFolder": "打开工作区",
+      "revert": "撤销",
+      "redo": "恢复"
     }
   }
 }

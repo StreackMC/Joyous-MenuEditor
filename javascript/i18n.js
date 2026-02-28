@@ -93,8 +93,7 @@ export function refresh() {
     if (!key) return;
 
     // 获取翻译文本（无参数）
-    const translation = parseSafe(key, {});
-    // 安全设置文本内容（即使 translation 包含 HTML 也会被转义）
+    const translation = parse(key, {});
     el.innerHTML = el.innerHTML.replaceAll("$$", translation);
   });
 }
