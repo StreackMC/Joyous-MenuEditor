@@ -12,15 +12,17 @@ export default {
 export let currentTranslations = {};
 
 /**
- * 根据点号路径从对象中获取值
- * @param {Object} obj - 要查找的对象
+ * 根据点号路径从翻译中获取值，自动查找默认值。
  * @param {string} path - 点号分隔的路径，如 "ui.title"
  * @returns {*} 路径对应的值，若不存在返回 undefined
  */
-function getValueByPath(obj, path) {
-  return path.split('.').reduce((current, key) => {
+function getValueByPath(path) {
+  let lookupCurrent = path.split('.').reduce((current, key) => {
     return current && typeof current === 'object' && key in current ? current[key] : undefined;
-  }, obj);
+  }, currentTranslations);
+  return (lookupCurrent) ? lookupCurrent : path.split('.').reduce((current, key) => {
+    return current && typeof current === 'object' && key in current ? current[key] : undefined;
+  }, defaultTranslations);
 }
 
 /**
@@ -62,13 +64,12 @@ function escapeHtml(str) {
 
 /**
  * 加载指定名称的翻译文件
- * @param {string} name - 翻译文件名（不含 .json 后缀）
+ * @param {string} url - 翻译文件的路径
  * @returns {Promise<void>} 加载完成后解析的 Promise
  * @example
  * await load('zh-CN');
  */
-export async function load(name) {
-  const url = `../assets/i18n/${name}.json`;
+export async function load(url) {
   try {
     const response = await fetch(url);
     if (!response.ok) {
@@ -76,8 +77,8 @@ export async function load(name) {
     }
     currentTranslations = await response.json();
   } catch (error) {
-    console.error(`加载翻译文件失败: ${url}`, error);
-    // 保持原有翻译不变
+    console.error(`加载翻译文件失败，将使用默认语言[zh_cn]: ${url}`, error);
+    currentTranslations = {};
   }
 }
 
@@ -108,7 +109,7 @@ export function refresh() {
  * parse("ui.title", { param1: "用户" })  // 返回 "欢迎用户"
  */
 export function parse(key, params = {}) {
-  const template = getValueByPath(currentTranslations, key);
+  const template = getValueByPath(key);
   if (template === undefined || template === null) {
     return '';
   }
@@ -127,7 +128,7 @@ export function parse(key, params = {}) {
  * parseSafe("ui.title", { param1: "<script>alert(1)</script>" })  // 返回 "欢迎 &lt;script&gt;..."
  */
 export function parseSafe(key, params = {}) {
-  const template = getValueByPath(currentTranslations, key);
+  const template = getValueByPath(key);
   if (template === undefined || template === null) {
     return '';
   }
@@ -135,3 +136,9 @@ export function parseSafe(key, params = {}) {
   // 对每个参数值进行 HTML 转义后再替换
   return replaceParams(templateStr, params, escapeHtml);
 }
+
+let defaultLangResponse = await fetch(`../assets/i18n/zh_cn.json`);
+if (!defaultLangResponse.ok) {
+  putErrorStatusOnLoading("无法加载默认语言文件");
+};
+const defaultTranslations = await defaultLangResponse.json();
