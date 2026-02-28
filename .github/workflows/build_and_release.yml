@@ -32,55 +32,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Create backup and minify files
-        run: |
-          # 创建备份目录
-          mkdir -p .backup
-          
-          # 备份原始文件（用于调试）
-          cp -r *.html *.js *.css .backup/ 2>/dev/null || true
-          
-          # 压缩 HTML 文件（保留特定的版权注释）
-          find . -maxdepth 1 -name "*.html" -type f | while read file; do
-            echo "Minifying HTML: $file"
-            html-minifier-terser \
-              --collapse-whitespace \
-              --remove-comments \
-              --remove-redundant-attributes \
-              --remove-script-type-attributes \
-              --remove-style-link-type-attributes \
-              --use-short-doctype \
-              --minify-css true \
-              --minify-js true \
-              --ignore-custom-comments "copyright|license|@preserve|@license|MIT|Apache|BSD" \
-              -o "$file.tmp" "$file"
-            mv "$file.tmp" "$file"
-          done
-          
-          # 压缩 CSS 文件（保留版权注释）
-          find ./css -name "*.css" -type f | while read file; do
-            echo "Minifying CSS: $file"
-            cleancss \
-              --level 2 \
-              --format "keepBreaks" \
-              --output "$file.tmp" \
-              --with-rebase \
-              "$file"
-            mv "$file.tmp" "$file"
-          done
-          
-          # 压缩 JavaScript 文件（保留版权注释）
-          find ./javascript -name "*.js" -type f | while read file; do
-            echo "Minifying JS: $file"
-            uglifyjs "$file" \
-              --compress \
-              --mangle \
-              --output "$file.tmp" \
-              --comments '/copyright|license|@preserve|@license|MIT|Apache|BSD/' \
-              --source-map "url='$(basename $file).map'"
-            mv "$file.tmp" "$file"
-          done
-
       - name: Get short git hash
         id: git
         run: echo "sha=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
@@ -96,6 +47,35 @@ jobs:
           EOF
           echo "Generated version.json:"
           cat version.json
+
+      # ===== 自动压缩与混淆 HTML/CSS/JS =====
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install minification tools
+        run: npm install -g html-minifier-terser clean-css-cli terser
+
+      - name: Minify HTML
+        run: |
+          find . -type f -name "*.html" ! -path "./node_modules/*" \
+            -exec html-minifier-terser \
+              --collapse-whitespace \
+              --remove-comments \
+              --minify-js true \
+              --minify-css true \
+              {} -o {} \;
+
+      - name: Minify CSS
+        run: |
+          find . -type f -name "*.css" ! -path "./node_modules/*" ! -name "*.min.css" \
+            -exec cleancss -o {} {} \;
+
+      - name: Minify JS
+        run: |
+          find . -type f -name "*.js" ! -path "./node_modules/*" ! -name "*.min.js" \
+            -exec terser {} --compress --mangle -o {} \;
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
