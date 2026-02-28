@@ -48,6 +48,7 @@ body {
   height: 100vh;
   margin: 0 0 0 0;
   background-image: var(--bg-src);
+  user-select: none;
 }
 
 html::-webkit-scrollbar {
@@ -61,6 +62,7 @@ s-page {
   display: flex;
   flex-direction: column;
   height: 100vh;
+  user-select: none;
 }
 
 s-appbar {

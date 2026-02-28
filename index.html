@@ -13,22 +13,70 @@
 <body>
   <s-page color-theme="green" theme="light">
     <s-appbar>
-      <s-tooltip slot="navigation">
+      <s-tooltip data-i18n="ui.tooltip.explorerSwitcher" slot="navigation">
         <s-icon-button type="filled-tonal" slot="trigger" onclick="document.querySelector('s-drawer').toggle()">
+          <s-icon>
+            <svg viewBox="0 -960 960 960">
+              <path
+                d="M500-640v320l160-160-160-160ZM200-120q-33 0-56.5-23.5T120-200v-560q0-33 23.5-56.5T200-840h560q33 0 56.5 23.5T840-760v560q0 33-23.5 56.5T760-120H200Zm120-80v-560H200v560h120Zm80 0h360v-560H400v560Zm-80 0H200h120Z">
+              </path>
+            </svg>
+          </s-icon>
+        </s-icon-button>
+        $$
+      </s-tooltip>
+      <s-tooltip data-i18n="ui.tooltip.appbarToolsFolded" class="mobile-fold" mobile slot="action">
+        <s-icon-button slot="trigger" onclick="">
           <s-icon name="menu"></s-icon>
         </s-icon-button>
-        切换侧栏
+        $$
       </s-tooltip>
-      <div id="ui-title" slot="headline"> Title </div>
+      <div id="ui-title" slot="headline"></div>
     </s-appbar>
     <s-drawer>
       <div id="explorer" slot="start"><s-scroll-view class="unselectable" style="height: 100%; padding-bottom: 1rem;">
       </s-scroll-view></div>
       <s-scroll-view id="editor" class="selectable">
-        在这里放入您的页面元素
       </s-scroll-view>
     </s-drawer>
   </s-page>
+  <div id="loading" data-status="loading">
+    <style>
+      /*需要考虑极端情况，也就是只加载了 index.html ，故使用内联样式*/
+      div#loading {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100vw;
+        height: 100vh;
+        background-color: rgba(0,0,0,0.1);
+        backdrop-filter: blur(10px);
+      }
+      div#loading p {
+        font-size: large;
+        text-align: center;
+        line-height: 1.5em;
+        min-height: 3em;
+        margin: .5em 0 0 0;
+      }
+      div#loading s-circular-progress {
+        width: 2.5em;
+      }
+    </style>
+    <s-circular-progress indeterminate="true"></s-circular-progress>
+    <p>正在加载 Joyous Menu Editor</p>
+    <script>
+      const ele = document.getElementById("loading");
+      const p = document.querySelector("div#loading p");
+      setTimeout(()=>{if(ele&&ele.dataset.status=="loading"){p.innerHTML="仍在加载 Joyous Menu Editor";};}, 15e3);
+      setTimeout(()=>{if(ele&&ele.dataset.status=="loading"){p.innerHTML="仍在加载 Joyous Menu Editor<br>似乎用了很长时间，请检查网络连接。";};}, 35e3);
+      setTimeout(()=>{if(ele&&ele.dataset.status=="loading"){p.innerHTML="仍在加载 Joyous Menu Editor<br>似乎无法加载。清除缓存后再试，若仍失败请联系我们。";};}, 90e3);
+    </script>
+  </div>
   <script type="module" src="./javascript/main.js"></script>
 </body>
 </html>

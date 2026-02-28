@@ -52,6 +52,21 @@ body {
   }
 }
 
+/*移动端自动折叠*/
+.mobile-fold[mobile] {
+  display: none;
+}
+
+@media (max-width: 1024px) {
+  .mobile-fold[mobile] {
+    display: inherit;
+  }
+
+  .mobile-fold {
+    display: none;
+  }
+}
+
 /*文章元素样式*/
 a {
   text-decoration: underline dotted;

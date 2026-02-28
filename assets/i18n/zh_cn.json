@@ -4,7 +4,8 @@
   },
   "ui": {
     "tooltip": {
-      "explorerSwitcher": "切换侧栏"
+      "explorerSwitcher": "切换侧栏",
+      "appbarToolsFolded": "工具箱"
     }
   }
 }
