@@ -22,22 +22,86 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  # Single deploy job since we're just deploying
   deploy:
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     steps:
+
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Create backup and minify files
+        run: |
+          # 创建备份目录
+          mkdir -p .backup
+          
+          # 备份原始文件（用于调试）
+          cp -r *.html *.js *.css .backup/ 2>/dev/null || true
+          
+          # 压缩 HTML 文件（保留特定的版权注释）
+          find . -maxdepth 1 -name "*.html" -type f | while read file; do
+            echo "Minifying HTML: $file"
+            html-minifier-terser \
+              --collapse-whitespace \
+              --remove-comments \
+              --remove-redundant-attributes \
+              --remove-script-type-attributes \
+              --remove-style-link-type-attributes \
+              --use-short-doctype \
+              --minify-css true \
+              --minify-js true \
+              --ignore-custom-comments "copyright|license|@preserve|@license|MIT|Apache|BSD" \
+              -o "$file.tmp" "$file"
+            mv "$file.tmp" "$file"
+          done
+          
+          # 压缩 CSS 文件（保留版权注释）
+          find ./css -name "*.css" -type f | while read file; do
+            echo "Minifying CSS: $file"
+            cleancss \
+              --level 2 \
+              --format "keepBreaks" \
+              --output "$file.tmp" \
+              --with-rebase \
+              "$file"
+            mv "$file.tmp" "$file"
+          done
+          
+          # 压缩 JavaScript 文件（保留版权注释）
+          find ./javascript -name "*.js" -type f | while read file; do
+            echo "Minifying JS: $file"
+            uglifyjs "$file" \
+              --compress \
+              --mangle \
+              --output "$file.tmp" \
+              --comments '/copyright|license|@preserve|@license|MIT|Apache|BSD/' \
+              --source-map "url='$(basename $file).map'"
+            mv "$file.tmp" "$file"
+          done
+
+      - name: Get short git hash
+        id: git
+        run: echo "sha=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Generate version info
+        run: |
+          cat > version.json <<EOF
+          {
+            "ref": "${{ github.ref_name }}",
+            "build_time": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "hash": "${{ steps.git.outputs.sha }}"
+          }
+          EOF
+          echo "Generated version.json:"
+          cat version.json
+
       - name: Setup Pages
         uses: actions/configure-pages@v5
+
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
           # Upload entire repository
           path: '.'
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4

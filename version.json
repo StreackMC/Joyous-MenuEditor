@@ -1,0 +1,10 @@
+/*
+本文件为示例版本信息文件，其内容在发布到Github Pages时会被自动修改。
+*/
+{
+  // github.ref_name
+  "ref": "dev",
+  "build_time": "2026-02-28T09:02:25Z",
+  // checkout 后的 git 指针位置
+  "hash": "440c79a"
+}
