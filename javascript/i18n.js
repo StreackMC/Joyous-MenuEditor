@@ -136,7 +136,7 @@ export function parseSafe(key, params = {}) {
   return replaceParams(templateStr, params, escapeHtml);
 }
 
-let defaultLangResponse = await fetch(`../assets/i18n/zh_cn.json`);
+let defaultLangResponse = await fetch(`./assets/i18n/zh_cn.json`);
 if (!defaultLangResponse.ok) {
   putErrorStatusOnLoading("无法加载默认语言文件");
 };
