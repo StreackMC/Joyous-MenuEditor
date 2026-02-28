@@ -1,0 +1,96 @@
+/* ui */
+@media print {
+  s-appbar {
+    display: none !important;
+  }
+
+  #explorer {
+    display: none !important;
+  }
+
+
+  #_pmd-originalContent {
+    height: min-content !important;
+  }
+
+  s-page {
+    height: min-content !important;
+  }
+
+  s-drawer {
+    height: min-content !important;
+  }
+
+  body {
+    height: min-content !important;
+    background-image: none !important;
+  }
+
+  html {
+    height: min-content !important;
+  }
+}
+
+@page {
+  @top-right {
+    content: "页 " counter(pageNumber);
+  }
+}
+
+body {
+  background-repeat: no-repeat;
+  background-size: cover;
+  -webkit-background-size: cover;
+  -o-background-size: cover;
+  background-position: center 0;
+  background-attachment: fixed;
+  width: 100vw;
+  height: 100vh;
+  margin: 0 0 0 0;
+  background-image: var(--bg-src);
+}
+
+html::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+
+s-page {
+  background: rgba(250, 253, 252, var(--bg-alpha-l, 0.8));
+  backdrop-filter: var(--bg-blur, blur(0px));
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+s-appbar {
+  margin: 0 0 0 0;
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+}
+
+s-drawer {
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+}
+
+#explorer {
+  display: flex;
+  flex-direction: column;
+}
+
+#editor {
+  display: flex;
+  flex-direction: column;
+}
+
+s-page[dark] {
+  background: rgba(5, 2, 3, var(--bg-alpha-d, 0.82));
+  backdrop-filter: var(--bg-blur, blur(0px));
+}
+
+s-page[dark] * {
+  color-scheme: dark;
+}

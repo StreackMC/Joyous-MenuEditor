@@ -1,0 +1,34 @@
+<!DOCTYPE HTML><html lang="zh-cn">
+<head>
+  <style></style>
+  <title></title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,minimum-scale=1,maximum-scale=1,user-scalable=no" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <script src="./javascript/library/sober@1.1.8.min.js"></script>
+  <link rel="stylesheet" href="./css/sober-theme.css" />
+  <link rel="stylesheet" href="./css/frame.css" />
+  <link rel="stylesheet" href="./css/predef.css" />
+</head>
+<body>
+  <s-page color-theme="green" theme="light">
+    <s-appbar>
+      <s-tooltip slot="navigation">
+        <s-icon-button type="filled-tonal" slot="trigger" onclick="document.querySelector('s-drawer').toggle()">
+          <s-icon name="menu"></s-icon>
+        </s-icon-button>
+        切换侧栏
+      </s-tooltip>
+      <div id="ui-title" slot="headline"> Title </div>
+    </s-appbar>
+    <s-drawer>
+      <div id="explorer" slot="start"><s-scroll-view class="unselectable" style="height: 100%; padding-bottom: 1rem;">
+      </s-scroll-view></div>
+      <s-scroll-view id="editor" class="selectable">
+        在这里放入您的页面元素
+      </s-scroll-view>
+    </s-drawer>
+  </s-page>
+  <script type="module" src="./javascript/main.js"></script>
+</body>
+</html>
