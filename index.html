@@ -31,7 +31,7 @@
       </s-tooltip>
 
       <s-tooltip data-i18n="ui.tooltip.appbarToolsFolded" class="mobile-fold" mobile slot="action">
-        <s-icon-button slot="trigger" data-click="">
+        <s-icon-button slot="trigger" onclick="">
           <s-icon name="menu"></s-icon>
         </s-icon-button>
         $$
@@ -50,7 +50,7 @@
         $$
       </s-tooltip>
       <s-tooltip data-i18n="ui.tooltip.redo" class="mobile-fold" slot="action">
-        <s-icon-button slot="trigger" onclick="">
+        <s-icon-button slot="trigger" data-click="editor.redo">
           <s-icon>
             <svg viewBox="0 -960 960 960">
               <path
@@ -62,7 +62,7 @@
         $$
       </s-tooltip>
       <s-tooltip data-i18n="ui.tooltip.save" class="mobile-fold" slot="action">
-        <s-icon-button slot="trigger" onclick="">
+        <s-icon-button slot="trigger"  data-click="editor.saveBtn">
           <s-icon>
             <svg viewBox="0 -960 960 960">
               <path
@@ -86,8 +86,8 @@
             <p data-i18n="ui.editor.welcome.text1">$$</p>
             <p data-i18n="ui.editor.welcome.text2">$$</p>
           </div>
-          <s-button data-i18n="editor.actions.openFile" slot="action">$$</s-button>
-          <s-button data-i18n="editor.actions.openFolder" slot="action">$$</s-button>
+          <s-button data-i18n="editor.actions.openFile" slot="action" data-click="editor.openFile">$$</s-button>
+          <s-button data-i18n="editor.actions.openFolder" slot="action" data-click="editor.openFolder">$$</s-button>
         </s-card>
 
         <s-card id="editor-je" type="outlined" class="hide">
