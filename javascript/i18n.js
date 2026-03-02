@@ -96,6 +96,44 @@ export async function load(url) {
 }
 
 /**
+ * 解析单个占位符（如 "key" 或 "key|param1=val1|param2=val2"）并返回翻译结果
+ * @param {string} fullMatch - 完整匹配的字符串（如 "$key$"）
+ * @param {string} inner - 占位符内部内容（$ 之间的部分）
+ * @returns {string} 替换后的文本
+ */
+function parsePlaceholder(fullMatch, inner) {
+  if (inner.includes('|')) {
+    // 带参数的格式
+    const firstPipe = inner.indexOf('|');
+    const key = inner.substring(0, firstPipe);
+    const paramsStr = inner.substring(firstPipe + 1);
+    const pairs = paramsStr.split('|');
+    const params = {};
+
+    for (const pair of pairs) {
+      if (pair.trim() === '') continue; // 忽略空段（如 "key||a=b" 中的空段）
+      const eqIndex = pair.indexOf('=');
+      if (eqIndex === -1) {
+        console.error(`无效的翻译参数对: "${pair}" @ "${fullMatch}"`);
+        return fullMatch; // 格式无效，保留原占位符
+      }
+      const paramKey = pair.substring(0, eqIndex);
+      const paramValue = pair.substring(eqIndex + 1);
+      if (paramKey === '') {
+        console.error(`无效的翻译参数："${fullMatch}"`);
+        return fullMatch;
+      }
+      params[paramKey] = paramValue;
+    }
+
+    return parse(key, params);
+  } else {
+    // 无参数格式
+    return parse(inner);
+  }
+}
+
+/**
  * 遍历 DOM 树，将所有带有 data-i18n 属性的元素内容及属性中的 $key$ 或 $key|param=value$ 替换为翻译文本
  * @param {Element} [root=document.body] - 可选根元素，默认为 body
  * @returns {void}
@@ -103,44 +141,6 @@ export async function load(url) {
 export function refresh(root = document.body) {
   // 匹配不被反斜杠转义的 $...$，使用负向后顾保证 $ 前面没有 \
   const placeholderRegex = /(?<!\\)\$(.*?)(?<!\\)\$/g;
-
-  /**
-   * 解析单个占位符（如 "key" 或 "key|param1=val1|param2=val2"）并返回翻译结果
-   * @param {string} fullMatch - 完整匹配的字符串（如 "$key$"）
-   * @param {string} inner - 占位符内部内容（$ 之间的部分）
-   * @returns {string} 替换后的文本
-   */
-  function parsePlaceholder(fullMatch, inner) {
-    if (inner.includes('|')) {
-      // 带参数的格式
-      const firstPipe = inner.indexOf('|');
-      const key = inner.substring(0, firstPipe);
-      const paramsStr = inner.substring(firstPipe + 1);
-      const pairs = paramsStr.split('|');
-      const params = {};
-
-      for (const pair of pairs) {
-        if (pair.trim() === '') continue; // 忽略空段（如 "key||a=b" 中的空段）
-        const eqIndex = pair.indexOf('=');
-        if (eqIndex === -1) {
-          console.error(`无效的翻译参数对: "${pair}" @ "${fullMatch}"`);
-          return fullMatch; // 格式无效，保留原占位符
-        }
-        const paramKey = pair.substring(0, eqIndex);
-        const paramValue = pair.substring(eqIndex + 1);
-        if (paramKey === '') {
-          console.error(`无效的翻译参数："${fullMatch}"`);
-          return fullMatch;
-        }
-        params[paramKey] = paramValue;
-      }
-
-      return parse(key, params);
-    } else {
-      // 无参数格式
-      return parse(inner);
-    }
-  }
 
   // 获取所有带有 data-i18n 属性的元素
   const elements = root.querySelectorAll('[data-i18n]');
@@ -162,7 +162,14 @@ export function refresh(root = document.body) {
       textNodes.push(walker.currentNode);
     }
     textNodes.forEach((textNode) => {
-      textNode.nodeValue = textNode.nodeValue.replace(placeholderRegex, parsePlaceholder);
+      const originalValue = textNode.nodeValue;
+      const newValue = originalValue.replace(placeholderRegex, parsePlaceholder);
+      if (newValue !== originalValue) {
+        // 用 <span> 替换原文本节点，以支持 HTML 渲染
+        const span = document.createElement('span');
+        span.innerHTML = newValue;
+        textNode.parentNode.replaceChild(span, textNode);
+      }
     });
 
     // --- 处理属性（排除 data-i18n 本身）---
