@@ -54,7 +54,6 @@ export function executeCommandSlient(cmd, ...arg) {
     const v = commands.get(cmd);
     return v(...arg);
   } catch (e) {
-    window.joyous.msg(i18n.parse("msg.command_failure", { msg: e.message, cmd: cmd }), i18n.parse("msg.done"), "error");
     console.error(`无法执行命令 ${cmd} [${arg.join("|")}] ：`, e);
     throw e;
   }
