@@ -91,3 +91,16 @@ s-page[dark] {
 s-page[dark] * {
   color-scheme: dark;
 }
+
+/* editor frame */
+s-tab {
+  position: sticky;
+  top: 0;
+  height: 48px;
+}
+s-carousel {
+  width: 100%;
+  border: 1px black;
+  height: fit-content;
+  min-height: calc(100% - 48px);
+}
