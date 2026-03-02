@@ -1,3 +1,5 @@
+import i18n from "../i18n.js";
+
 export default {
   executeCommand, regisiterCommand
 }
@@ -14,11 +16,17 @@ const commands = new Map([
  * 执行一个注册的命令
  * @param {String} cmd 命令
  * @param  {...any} arg 命令参数
- * @returns 该命令的返回值；找不到命令时返回 undefined
+ * @returns 该命令的返回值；找不到命令时返回 undefined；命令执行错误返回对应 Error
  */
 export function executeCommand(cmd, ...arg) {
-  const v = commands.get(cmd);
-  return (typeof (v) === "function") ? v(...arg) : undefined;
+  try {
+    const v = commands.get(cmd);
+    return (typeof (v) === "function") ? v(...arg) : undefined;
+  } catch (e) {
+    window.msg(i18n.parse("msg.command_failure", { msg: e.message, cmd: cmd }));
+    console.error(`无法执行命令 ${cmd} [${arg.join("|")}] ：`, e);
+    return e;
+  }
 }
 
 /**
@@ -29,3 +37,4 @@ export function executeCommand(cmd, ...arg) {
 export function regisiterCommand(command, func) {
   commands.set(command, func);
 }
+window.regisiterCommand = regisiterCommand; // 挂载到全局

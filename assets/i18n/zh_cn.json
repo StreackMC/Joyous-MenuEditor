@@ -33,5 +33,8 @@
       "revert": "撤销",
       "redo": "恢复"
     }
+  },
+  "msg": {
+    "command_failure": "无法执行命令 %cmd% ：%msg%"
   }
 }
