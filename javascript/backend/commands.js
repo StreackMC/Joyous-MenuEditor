@@ -23,7 +23,7 @@ export function executeCommand(cmd, ...arg) {
     const v = commands.get(cmd);
     return (typeof (v) === "function") ? v(...arg) : undefined;
   } catch (e) {
-    window.msg(i18n.parse("msg.command_failure", { msg: e.message, cmd: cmd }));
+    window.msg(i18n.parse("msg.command_failure", { msg: e.message, cmd: cmd }), i18n.parse("msg.done"), "error");
     console.error(`无法执行命令 ${cmd} [${arg.join("|")}] ：`, e);
     return e;
   }
