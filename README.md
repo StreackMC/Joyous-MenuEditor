@@ -49,3 +49,4 @@ About how to add a translation or make a customed one, the instruction hasn't be
 本项目在开发时使用了下列资源、代码或其它著作权作品，对此表示鸣谢：
 
 * [Apprat/Sober](//github.com/Apprat/Sober) - MIT License
+* Hotkeys-js - Kenny Wong & [Thomas Fuchs](https://github.com/madrobby/keymaster) - MIT License
