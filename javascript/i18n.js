@@ -5,11 +5,22 @@
  * @module i18n
  */
 export default {
-  parse, parseSafe, load, refresh
+  parse, parseSafe, load, refresh,
+  getCurrentUrl,
+  getCurrentTranslations: () => { return currentTranslations; },
 };
 
-// 当前加载的翻译数据对象
+/** 当前加载的翻译数据对象 */
 export let currentTranslations = {};
+let currentTranslationsUrl = "";
+
+/**
+ * 获取当前使用的翻译文件URL
+ * @returns 
+ */
+export function getCurrentUrl() {
+  return currentTranslationsUrl;
+}
 
 /**
  * 根据点号路径从翻译中获取值，自动查找默认值。
@@ -76,9 +87,11 @@ export async function load(url) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
     currentTranslations = await response.json();
+    currentTranslationsUrl = url;
   } catch (error) {
     console.error(`加载翻译文件失败，将使用默认语言[zh_cn]: ${url}`, error);
     currentTranslations = {};
+    currentTranslationsUrl = "";
   }
 }
 
