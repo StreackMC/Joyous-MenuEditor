@@ -42,7 +42,7 @@
     }
   },
   "msg": {
-    "command_failure": "无法执行命令 %cmd% ：%msg%",
+    "command_failure": "无法执行命令：%msg%",
     "done": "好"
   }
 }

@@ -35,7 +35,7 @@ export function executeCommand(cmd, ...arg) {
     const v = commands.get(cmd);
     return v(...arg);
   } catch (e) {
-    window.joyous.msg(i18n.parse("msg.command_failure", { msg: e.message, cmd: cmd }), i18n.parse("msg.done"), "error");
+    window.joyous.msg(i18n.parse("msg.command_failure", { msg: e.message }), i18n.parse("msg.done"), "error");
     console.error(`无法执行命令 ${cmd} [${arg.join("|")}] ：`, e);
     throw e;
   }
@@ -50,7 +50,7 @@ export function executeCommand(cmd, ...arg) {
  */
 export function executeCommandSlient(cmd, ...arg) {
   try {
-    if (!isCommand(cmd)) { throw new Error(i18n.parseSafe("command_panel.notFound", { cmd: cmd[0] })); };
+    if (!isCommand(cmd)) { throw new Error(i18n.parseSafe("command_panel.notFound", { cmd: cmd })); };
     const v = commands.get(cmd);
     return v(...arg);
   } catch (e) {
