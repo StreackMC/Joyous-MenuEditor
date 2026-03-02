@@ -9,7 +9,7 @@ uiUtils.setTitle();
 // 注册前端按钮到命令的映射
 document.querySelectorAll("*[data-click]").forEach((e) => {
   e.addEventListener("click", (event) => {
-    commands.executeCommand(e.dataset.click, event);
+  commands.executeCommand.apply(event, e.dataset.click.split("|"));
   });
 })
 
