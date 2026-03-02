@@ -101,93 +101,23 @@ export async function load(url) {
  */
 export function refresh() {
   const elements = document.querySelectorAll('[data-i18n]');
-  const parseCache = new Map();
-
   elements.forEach((el) => {
-    // 1. 处理元素自身的 data-i18n 属性（如果有）
-    const i18nAttr = el.getAttribute('data-i18n');
-    if (i18nAttr && !i18nAttr.includes('$$') && el.children.length === 0) {
-      // 如果元素没有子元素，直接设置文本内容
-      el.textContent = getCachedParse(i18nAttr, parseCache);
-      return;
-    }
+    el.outerHTML = el.outerHTML.replace(/\$(.*?)\$/g, (match, key) => {
+      if (!key)/* 普通的 $$ 不替换 */ { return match; };
+      if (!key.includes("|"))/* 没有参数则原样替换 */ { return parse(key); };
 
-    // 2. 处理文本节点
-    const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT, {
-      acceptNode: (node) => {
-        // 跳过 script/style 标签
-        if (node.parentElement?.tagName.match(/^(SCRIPT|STYLE)$/i)) {
-          return NodeFilter.FILTER_REJECT;
-        }
-        return NodeFilter.FILTER_ACCEPT;
-      }
-    });
-
-    const textNodes = [];
-    while (walker.nextNode()) textNodes.push(walker.currentNode);
-
-    textNodes.forEach((node) => {
-      const content = node.textContent;
-      if (!content.includes('$$')) return;
-
-      // 使用正则一次性找出所有占位符
-      const newContent = content.replace(/\$(.*?)\$/g, (match, key) => {
-        return getCachedParse(key, parseCache);
+      // 处理参数
+      let param = key.split("|");
+      const tr = param.shift();
+      const paramJson = {};
+      param.forEach((p) => {
+        if (!p.includes("="))/* 不处理无效参数 */ { return; };
+        let pSplit = p.split("=");
+        paramJson[pSplit.shift()] = pSplit.join("");
       });
-
-      if (newContent !== content) {
-        node.textContent = newContent;
-      }
-    });
-
-    // 3. 处理属性中的占位符
-    Array.from(el.attributes).forEach(attr => {
-      if (attr.name === 'data-i18n' || !attr.value.includes('$$')) return;
-
-      attr.value = attr.value.replace(/\$(.*?)\$/g, (match, key) => {
-        return getCachedParse(key, parseCache);
-      });
+      return parse(tr, paramJson);
     });
   });
-}
-
-/**
- * 带缓存的解析函数
- */
-function getCachedParse(key, cache) {
-  if (!key) return '$$';
-
-  if (cache.has(key)) {
-    return cache.get(key);
-  }
-
-  let result;
-  if (!key.includes('|')) {
-    result = parse(key);
-  } else {
-    const [tr, ...paramParts] = key.split('|');
-    const params = {};
-
-    for (let i = 0; i < paramParts.length; i++) {
-      const p = paramParts[i];
-      const eqIndex = p.indexOf('=');
-      if (eqIndex > 0) {
-        params[p.slice(0, eqIndex)] = p.slice(eqIndex + 1);
-      }
-    }
-
-    result = parse(tr, params);
-  }
-
-  cache.set(key, result);
-
-  // 如果缓存太大，可以限制大小
-  if (cache.size > 1000) {
-    const firstKey = cache.keys().next().value;
-    cache.delete(firstKey);
-  }
-
-  return result;
 }
 
 /**
