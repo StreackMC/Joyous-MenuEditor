@@ -13,7 +13,7 @@
   <link rel="stylesheet" href="./css/frame.css" />
   <link rel="stylesheet" href="./css/predef.css" />
 </head>
-<body>
+<body><!-- 请勿在此处使用 data-i18n 标记，会影响性能 -->
   <s-page color-theme="green" theme="light">
 
     <!-- 标题栏 -->
@@ -103,7 +103,18 @@
     <!-- 命令面板 -->
     <s-bottom-sheet id="command-panel">
       <div slot="text">
-        <s-text-field label="$ui.command_panel.input$"></s-text-field>
+        <s-text-field id="command-panel-input" data-i18n label="$command_panel.title$">
+          <div slot="text">$command_panel.input$</div>
+            <s-icon-button data-click="command.panel.clear" slot="end">
+              <s-icon name="close"></s-icon>
+            </s-icon-button>
+            <s-icon-button data-click="command.panel.run" slot="end">
+              <s-icon name="arrow_forward"></s-icon>
+            </s-icon-button>
+        </s-text-field>
+        <s-scroll-view id="command-panel-console-scroll">
+          <div id="command-panel-console" class="selectable" data-i18n>$command_panel.readme$</div>
+        </s-scroll-view>
       </div>
     </s-bottom-sheet>
 

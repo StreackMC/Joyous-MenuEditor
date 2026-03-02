@@ -24,13 +24,18 @@
         "headline": "基岩版菜单",
         "text1": ""
       }
-    },
-    "command_panel": {
-      "invaild_session": "无法获取到命令面板元素。",
-      "title": "命令面板",
-      "input": "在此输入命令，使用「|」分割参数",
-      "enter": "执行"
     }
+  },
+  "command_panel": {
+    "invaild_session": "无法获取到命令面板元素。",
+    "title": "命令执行器",
+    "input": "在此输入命令，使用「|」分割参数",
+    "readme": "就绪。<br>命令将在 window 作用域下被执行。",
+    "result": "成功执行命令：<br>%result%",
+    "error": "执行命令时发生错误：<br>%result%",
+    "notFound": "找不到命令 %cmd% 。",
+    "enter": "执行",
+    "loop": "检查到潜在的死循环风险，所以无法在此处使用命令 %cmd% 。"
   },
   "editor": {
     "actions": {

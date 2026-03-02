@@ -108,3 +108,11 @@ s-menu-item s-card[slot="menu"] {
   height: max-content;
   margin: 0 2% 0 2%;
 }
+
+s-dialog>div[slot="text"],
+s-bottom-sheet>div[slot="text"] {
+  display: grid;
+  height: fit-content;
+  max-height: 100%;
+  overflow: hidden;
+}
