@@ -1,4 +1,4 @@
-/* ui */
+/* print display */
 @media print {
   s-appbar {
     display: none !important;
@@ -37,6 +37,8 @@
   }
 }
 
+/* base frame */
+
 body {
   background-repeat: no-repeat;
   background-size: cover;
@@ -65,12 +67,25 @@ s-page {
   user-select: none;
 }
 
+s-page[dark] {
+  background: rgba(5, 2, 3, var(--bg-alpha-d, 0.82));
+  backdrop-filter: var(--bg-blur, blur(0px));
+}
+
+s-page[dark] * {
+  color-scheme: dark;
+}
+
+/* appbar */
+
 s-appbar {
   margin: 0 0 0 0;
   position: sticky;
   top: 0;
   z-index: 1000;
 }
+
+/* sidebar */
 
 s-drawer {
   display: flex;
@@ -81,15 +96,6 @@ s-drawer {
 #explorer {
   display: flex;
   flex-direction: column;
-}
-
-s-page[dark] {
-  background: rgba(5, 2, 3, var(--bg-alpha-d, 0.82));
-  backdrop-filter: var(--bg-blur, blur(0px));
-}
-
-s-page[dark] * {
-  color-scheme: dark;
 }
 
 /* editor frame */
@@ -103,4 +109,19 @@ s-carousel {
   border: 1px black;
   height: fit-content;
   min-height: calc(100% - 48px);
+}
+
+/* popup pannel */
+s-bottom-sheet::part(container) {
+  min-width: 70%;
+  min-height: 40%;
+  height: fit-content;
+  border-radius: 3px;
+}
+
+s-dialog::part(container) {
+  min-width: 80%;
+  min-height: 60%;
+  height: fit-content;
+  border-radius: 2px;
 }

@@ -24,6 +24,12 @@
         "headline": "基岩版菜单",
         "text1": ""
       }
+    },
+    "command_panel": {
+      "invaild_session": "无法获取到命令面板元素。",
+      "title": "命令面板",
+      "input": "在此输入命令，使用「|」分割参数",
+      "enter": "执行"
     }
   },
   "editor": {

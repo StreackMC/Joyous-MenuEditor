@@ -6,6 +6,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,minimum-scale=1,maximum-scale=1,user-scalable=no" />
   <meta name="mobile-web-app-capable" content="yes" />
   <script src="./javascript/library/sober@1.1.8.min.js"></script>
+  <script src="./javascript/library/hotkeys-js@4.0.2.min.js"></script>
   <script type="module" src="./javascript/i18n.js"></script>
   
   <link rel="stylesheet" href="./css/sober-theme.css" />
@@ -14,6 +15,8 @@
 </head>
 <body>
   <s-page color-theme="green" theme="light">
+
+    <!-- 标题栏 -->
     <s-appbar>
       <div id="ui-title" slot="headline"></div>
 
@@ -75,6 +78,8 @@
       </s-tooltip>
 
     </s-appbar>
+
+    <!-- 侧边栏与主面板 -->
     <s-drawer>
       <div id="explorer" slot="start"><s-scroll-view class="unselectable" style="height: 100%; padding-bottom: 1rem;">
       </s-scroll-view></div>
@@ -94,6 +99,13 @@
         </s-carousel>
       </s-scroll-view>
     </s-drawer>
+
+    <!-- 命令面板 -->
+    <s-bottom-sheet id="command-panel">
+      <div slot="text">
+      </div>
+    </s-bottom-sheet>
+
   </s-page>
   <div id="loading" data-status="loading">
     <style>
@@ -147,6 +159,7 @@
       const ele = document.getElementById("loading");
       const p = document.querySelector("div#loading p");
       function putErrorStatusOnLoading(msg) {
+        if (!ele) { return; };
         ele.dataset.status = "error";
         p.innerHTML = msg;
       };
