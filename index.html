@@ -20,7 +20,7 @@
     <s-appbar>
       <div id="ui-title" slot="headline"></div>
 
-      <s-tooltip data-i18n="ui.tooltip.explorerSwitcher" slot="navigation">
+      <s-tooltip data-i18n slot="navigation">
         <s-icon-button id="explorerSwitcher" type="filled-tonal" slot="trigger" onclick="document.querySelector('s-drawer').toggle()">
           <s-icon>
             <svg viewBox="0 -960 960 960">
@@ -30,17 +30,17 @@
             </svg>
           </s-icon>
         </s-icon-button>
-        $$
+        $ui.tooltip.explorerSwitcher$
       </s-tooltip>
 
-      <s-tooltip data-i18n="ui.tooltip.appbarToolsFolded" class="mobile-fold" mobile slot="action">
+      <s-tooltip data-i18n class="mobile-fold" mobile slot="action">
         <s-icon-button slot="trigger" onclick="">
           <s-icon name="menu"></s-icon>
         </s-icon-button>
-        $$
+        $ui.tooltip.appbarToolsFolded$
       </s-tooltip>
 
-      <s-tooltip data-i18n="ui.tooltip.revert" class="mobile-fold" slot="action">
+      <s-tooltip data-i18n class="mobile-fold" slot="action">
         <s-icon-button slot="trigger" data-click="editor.revert">
           <s-icon>
             <svg viewBox="0 -960 960 960">
@@ -50,9 +50,9 @@
             </svg>
           </s-icon>
         </s-icon-button>
-        $$
+        $ui.tooltip.revert$
       </s-tooltip>
-      <s-tooltip data-i18n="ui.tooltip.redo" class="mobile-fold" slot="action">
+      <s-tooltip data-i18n class="mobile-fold" slot="action">
         <s-icon-button slot="trigger" data-click="editor.redo">
           <s-icon>
             <svg viewBox="0 -960 960 960">
@@ -62,9 +62,9 @@
             </svg>
           </s-icon>
         </s-icon-button>
-        $$
+        $ui.tooltip.redo$
       </s-tooltip>
-      <s-tooltip data-i18n="ui.tooltip.save" class="mobile-fold" slot="action">
+      <s-tooltip data-i18n class="mobile-fold" slot="action">
         <s-icon-button slot="trigger"  data-click="editor.save">
           <s-icon>
             <svg viewBox="0 -960 960 960">
@@ -74,7 +74,7 @@
             </svg>
           </s-icon>
         </s-icon-button>
-        $$
+        $ui.tooltip.save$
       </s-tooltip>
 
     </s-appbar>
@@ -103,6 +103,7 @@
     <!-- 命令面板 -->
     <s-bottom-sheet id="command-panel">
       <div slot="text">
+        <s-text-field label="$ui.command_panel.input$"></s-text-field>
       </div>
     </s-bottom-sheet>
 

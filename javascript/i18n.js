@@ -102,12 +102,21 @@ export async function load(url) {
 export function refresh() {
   const elements = document.querySelectorAll('[data-i18n]');
   elements.forEach((el) => {
-    const key = el.getAttribute('data-i18n');
-    if (!key) return;
+    el.outerHTML = el.outerHTML.replace(/\$(.*?)\$/g, (match, key) => {
+      if (!key)/* 普通的 $$ 不替换 */ { return match; };
+      if (!key.includes("|"))/* 没有参数则原样替换 */ { return parse(key); };
 
-    // 获取翻译文本（无参数）
-    const translation = parse(key, {});
-    el.innerHTML = el.innerHTML.replaceAll("$$", translation);
+      // 处理参数
+      let param = key.split("|");
+      const tr = param.shift();
+      const paramJson = {};
+      param.forEach((p) => {
+        if (!p.includes("="))/* 不处理无效参数 */ { return; };
+        let pSplit = p.split("=");
+        paramJson[pSplit.shift()] = pSplit.join("");
+      });
+      return parse(tr, paramJson);
+    });
   });
 }
 
