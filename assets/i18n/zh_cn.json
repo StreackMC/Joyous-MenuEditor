@@ -15,15 +15,11 @@
         "headline": "欢迎！",
         "text1": "您可以打开一个文件来开始编辑菜单。<br>在支持的浏览器上，我们也支持打开文件夹作为工作区以批量编辑。",
         "text2": "或者：<a target='_blank' href='https://github.com/StreackMC/Joyous/releases'>获取Joyous插件</a>"
-      },
-      "je": {
-        "headline": "Java版菜单",
-        "text1": ""
-      },
-      "be": {
-        "headline": "基岩版菜单",
-        "text1": ""
       }
+    },
+    "about": {
+      "title": "关于 Joyous 菜单编辑器",
+      "motd1": ""
     }
   },
   "command_panel": {
