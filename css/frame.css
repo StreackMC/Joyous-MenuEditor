@@ -105,6 +105,15 @@ s-tab {
   height: 48px;
 }
 
+#editor-tabs>s-tab-item s-icon-button {
+  margin-left: .3rem;
+  /* padding-left: 1rem; */
+}
+
+/* #editor-tabs>s-tab-item s-icon-button::part(ripple) {
+  transform: translateX(+.5rem);
+} */
+
 #editor {
   height: 100%;
   width: 100%;

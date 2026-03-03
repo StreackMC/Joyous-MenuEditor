@@ -46,7 +46,7 @@ export class Tab {
     this.instance = editorInstance;
 
     // 构建元素
-    this.switcher.root.dataset.tabId = this.id;
+    this.switcher.root.value = this.id;
     this.switcher.content.slot = "text";
     this.switcher.content.innerHTML = name;
     this.switcher.btn.innerHTML = '<s-icon name="close"></s-icon>';
@@ -114,6 +114,13 @@ export function closeEditor(index = currentTab) {
   // todo: 需要能够弹出弹窗询问是否保存
   try { commands.executeCommand("editor.save"); } catch (e) { };
 
+  // 先处理动画
+  if (target != origin) {
+    eTabs.value = origin;
+  } else {
+    eTabs.value = tabs[getTabsLength()-1]
+  };
+
   // 销毁标签页
   const targetTab = tabsMap.get(target);
   targetTab.switcher.root.remove();
@@ -125,7 +132,7 @@ export function closeEditor(index = currentTab) {
   if (target != origin) {
     switchTab(origin);
   } else {
-    switchTab(0);
+    switchTab(getTabsLength() - 1);
   };
 }
 
@@ -144,14 +151,13 @@ export function switchTab(index = currentTab) {
   // 先隐藏旧的
   try {
     const oldOne = getTab(getCurrentTabId());
-    oldOne.switcher.root.selected = "false";
     oldOne.frame.dataset.hidden = "true";
   } catch (ignore) {
   }
   
   // 显示新的
   const newOne = getTab(index);
-  newOne.switcher.root.selected = "true";
+  eTabs.value = newOne.id;
   newOne.frame.dataset.hidden = "false";
   currentTab = tabs.indexOf(newOne.id);
 };
