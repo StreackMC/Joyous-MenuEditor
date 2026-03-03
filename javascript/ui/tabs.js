@@ -50,7 +50,7 @@ export class Tab {
     this.switcher.content.innerHTML = name;
     this.switcher.btn.innerHTML = '<s-icon name="close"></s-icon>';
     this.frame.classList.add("editor-frame");
-    this.frame.dataset.hidden = true;
+    this.frame.dataset.hidden = "true";
     this.frame.appendChild(editorInstance.getElement());
 
     // 添加事件绑定
@@ -135,6 +135,7 @@ export function switchTab(index = currentTab) {
   // 显示新的
   newOne.switcher.root.selected = "true";
   newOne.frame.dataset.hidden = "false";
+  currentTab = tabs.indexOf(newOne.id);
 };
 
 /**
