@@ -19,7 +19,14 @@ export let tabs = [];
 let currentTab = 0;
 
 export class Tab {
+  /**
+   * 标签页标识符
+   */
   id = "";
+  /**
+   * 标签页名字
+   */
+  name = "";
   /**
    * 当前标签页绑定的 Editor 实例
    */
@@ -44,11 +51,12 @@ export class Tab {
   constructor(editorInstance, name, id) {
     this.id = id;
     this.instance = editorInstance;
+    this.name = name;
 
     // 构建元素
     this.switcher.root.value = this.id;
     this.switcher.content.slot = "text";
-    this.switcher.content.innerHTML = name;
+    this.switcher.content.innerHTML = this.name;
     this.switcher.btn.innerHTML = '<s-icon name="close"></s-icon>';
     this.frame.classList.add("editor-frame");
     this.frame.dataset.hidden = "true";
@@ -68,13 +76,13 @@ export class Tab {
 }
 
 /**
- * 打开一个编辑器，默认使用「欢迎」
+ * 打开一个标签页，默认使用「欢迎」
  * @param {Editor} editorInstance 编辑器实例
  * @param {string} name 标签页名称
+ * @param {string} uuid Tab的标识符，默认自动设置。不推荐手动覆写
  * @returns {string} Tab实例的UUID
  */
-export function openEditor(editorInstance = new EditorWelcome, name = i18n.parseSafe("ui.editor.welcome.headline")) {
-  const uuid = uuidv4();
+export function openTab(editorInstance = new EditorWelcome, name = i18n.parseSafe("ui.editor.welcome.headline"), uuid = new uuidv4()) {
   tabsMap.set(uuid, new Tab(editorInstance, name, uuid));
   tabs.push(uuid);
 
@@ -86,14 +94,24 @@ export function openEditor(editorInstance = new EditorWelcome, name = i18n.parse
 
   // 完成创建并显示
   switchTab(uuid);
+  try {
+    commands.executeCommandSlient("autosave.backup");
+  } catch (ignore) { };
   return uuid;
+}
+
+/**
+ * 关闭全部标签页
+ */
+export function closeAllTabs() {
+  tabs.forEach((id) => { closeTab(id) });
 }
 
 /**
  * 关闭指定标签页
  * @param {number|string} index 以 0 开始为索引；使用文本时自动视作UUID
  */
-export function closeEditor(index = currentTab) {
+export function closeTab(index = currentTab) {
   let target, origin;
   // 解析并切换到目标标签页
   try {
@@ -144,7 +162,7 @@ export function closeEditor(index = currentTab) {
 export function switchTab(index = currentTab) {
   // 不存在活动标签页时创建一个
   if (getTabsLength() == 0) {
-    openEditor();
+    openTab();
     return;
   };
   
@@ -189,14 +207,14 @@ export function getTabsLength() { return tabs.length; };
  */
 export function getCurrentTabId() { return currentTab; };
 
-
 /* 注册命令 */
-commands.regisiterCommand("editor.open", openEditor);
+commands.regisiterCommand("editor.openTab", openTab);
 commands.regisiterCommand("editor.switch", switchTab);
 commands.regisiterCommand("editor.which", getCurrentTabId);
 commands.regisiterCommand("editor.howmany", getTabsLength);
-commands.regisiterCommand("editor.close", closeEditor);
+commands.regisiterCommand("editor.close", closeTab);
+commands.regisiterCommand("editor.closeAll", closeAllTabs);
 
 export default {
-  eTabs, eView, openEditor, switchTab, getTab, Tab, tabs, getTabsLength, tabsMap, getCurrentTabId
+  eTabs, eView, openTab, switchTab, getTab, Tab, tabs, getTabsLength, tabsMap, getCurrentTabId, closeAllTabs, closeTab
 }
