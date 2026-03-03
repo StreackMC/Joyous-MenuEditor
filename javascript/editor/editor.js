@@ -11,7 +11,7 @@ export class Editor {
   };
   getData() { UnsupportedMethodException(); return {}; };
   getElement() { UnsupportedMethodException(); return new Element(); };
-  setData() { UnsupportedMethodException(); };
+  setData(data) { UnsupportedMethodException(); };
   getRegId() { return EditorId; };
 };
 editorManager.regisiterEditor(EditorId, (data) => {
