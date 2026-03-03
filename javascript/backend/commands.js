@@ -1,7 +1,7 @@
 import i18n from "../i18n.js";
 
 export default {
-  executeCommand, regisiterCommand, isCommand, executeCommandSlient
+  executeCommand, regisiterCommand, isCommand, executeCommandSlient, hook
 }
 
 /**
@@ -72,4 +72,18 @@ window.joyous.executeCommandSlient = executeCommandSlient;
  */
 export function regisiterCommand(command, func) {
   commands.set(command.toLowerCase(), func);
+}
+
+/**
+ * 注册某个元素下的声明式命令执行
+ * @param {Element} root 
+ */
+export function hook(root = document.body) {
+  root.querySelectorAll("*[data-click]").forEach((e) => {
+    const cmd = e.dataset.click;
+    e.addEventListener("click", (event) => {
+      executeCommand.apply(event, cmd.split("|"));
+    });
+    e.removeAttribute("data-click"); // 移除以免重复绑定
+  });
 }

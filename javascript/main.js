@@ -1,7 +1,9 @@
 import uiUtils from "./ui/utils.js";
-import commands from './backend/commands.js';
-import command_panel from "./ui/command_panel.js"; // 虽然未使用，但需要确保加载
+import commands from './backend/commands.js'; // 通常情况下建议使用命令系统调用UI/Tabs等功能，会自动处理错误，否则你可能需要自行处理错误
 import i18n from './i18n.js';
+// 虽然未使用，但需要确保加载
+import command_panel from "./ui/command_panel.js";
+import tabs from "./ui/tabs.js";
 
 // 加载 versions.json
 const response = await fetch('./version.json');
@@ -21,11 +23,7 @@ i18n.refresh();
 uiUtils.setTitle();
 
 // 注册前端按钮到命令的映射
-document.querySelectorAll("*[data-click]").forEach((e) => {
-  e.addEventListener("click", (event) => {
-    commands.executeCommand.apply(event, e.dataset.click.split("|"));
-  });
-});
+commands.hook();
 
 // 注册命令面板快捷键
 hotkeys("ctrl+shift+p", () => { commands.executeCommand("command.panel.open"); return false; });
