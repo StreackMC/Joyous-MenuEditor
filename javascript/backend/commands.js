@@ -31,8 +31,9 @@ export function isCommand(cmd) {
  */
 export function executeCommand(cmd, ...arg) {
   try {
-    if (!isCommand(cmd)) { throw new Error(i18n.parseSafe("command_panel.notFound", { cmd: cmd })); };
-    const v = commands.get(cmd);
+    const cmdLowerCase = cmd.toLocaleLowerCase();
+    if (!isCommand(cmdLowerCase)) { throw new Error(i18n.parseSafe("command_panel.notFound", { cmd: cmd })); };
+    const v = commands.get(cmdLowerCase);
     return v.apply(this, arg);
   } catch (e) {
     window.joyous.msg(i18n.parse("msg.command_failure", { msg: e.message }), i18n.parse("msg.done"), "error");
@@ -50,8 +51,9 @@ export function executeCommand(cmd, ...arg) {
  */
 export function executeCommandSlient(cmd, ...arg) {
   try {
-    if (!isCommand(cmd)) { throw new Error(i18n.parseSafe("command_panel.notFound", { cmd: cmd })); };
-    const v = commands.get(cmd);
+    const cmdLowerCase = cmd.toLowerCase();
+    if (!isCommand(cmdLowerCase)) { throw new Error(i18n.parseSafe("command_panel.notFound", { cmd: cmd })); };
+    const v = commands.get(cmdLowerCase);
     return v.apply(this, arg);
   } catch (e) {
     console.error(`无法执行命令 ${cmd} [${arg.join("|")}] ：`, e);
@@ -69,5 +71,5 @@ window.joyous.executeCommandSlient = executeCommandSlient;
  * @param {Function} func 
  */
 export function regisiterCommand(command, func) {
-  commands.set(command, func);
+  commands.set(command.toLowerCase(), func);
 }
