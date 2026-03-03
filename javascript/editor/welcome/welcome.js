@@ -38,4 +38,4 @@ export class EditorWelcome extends Editor {
 
 editorManager.regisiterEditor(EditorId, (data) => {
   return "";
-}, Editor);
+}, EditorWelcome);
