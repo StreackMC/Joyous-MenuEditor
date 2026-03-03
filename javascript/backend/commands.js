@@ -33,7 +33,7 @@ export function executeCommand(cmd, ...arg) {
   try {
     if (!isCommand(cmd)) { throw new Error(i18n.parseSafe("command_panel.notFound", { cmd: cmd })); };
     const v = commands.get(cmd);
-    return v(...arg);
+    return v.apply(this, arg);
   } catch (e) {
     window.joyous.msg(i18n.parse("msg.command_failure", { msg: e.message }), i18n.parse("msg.done"), "error");
     console.error(`无法执行命令 ${cmd} [${arg.join("|")}] ：`, e);
@@ -52,7 +52,7 @@ export function executeCommandSlient(cmd, ...arg) {
   try {
     if (!isCommand(cmd)) { throw new Error(i18n.parseSafe("command_panel.notFound", { cmd: cmd })); };
     const v = commands.get(cmd);
-    return v(...arg);
+    return v.apply(this, arg);
   } catch (e) {
     console.error(`无法执行命令 ${cmd} [${arg.join("|")}] ：`, e);
     throw e;
