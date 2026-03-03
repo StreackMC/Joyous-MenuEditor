@@ -99,11 +99,12 @@ export function openTab(editorInstance = newEditorWelcome(), name = i18n.parseSa
   commands.hook(eView);
   i18n.refresh(eView);
 
+  // 完成创建并显示
+  switchTab(uuid);
+
   // 后初始化
   editorInstance.init();
 
-  // 完成创建并显示
-  switchTab(uuid);
   try {
     commands.executeCommandSlient("autosave.backup");
   } catch (ignore) { };
