@@ -45,5 +45,8 @@ commands.regisiterCommand("version", versionDialogPopup);
 commands.regisiterCommand("about", versionDialogPopup);
 commands.regisiterCommand("ver", versionDialogPopup);
 
+// 打开默认标签页
+tabs.openEditor();
+
 // 测试版提示
 uiUtils.msg("当前您正在使用预览版", "好", "warning", -1);

@@ -104,11 +104,33 @@ s-tab {
   top: 0;
   height: 48px;
 }
-s-carousel {
+
+#editor {
+  height: 100%;
   width: 100%;
-  border: 1px black;
-  height: fit-content;
-  min-height: calc(100% - 48px);
+  display: flex;
+  flex-direction: column;
+}
+
+#editor-views {
+  height: calc(100% - 48px);
+  width: 100%;
+}
+
+.editor-frame {
+  width: min-content;
+  min-width: 100%;
+  height: min-content;
+  min-height: 100%;
+  flex-direction: column;
+}
+
+.editor-frame[data-hidden="false"] {
+  display: flex;
+}
+
+.editor-frame[data-hidden="true"] {
+  display: none;
 }
 
 /* popup pannel */

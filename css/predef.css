@@ -92,6 +92,11 @@ h1 {
 }
 
 /* Sober */
+s-scroll-view {
+  height: 100%;
+  width: 100%;
+}
+
 s-menu {
   background: var(--s-color-background, #F8F9FB);
   background-clip: border-box;

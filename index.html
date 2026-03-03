@@ -88,22 +88,15 @@
     <!-- 侧边栏与主面板 -->
     <s-drawer>
       <div id="explorer" slot="start"><s-scroll-view class="unselectable" style="height: 100%; padding-bottom: 1rem;">
+        <!--  -->
       </s-scroll-view></div>
-      <s-scroll-view id="editor">
-        <s-tab>
-          <s-tab-item>
-            <div slot="text">
-              Item 1
-              <s-icon-button data-click="editor.close|1">
-                <s-icon name="close"></s-icon>
-              </s-icon-button>
-            </div>
-          </s-tab-item>
+
+      <div id="editor">
+        <s-tab id="editor-tabs">
         </s-tab>
-        <s-carousel>
-          <s-carousel-item value="example"></s-carousel-item>
-        </s-carousel>
-      </s-scroll-view>
+        <s-scroll-view id="editor-views">
+        </s-scroll-view>
+      </div>
     </s-drawer>
 
     <!-- 命令面板 -->
