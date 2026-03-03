@@ -1,7 +1,7 @@
 import i18n from "../i18n.js";
 
 export default {
-  executeCommand, regisiterCommand, isCommand, executeCommandSlient, hook
+  executeCommand, regisiterCommand, isCommand, executeCommandSlient, hook, regisiterCommandWithHotkey, regisiterHotkey
 }
 
 /**
@@ -72,6 +72,31 @@ window.joyous.executeCommandSlient = executeCommandSlient;
  */
 export function regisiterCommand(command, func) {
   commands.set(command.toLowerCase(), func);
+}
+
+/**
+ * 注册一个命令，顺便绑定快捷键
+ * @param {String} command 
+ * @param {Function} func 
+ * @param {string} key 快捷键
+ * @param {...*} args 快捷键触发时的参数
+ */
+export function regisiterCommandWithHotkey(command, func, key, ...args) {
+  commands.set(command.toLowerCase(), func);
+  if (key) {
+    hotkeys(key, () => { executeCommand(command, ...args); return false; });
+  };
+}
+
+/**
+ * 注册一个快捷键绑定命令
+ * @param {string} key 快捷键
+ * @param {String} command 
+ * @param {...*} args 快捷键触发时的参数
+ */
+export function regisiterHotkey(key, command, ...args) {
+  if (!key || !command) { return; };
+  hotkeys(key, () => { executeCommand(command, ...args); return false; });
 }
 
 /**

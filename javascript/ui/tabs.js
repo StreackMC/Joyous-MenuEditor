@@ -210,10 +210,10 @@ export function getCurrentTabId() { return currentTab; };
 
 /* 注册命令 */
 commands.regisiterCommand("editor.openTab", openTab);
-commands.regisiterCommand("editor.switch", switchTab);
+commands.regisiterCommandWithHotkey("editor.switch", switchTab, "ctrl+shift+tab");
 commands.regisiterCommand("editor.which", getCurrentTabId);
 commands.regisiterCommand("editor.howmany", getTabsLength);
-commands.regisiterCommand("editor.close", closeTab);
+commands.regisiterCommandWithHotkey("editor.close", closeTab, "alt+w");
 commands.regisiterCommand("editor.closeAll", closeAllTabs);
 
 export default {

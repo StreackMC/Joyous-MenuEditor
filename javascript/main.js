@@ -1,8 +1,8 @@
 import uiUtils from "./ui/utils.js";
 import commands from './backend/commands.js'; // 通常情况下建议使用命令系统调用UI/Tabs等功能，会自动处理错误，否则你可能需要自行处理错误
 import i18n from './i18n.js';
-import tabs from "./ui/tabs.js";
 // 虽然未使用，但需要确保加载
+import tabs from "./ui/tabs.js";
 import command_panel from "./ui/command_panel.js";
 import editorManager from "./backend/editorManager.js";
 import autosave from "./backend/autosave.js";
@@ -26,9 +26,6 @@ uiUtils.setTitle();
 
 // 注册前端按钮到命令的映射
 commands.hook();
-
-// 注册命令面板快捷键
-hotkeys("ctrl+shift+p", () => { commands.executeCommand("command.panel.open"); return false; });
 
 // 版本信息
 function versionDialogPopup() {

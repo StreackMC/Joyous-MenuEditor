@@ -19,8 +19,12 @@ export function openCommandPanel() {
 export function closeCommandPanel() {
   cmdPanel.showed = false;
 }
+export function switchCommandPanel() {
+  cmdPanel.showed = !cmdPanel.showed;
+}
 
 // 注册命令
+commands.regisiterCommandWithHotkey("command.panel.switch", switchCommandPanel, "ctrl+shift+p");
 commands.regisiterCommand("command.panel.open", openCommandPanel);
 commands.regisiterCommand("command.panel.close", closeCommandPanel);
 commands.regisiterCommand("command.panel.run", () => {
@@ -55,5 +59,5 @@ cmdInput.addEventListener('keypress', (e) => {
 })
 
 export default {
-  openCommandPanel, closeCommandPanel, cmdPanel, cmdInput, cmdConsole
+  switchCommandPanel, openCommandPanel, closeCommandPanel, cmdPanel, cmdInput, cmdConsole
 }
