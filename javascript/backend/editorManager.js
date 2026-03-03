@@ -38,23 +38,23 @@ export function regisiterEditor(id, varify, clazz) {
  * 打开一个编辑器，智能识别打开方式
  * @param {*} data 数据
  * @param {string} editorId 打开方式
- * @param {string} name 编辑器标题，建议传入文件名，最终由实际的编辑器决定
+ * @param {string} fname 编辑器标题，建议传入文件名，最终由实际的编辑器决定
  */
-export function openEditor(data, editorId = undefined, name = null) {
-  name = (name) ? name : `Untitled-${getUntitledId()}`;
+export function openEditor(data, editorId = undefined, fname = null) {
+  fname = (fname) ? fname : `Untitled-${getUntitledId()}`;
   if (editorId) {
     // 如果指定了打开方式则直接打开
     const clazz = regEditorsClazz.get(editorId);
-    tabs.openTab(new clazz(data, name), name);
+    tabs.openTab(new clazz(data, fname), fname);
   };
   // 判断打开方式
   try {
     regEditorsVarify.forEach((value, key) => {
       try {
-        const title = value.apply(this, data);
+        const title = value.apply(this, data, fname);
         if (title) {
           const clazz = regEditorsClazz.get(key);
-          tabs.openTab(new clazz(data, name), title);
+          tabs.openTab(new clazz(data, fname), title);
           throw new Error("break here");
         };
       } catch (error) {
