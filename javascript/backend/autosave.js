@@ -21,6 +21,7 @@ export function backupOpened() {
   });
   webstorage.Local.set("autosave.data", { e: data });
   webstorage.Local.set("autosave.which", tabs.getCurrentTabId());
+  webstorage.Local.set("autosave.untitledCount", editorManager.untitledCounts);
 }
 
 /**
@@ -41,6 +42,7 @@ export function recoverOpened() {
   /** @type {Function[]} */
   let func = [];
   let which = -1;
+  let untitledCount = 1;
   try {
     data.forEach((i) => {
       const clazz = editorManager.regEditorsClazz.get(i.editor);
@@ -53,6 +55,8 @@ export function recoverOpened() {
       });
     });
     which = webstorage.Local.get("autosave.which");
+    untitledCount = Math.floor(webstorage.Local.get("autosave.untitledCount"));
+    if (typeof untitledCount != "number" || untitledCount <= 0) { untitledCount = 1; };
   } catch (error) {
     msg(i18n.parseSafe("msg.autosave.fail_recover", { msg: error.message }), i18n.parseSafe("msg.done"), "error", 0);
     console.error("无法恢复工作区：", error);
@@ -68,6 +72,7 @@ export function recoverOpened() {
     if (func.length == 0) {
       clearInterval(loopId);
       tabs.switchTab(which);
+      editorManager.untitledCounts = untitledCount;
       return;
     };
     func.shift().apply(this);

@@ -3,7 +3,7 @@ import i18n from "../i18n.js";
 import tabs from "../ui/tabs.js";
 import commands from "./commands.js";
 
-let untitledCounts = 1;
+export let untitledCounts = 1;
 /**
  * 获取一个 Untitled- 后面接的id,自动自增
  * @returns 
@@ -80,5 +80,5 @@ commands.regisiterCommand("editor.open", openEditor);
 export default {
   regisiterEditor, openEditor,
   regEditorsClazz, regEditorsVarify,
-  getUntitledId
+  getUntitledId, untitledCounts
 }
