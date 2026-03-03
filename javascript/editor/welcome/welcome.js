@@ -35,6 +35,7 @@ export class EditorWelcome extends Editor {
   setData(data) { this.data = data; };
   getRegId() { return EditorId; };
   init() { return; };
+  destory() { return; };
 }
 
 editorManager.regisiterEditor(EditorId, (data) => {

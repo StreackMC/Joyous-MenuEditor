@@ -145,6 +145,7 @@ export function closeTab(index = currentTab) {
 
   // 销毁标签页
   const targetTab = tabsMap.get(target);
+  targetTab.instance.destory();
   targetTab.switcher.root.remove();
   tabs.splice(tabs.indexOf(target), 1);
   targetTab.frame.remove();
