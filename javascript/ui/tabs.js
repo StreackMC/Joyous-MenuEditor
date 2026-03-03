@@ -36,7 +36,7 @@ export class Tab {
    * 当前标签页对应的标签页框架
   * @type {Element}
   */
-  frame = document.createElement("div");;
+  frame = document.createElement("div");
   /**
    * 
    * @param {Editor} editorInstance 
@@ -85,11 +85,46 @@ export function openEditor(editorInstance = new EditorWelcome, name = i18n.parse
 }
 
 /**
+ * 关闭指定标签页
+ * @param {number|string} index 以 0 开始为索引；使用文本时自动视作UUID
+ */
+export function closeEditor(index = currentTab) {
+  let target, origin;
+  // 解析并切换到目标标签页
+  try {
+    if (typeof index != "number") { throw new Error(); };
+    target = tabs[index];
+    origin = tabs[currentTab];
+  } catch (error) {
+    throw new Error(i18n.parseSafe("msg.missing_tab", { index: index }));
+  }
+  switchTab(target);
+
+  // 保存数据
+  // todo: 需要能够弹出弹窗询问是否保存
+  commands.executeCommand("editor.save");
+
+  // 销毁标签页
+  const targetTab = tabsMap.get(target);
+  targetTab.switcher.root.remove();
+  tabs.slice(tabs.indexOf(target), 1);
+  targetTab.frame.remove();
+  tabsMap.delete(target);
+
+  // 切换回来
+  if (target != origin) {
+    switchTab(origin);
+  };
+}
+
+/**
  * 切换到指定标签页，如果标签页不存在抛出错误
  * @param {number|string} index 以 0 开始为索引；使用文本时自动视作UUID
  * @throws 标签页不存在
  */
 export function switchTab(index = currentTab) {
+  // 不存在活动标签页时创建一个
+  if (getTabsLength() == 0) { openEditor(); };
   const oldOne = getTab(getCurrentTabId());
   const newOne = getTab(index);
 
@@ -132,8 +167,9 @@ export function getCurrentTabId() { return currentTab; };
 
 /* 注册命令 */
 commands.regisiterCommand("editor.open", openEditor);
-commands.regisiterCommand("editor.which", () => currentTab);
-//commands.regisiterCommand("editor.close", closeEditor);
+commands.regisiterCommand("editor.which", getCurrentTabId);
+commands.regisiterCommand("editor.howmany", getTabsLength);
+commands.regisiterCommand("editor.close", closeEditor);
 
 export default {
   eTabs, eView, openEditor, switchTab, getTab, Tab, tabs, getTabsLength, tabsMap, getCurrentTabId
