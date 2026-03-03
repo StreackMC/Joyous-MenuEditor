@@ -13,7 +13,7 @@ const eView = document.getElementById("editor-views");
 export let tabsMap = new Map();
 /**
  * 以序号的形式存储UI上面的 s-tab-item 到 UUID 的关系
- * @type {string}
+ * @type {string[]}
  */
 export let tabs = [];
 let currentTab = 0;
@@ -46,6 +46,7 @@ export class Tab {
     this.instance = editorInstance;
 
     // 构建元素
+    this.switcher.root.dataset.tabId = this.id;
     this.switcher.content.slot = "text";
     this.switcher.content.innerHTML = name;
     this.switcher.btn.innerHTML = '<s-icon name="close"></s-icon>';
@@ -54,7 +55,11 @@ export class Tab {
     this.frame.appendChild(editorInstance.getElement());
 
     // 添加事件绑定
-    this.switcher.root.addEventListener("click", (e)=> {switchTab()})
+    this.switcher.root.addEventListener("click", (e) => { commands.executeCommand("editor.switch", this.id); });
+    this.switcher.btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      commands.executeCommand("editor.close", this.id);
+    });
 
     // 构建元素结构
     this.switcher.content.appendChild(this.switcher.btn);
@@ -92,9 +97,14 @@ export function closeEditor(index = currentTab) {
   let target, origin;
   // 解析并切换到目标标签页
   try {
-    if (typeof index != "number") { throw new Error(); };
-    target = tabs[index];
     origin = tabs[currentTab];
+    if (typeof index === "string") {
+      if (!tabsMap.has(index) || tabs.indexOf(index) < 0) { throw new Error() };
+      target = index;
+    } else {
+      if (index < 0 || index >= tabs.length) { throw new Error() };
+      target = tabs[index];
+    }
   } catch (error) {
     throw new Error(i18n.parseSafe("msg.missing_tab", { index: index }));
   }
@@ -102,18 +112,20 @@ export function closeEditor(index = currentTab) {
 
   // 保存数据
   // todo: 需要能够弹出弹窗询问是否保存
-  commands.executeCommand("editor.save");
+  try { commands.executeCommand("editor.save"); } catch (e) { };
 
   // 销毁标签页
   const targetTab = tabsMap.get(target);
   targetTab.switcher.root.remove();
-  tabs.slice(tabs.indexOf(target), 1);
+  tabs.splice(tabs.indexOf(target), 1);
   targetTab.frame.remove();
   tabsMap.delete(target);
 
   // 切换回来
   if (target != origin) {
     switchTab(origin);
+  } else {
+    switchTab(0);
   };
 }
 
@@ -124,15 +136,21 @@ export function closeEditor(index = currentTab) {
  */
 export function switchTab(index = currentTab) {
   // 不存在活动标签页时创建一个
-  if (getTabsLength() == 0) { openEditor(); };
-  const oldOne = getTab(getCurrentTabId());
-  const newOne = getTab(index);
-
+  if (getTabsLength() == 0) {
+    openEditor();
+    return;
+  };
+  
   // 先隐藏旧的
-  oldOne.switcher.root.selected = "false";
-  oldOne.frame.dataset.hidden = "true";
-
+  try {
+    const oldOne = getTab(getCurrentTabId());
+    oldOne.switcher.root.selected = "false";
+    oldOne.frame.dataset.hidden = "true";
+  } catch (ignore) {
+  }
+  
   // 显示新的
+  const newOne = getTab(index);
   newOne.switcher.root.selected = "true";
   newOne.frame.dataset.hidden = "false";
   currentTab = tabs.indexOf(newOne.id);
@@ -147,7 +165,7 @@ export function switchTab(index = currentTab) {
 export function getTab(index = currentTab) {
   // 解析目标Tab
   if (typeof index === "number" && index >= 0 && index < getTabsLength()) { index = tabs[index]; };
-  if (typeof index != "string" || !tabsMap.has(index)) {
+  if (typeof index != "number" && !tabsMap.has(index)) {
     throw new Error(i18n.parseSafe("msg.missing_tab", { index: index }));
   };
   return tabsMap.get(index);
@@ -168,6 +186,7 @@ export function getCurrentTabId() { return currentTab; };
 
 /* 注册命令 */
 commands.regisiterCommand("editor.open", openEditor);
+commands.regisiterCommand("editor.switch", switchTab);
 commands.regisiterCommand("editor.which", getCurrentTabId);
 commands.regisiterCommand("editor.howmany", getTabsLength);
 commands.regisiterCommand("editor.close", closeEditor);
