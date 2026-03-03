@@ -1,4 +1,3 @@
-import editorManager from "../backend/editorManager.js";// 请保证路径正确！！
 const EditorId = "exampleEditor";
 
 /**
@@ -16,16 +15,20 @@ export class Editor {
   setData(data) { UnsupportedMethodException(); };
   destory() { UnsupportedMethodException(); };
 };
-editorManager.regisiterEditor(EditorId, (data, filename) => {
-  // 返回你的编辑器能否编辑 data ， data 可为任意类型
-  // 如果编辑器被以指定的形式打开则不会调用此验证函数就直接打开
-  return ""; // 如果返回了非空字符串，那么就会以字符串为标题打开你的编辑器
-}, Editor);
 
+// 返回你的编辑器能否编辑 data ， data 可为任意类型
+// 如果编辑器被以指定的形式打开则不会调用此验证函数就直接打开
+// 如果返回了非空字符串，那么就会以字符串为标题打开你的编辑器
+// import editorManager from "../backend/editorManager.js";
+// editorManager.regisiterEditor(EditorId, (data, filename) => {
+//   return "";
+// }, Editor);
+// 请解除注释！！
 
 /* 文档
 文档上面的部分需要全部覆写，并保留API；文档下面的可以是 Editor 自己的内部代码。
 新建一个 Editor 需要修改上面的 EditorId 用作编辑器标识符以及替换所有的 Unsupported... 为你自己的逻辑。
+顺带要被加载，需要在 editorImport.js 里面手动加一下引入。
 
 说明下生命周期：
 

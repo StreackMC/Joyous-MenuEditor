@@ -1,4 +1,3 @@
-import { EditorAce } from "../editor/ace/ace.js";
 import { Editor } from "../editor/editor.js";
 import tabs from "../ui/tabs.js";
 import commands from "./commands.js";
@@ -68,7 +67,11 @@ export function openEditor(data, editorId = undefined, fname = null) {
   };
 
   // 没有打开方式，尝试默认编辑器 ACE
-  tabs.openTab(new EditorAce(data, fname), fname);
+  const aceClazz = regEditorsClazz.get("aceDefaultEditor");
+  if (!aceClazz) {
+    throw new Error("没有找到默认的ACE编辑器");
+  }
+  tabs.openTab(new aceClazz(data, fname), fname);
 }
 
 commands.regisiterCommand("editor.open", openEditor);
