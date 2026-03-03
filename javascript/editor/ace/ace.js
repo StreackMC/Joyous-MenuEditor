@@ -60,7 +60,7 @@ export class EditorAce extends Editor {
     }
 
     if (typeof ace === 'undefined') {
-      utils.msg(i18n.parseSafe("editor.ACE.err"), i18n.parseSafe("msg.okay"), "warning");
+      utils.msg(i18n.parseSafe("editor.ACE.err"), i18n.parseSafe("msg.done"), "warning");
       console.error(i18n.parseSafe("editor.ACE.err"));
       return;
     }

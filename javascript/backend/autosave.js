@@ -54,7 +54,7 @@ export function recoverOpened() {
     });
     which = webstorage.Local.get("autosave.which");
   } catch (error) {
-    msg(i18n.parseSafe("msg.autosave.fail_recover", { msg: error.message }), i18n.parseSafe("msg.okay"), "error", 0);
+    msg(i18n.parseSafe("msg.autosave.fail_recover", { msg: error.message }), i18n.parseSafe("msg.done"), "error", 0);
     console.error("无法恢复工作区：", error);
     commands.executeCommand("editor.switch"/* switchTab 会发现没有活动标签页，就会自动新建一个 */, 0);
     return;
