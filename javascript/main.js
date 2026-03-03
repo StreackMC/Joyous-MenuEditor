@@ -47,5 +47,10 @@ commands.regisiterCommand("ver", versionDialogPopup);
 // 打开默认标签页并恢复工作区
 commands.executeCommand("autosave.recover");
 
+// 注册自动保存
+let autoSaveInterval = setInterval(() => {
+  commands.executeCommand("autosave.backup");
+}, 60e3);
+
 // 测试版提示
 uiUtils.msg("当前您正在使用预览版", "好", "warning", -1);
