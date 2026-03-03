@@ -69,7 +69,10 @@ export class Tab {
     this.frame.appendChild(this.instance.getElement());
 
     // 添加事件绑定
-    this.switcher.root.addEventListener("click", (e) => { commands.executeCommand("editor.switch", this.id); });
+    this.switcher.root.addEventListener("click", (e) => {
+      e.stopImmediatePropagation();
+      commands.executeCommand("editor.switch", this.id);
+    });
     this.switcher.btn.addEventListener("click", (e) => {
       e.stopPropagation();
       commands.executeCommand("editor.close", this.id);
@@ -80,6 +83,13 @@ export class Tab {
     this.switcher.root.appendChild(this.switcher.content);
   };
 }
+
+// 双击标签页切换器的空白区域打开空编辑器
+eTabs.addEventListener("dblclick", (e) => {
+  if (e.target != eTabs) { return; };
+  e.stopPropagation();
+  commands.executeCommand("editor.open");
+});
 
 /**
  * 打开一个标签页，默认使用「欢迎」
@@ -152,7 +162,7 @@ export function closeTab(index = currentTab) {
 
   // 销毁标签页
   const targetTab = tabsMap.get(target);
-  targetTab.instance.destory();
+  targetTab.instance.destroy();
   targetTab.switcher.root.remove();
   tabs.splice(tabs.indexOf(target), 1);
   targetTab.frame.remove();
