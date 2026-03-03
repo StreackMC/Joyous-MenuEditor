@@ -1,0 +1,27 @@
+{
+  "name": "Joyous Menu Editor",
+  "short_name": "JME",
+  "description": "An online editor that creats menu manifest file for Minecraft plugin Joyous.",
+  "start_url": "./index.html",
+  "id": "/Joyous-MenuEditor",
+  "display": "standalone",
+  "display_override": [
+    "standalone"
+  ],
+  "theme_color": "#006a6a",
+  "background_color": "#bec9c8",
+  "icons": [
+    {
+      "src": "./assets/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "unset"
+    },
+    {
+      "src": "./assets/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "unset"
+    }
+  ]
+}
