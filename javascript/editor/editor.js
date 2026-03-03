@@ -6,7 +6,7 @@ const EditorId = "exampleEditor";
  * @interface Editor 需要覆写全部方法并注册 Editor
  */
 export class Editor {
-  constructor(data) {
+  constructor(data, filename) {
     if (new.target === Editor) { UnsupportedMethodException(); };
   };
   getRegId() { return EditorId; };
