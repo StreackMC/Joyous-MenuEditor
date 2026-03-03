@@ -51,7 +51,8 @@ export function openEditor(data, editorId = undefined, name = null) {
       try {
         const title = value.apply(this, data);
         if (title) {
-          tabs.openTab(new regEditorsClazz.get(key)(data), title);
+          const clazz = regEditorsClazz.get(key);
+          tabs.openTab(new clazz(data), title);
           throw new Error("break here");
         };
       } catch (error) {

@@ -42,9 +42,10 @@ export function recoverOpened() {
   let which = -1;
   try {
     data.forEach((i) => {
+      const clazz = editorManager.regEditorsClazz.get(i.editor);
       func.push(function () {
         tabs.openTab(
-          new editorManager.regEditorsClazz.get(i.editor)(i.data),
+          new clazz(i.data),
           i.name,
           i.id
         );
