@@ -1,4 +1,5 @@
 import { Editor } from "../editor.js";
+import v4 from "../../library/uuidjs/v4.js"; const uuidv4 = v4;
 
 const c = `
   width: max(calc(100% - 40px), 94%);
@@ -7,10 +8,11 @@ const c = `
 `;
 const h = `
 <div slot="headline" data-i18n>$ui.editor.welcome.headline$</div>
-  <div slot="text">
-    <p data-i18n>$ui.editor.welcome.text1$</p>
-    <p data-i18n>$ui.editor.welcome.text2$</p>
-  </div>
+<div slot="text">
+  <p data-i18n>$ui.editor.welcome.text1$</p>
+  <p data-i18n>$ui.editor.welcome.text2$</p>
+  <span style="color:var(--s-color-surface-container-lowest, #e0e3e2);font-size:small;">##uuidv4##</span>
+</div>
 <s-button data-i18n slot="action" data-click="editor.openFile">$editor.actions.openFile$</s-button>
 <s-button data-i18n slot="action" data-click="editor.openFolder">$editor.actions.openFolder$</s-button>
 `;
@@ -22,7 +24,7 @@ export class EditorWelcome extends Editor {
     super();
     this.ele.type = "outlined";
     this.ele.style = c;
-    this.ele.innerHTML = h;
+    this.ele.innerHTML = h.replace("##uuidv4##", uuidv4());
   };
   getData() { return {} };
   getElement() { return this.ele; };
