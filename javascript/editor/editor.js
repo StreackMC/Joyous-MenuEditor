@@ -13,7 +13,7 @@ export class Editor {
   getElement() { UnsupportedMethodException(); return new Element(); };
   init() { UnsupportedMethodException(); };
   setData(data) { UnsupportedMethodException(); };
-  destory() { UnsupportedMethodException(); };
+  destroy() { UnsupportedMethodException(); };
 };
 
 // 返回你的编辑器能否编辑 data ， data 可为任意类型
@@ -46,7 +46,7 @@ export class Editor {
 1. 使用 commands.executeCommand("editor.close", index) 来关闭编辑器
 2. 此时 tabs.js 自动维护标签页周期，流程略
 3. 可能会触发 Editor.getData() 来保存数据
-4. 最后使用 destory() 方法允许 Editor 做清理
+4. 最后使用 destroy() 方法允许 Editor 做清理
 */
 
 function UnsupportedMethodException() {
