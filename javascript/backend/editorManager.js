@@ -38,12 +38,14 @@ export function regisiterEditor(id, varify, clazz) {
  * 打开一个编辑器，智能识别打开方式
  * @param {*} data 数据
  * @param {string} editorId 打开方式
- * @param {string} name 编辑器标题，只有指定了 editorId 才有效
+ * @param {string} name 编辑器标题，建议传入文件名，最终由实际的编辑器决定
  */
 export function openEditor(data, editorId = undefined, name = null) {
+  name = (name) ? name : `Untitled-${getUntitledId()}`;
   if (editorId) {
     // 如果指定了打开方式则直接打开
-    tabs.openTab(new regEditorsClazz.get(editorId)(data), (name) ? name : `Untitled-${getUntitledId()}`);
+    const clazz = regEditorsClazz.get(editorId);
+    tabs.openTab(new clazz(data, name), name);
   };
   // 判断打开方式
   try {
@@ -52,7 +54,7 @@ export function openEditor(data, editorId = undefined, name = null) {
         const title = value.apply(this, data);
         if (title) {
           const clazz = regEditorsClazz.get(key);
-          tabs.openTab(new clazz(data), title);
+          tabs.openTab(new clazz(data, name), title);
           throw new Error("break here");
         };
       } catch (error) {

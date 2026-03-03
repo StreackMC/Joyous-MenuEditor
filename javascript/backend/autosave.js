@@ -46,7 +46,7 @@ export function recoverOpened() {
       const clazz = editorManager.regEditorsClazz.get(i.editor);
       func.push(function () {
         tabs.openTab(
-          new clazz(i.data),
+          new clazz(i.data, i.name),
           i.name,
           i.id
         );
