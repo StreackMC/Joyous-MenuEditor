@@ -48,7 +48,6 @@ commands.regisiterCommand("about", versionDialogPopup);
 commands.regisiterCommand("ver", versionDialogPopup);
 
 // 打开默认标签页并恢复工作区
-commands.executeCommand("editor.openTab");
 commands.executeCommand("autosave.recover");
 
 // 测试版提示

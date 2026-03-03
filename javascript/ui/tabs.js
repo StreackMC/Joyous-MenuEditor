@@ -60,7 +60,7 @@ export class Tab {
     this.switcher.btn.innerHTML = '<s-icon name="close"></s-icon>';
     this.frame.classList.add("editor-frame");
     this.frame.dataset.hidden = "true";
-    this.frame.appendChild(editorInstance.getElement());
+    this.frame.appendChild(this.instance.getElement());
 
     // 添加事件绑定
     this.switcher.root.addEventListener("click", (e) => { commands.executeCommand("editor.switch", this.id); });
@@ -82,7 +82,8 @@ export class Tab {
  * @param {string} uuid Tab的标识符，默认自动设置。不推荐手动覆写
  * @returns {string} Tab实例的UUID
  */
-export function openTab(editorInstance = new EditorWelcome, name = i18n.parseSafe("ui.editor.welcome.headline"), uuid = uuidv4()) {
+export function openTab(editorInstance = new EditorWelcome(), name = i18n.parseSafe("ui.editor.welcome.headline"), uuid = uuidv4()) {
+  if (tabsMap.has(uuid)) { throw new Error("无法新建标签页，发现重复的UUID: ", uuid); };
   tabsMap.set(uuid, new Tab(editorInstance, name, uuid));
   tabs.push(uuid);
 

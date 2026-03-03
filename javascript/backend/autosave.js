@@ -34,6 +34,7 @@ export function recoverOpened() {
   } catch (error) {
     // 格式无效，忽略
     console.log("无效的保存编辑器记录。自动忽略。", error);
+    commands.executeCommand("editor.switch"/* switchTab 会发现没有活动标签页，就会自动新建一个 */, 0);
     return;
   };
   // 缓存打开编辑器的函数列表，稍后延后执行。
@@ -55,10 +56,14 @@ export function recoverOpened() {
   } catch (error) {
     msg(i18n.parseSafe("msg.autosave.fail_recover", { msg: error.message }), i18n.parseSafe("msg.okay"), "error", 0);
     console.error("无法恢复工作区：", error);
+    commands.executeCommand("editor.switch"/* switchTab 会发现没有活动标签页，就会自动新建一个 */, 0);
     return;
   };
 
-  tabs.closeAllTabs();
+  if (tabs.getTabsLength >= 2) {
+    tabs.closeAllTabs();
+  };
+  func.shift().apply(this);
   let loopId = setInterval(() => {
     if (func.length == 0) {
       clearInterval(loopId);
@@ -66,7 +71,6 @@ export function recoverOpened() {
     };
     func.shift().apply(this);
   }, 1000);
-  tabs.closeTab(0);
   tabs.switchTab(which);
 }
 

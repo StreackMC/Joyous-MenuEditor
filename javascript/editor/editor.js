@@ -17,7 +17,6 @@ export class Editor {
 editorManager.regisiterEditor(EditorId, (data) => {
   // 返回你的编辑器能否编辑 data ， data 可为任意类型
   // 如果编辑器被以指定的形式打开则不会调用此验证函数就直接打开
-  UnsupportedMethodException();
   return ""; // 如果返回了非空字符串，那么就会以字符串为标题打开你的编辑器
 }, Editor);
 
