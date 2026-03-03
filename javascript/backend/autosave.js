@@ -67,11 +67,11 @@ export function recoverOpened() {
   let loopId = setInterval(() => {
     if (func.length == 0) {
       clearInterval(loopId);
+      tabs.switchTab(which);
       return;
     };
     func.shift().apply(this);
-  }, 1000);
-  tabs.switchTab(which);
+  }, 20);
 }
 
 commands.regisiterCommand("autosave.backup", backupOpened);
