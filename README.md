@@ -50,3 +50,4 @@ About how to add a translation or make a customed one, the instruction hasn't be
 
 * [Apprat/Sober](//github.com/Apprat/Sober) - MIT License
 * Hotkeys-js - Kenny Wong & [Thomas Fuchs](https://github.com/madrobby/keymaster) - MIT License
+* [uuidjs/uuid](//github.com/uuidjs/uuid) - MIT License
