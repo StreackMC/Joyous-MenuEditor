@@ -1,7 +1,11 @@
 import { Editor } from "../editor.js";
 import editorManager from "../../backend/editorManager.js";
+import utils from "../../ui/utils.js";
 
 const EditorId = "aceDefaultEditor";
+const s = `
+div.ace-editor-joyous { height:100%; }
+`;
 
 export class EditorAce extends Editor {
   /**
@@ -26,10 +30,17 @@ export class EditorAce extends Editor {
   getElement() {
     if (this.container) return this.container;
     // 创建容器，Ace 将挂载到此 div
+    const subdiv = document.createElement('div');
+    subdiv.style = `width:100%;height:100%;`;
+    subdiv.classList.add('ace-editor-container');
+
+    const style = document.createElement("style");
+    style.innerHTML = s;
+
     this.container = document.createElement('div');
-    this.container.style.width = '100%';
-    this.container.style.height = '100%';
-    this.container.classList.add('ace-editor-container');
+    this.container.classList.add("ace-editor-joyous");
+    this.container.appendChild(subdiv);
+    this.container.appendChild(style);
     return this.container;
   }
 
@@ -49,13 +60,16 @@ export class EditorAce extends Editor {
     }
 
     if (typeof ace === 'undefined') {
-      console.error('Ace editor not loaded. Please include ace.js first.');
+      utils.msg(i18n.parseSafe("editor.ACE.err"), i18n.parseSafe("msg.okay"), "warning");
+      console.error(i18n.parseSafe("editor.ACE.err"));
       return;
     }
 
     const mode = this.getAceMode(this.fileName);
 
-    this.editorInstance = ace.edit(this.container, {
+    this.container.parentElement.classList.add("ace-editor-joyous");
+
+    this.editorInstance = ace.edit(this.container.firstChild, {
       value: this.content,
       mode: mode,
       theme: 'ace/theme/monokai', // 可选主题

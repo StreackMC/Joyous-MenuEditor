@@ -39,6 +39,9 @@
       "openFolder": "打开工作区",
       "revert": "撤销",
       "redo": "恢复"
+    },
+    "ACE": {
+      "err": "未能加载 ACE 编辑器。"
     }
   },
   "msg": {
