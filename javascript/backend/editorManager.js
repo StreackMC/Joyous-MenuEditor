@@ -71,5 +71,6 @@ commands.regisiterCommand("editor.open", openEditor);
 
 export default {
   regisiterEditor, openEditor,
-  regEditorsClazz, regEditorsVarify
+  regEditorsClazz, regEditorsVarify,
+  getUntitledId
 }
