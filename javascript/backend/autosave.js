@@ -14,7 +14,7 @@ export function backupOpened() {
     const tabInstance = tabs.getTab(tabId);
     data.push({
       id: tabInstance.id,
-      data: tabInstance.instance.setData(),
+      data: tabInstance.instance.getData(),
       name: tabInstance.name,
       editor: tabInstance.instance.getRegId(),
     });
@@ -59,8 +59,11 @@ export function recoverOpened() {
 
   tabs.closeAllTabs();
   let loopId = setInterval(() => {
+    if (func.length == 0) {
+      clearInterval(loopId);
+      return;
+    };
     func.shift().apply(this);
-    if (func.length == 0) { clearTimeout(loopId); };
   }, 1000);
   tabs.closeTab(0);
   tabs.switchTab(which);

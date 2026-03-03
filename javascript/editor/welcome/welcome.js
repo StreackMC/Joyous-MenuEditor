@@ -24,6 +24,7 @@ export class EditorWelcome extends Editor {
   data;
   constructor(data) {
     super();
+    console.log("welcomeEditor created with ", data);
     this.data = (data) ? data : uuidv4();
     this.ele.type = "outlined";
     this.ele.style = c;

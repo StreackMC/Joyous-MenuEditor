@@ -82,7 +82,7 @@ export class Tab {
  * @param {string} uuid Tab的标识符，默认自动设置。不推荐手动覆写
  * @returns {string} Tab实例的UUID
  */
-export function openTab(editorInstance = new EditorWelcome, name = i18n.parseSafe("ui.editor.welcome.headline"), uuid = new uuidv4()) {
+export function openTab(editorInstance = new EditorWelcome, name = i18n.parseSafe("ui.editor.welcome.headline"), uuid = uuidv4()) {
   tabsMap.set(uuid, new Tab(editorInstance, name, uuid));
   tabs.push(uuid);
 

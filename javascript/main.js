@@ -47,8 +47,9 @@ commands.regisiterCommand("version", versionDialogPopup);
 commands.regisiterCommand("about", versionDialogPopup);
 commands.regisiterCommand("ver", versionDialogPopup);
 
-// 打开默认标签页
-tabs.openEditor();
+// 打开默认标签页并恢复工作区
+commands.executeCommand("editor.openTab");
+commands.executeCommand("autosave.recover");
 
 // 测试版提示
 uiUtils.msg("当前您正在使用预览版", "好", "warning", -1);
