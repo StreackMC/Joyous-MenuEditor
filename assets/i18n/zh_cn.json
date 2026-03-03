@@ -44,6 +44,9 @@
   "msg": {
     "command_failure": "无法执行命令：%msg%",
     "missing_tab": "不存在的标签页#%index%",
+    "autosave": {
+      "fail_recover": "无法恢复上次的工作区：%msg%"
+    },
     "done": "好"
   }
 }
