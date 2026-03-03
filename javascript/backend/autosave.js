@@ -12,9 +12,11 @@ export function backupOpened() {
   let data = [];
   tabs.tabs.forEach((tabId) => {
     const tabInstance = tabs.getTab(tabId);
+    const dataGot = tabInstance.instance.getData();
+    if (!dataGot) { return; };
     data.push({
       id: tabInstance.id,
-      data: tabInstance.instance.getData(),
+      data: dataGot,
       name: tabInstance.name,
       editor: tabInstance.instance.getRegId(),
     });
