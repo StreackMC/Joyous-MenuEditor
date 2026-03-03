@@ -93,6 +93,9 @@ export function openTab(editorInstance = new EditorWelcome(), name = i18n.parseS
   commands.hook(eView);
   i18n.refresh(eView);
 
+  // 后初始化
+  editorInstance.init();
+
   // 完成创建并显示
   switchTab(uuid);
   try {
