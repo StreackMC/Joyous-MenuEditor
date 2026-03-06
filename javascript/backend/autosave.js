@@ -46,7 +46,7 @@ export function recoverOpened() {
   let which = -1;
   let untitledCount = 1;
   try {
-    data.forEach((i) => {
+    data.forEach((i) => {// todo 没有错误处理
       const clazz = editorManager.regEditorsClazz.get(i.editor);
       func.push(function () {
         tabs.openTab(

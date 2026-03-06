@@ -28,6 +28,7 @@ uiUtils.setTitle();
 commands.hook();
 
 // 版本信息
+// todo: 后续分离到 ui/about.js 里面
 function versionDialogPopup() {
   const title = i18n.parse("ui.about.title");
   const div = document.createElement("div");

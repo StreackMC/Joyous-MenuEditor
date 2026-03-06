@@ -40,13 +40,14 @@ export function regisiterEditor(id, varify, clazz) {
  * @param {*} data 数据
  * @param {string} editorId 打开方式
  * @param {string} fname 编辑器标题，建议传入文件名，最终由实际的编辑器决定
+ * @throws 找不到目标编辑器
  */
 export function openEditor(data, editorId = undefined, fname = null) {
   fname = (fname) ? fname : `Untitled-${getUntitledId()}`;
   if (editorId) {
     // 如果指定了打开方式则直接打开
     const clazz = regEditorsClazz.get(editorId);
-    tabs.openTab(new clazz(data, fname), fname);
+    tabs.openTab(new clazz(data, fname), fname);//不catch潜在的null，由调用者自行处理
   };
   // 判断打开方式
   try {
@@ -56,7 +57,7 @@ export function openEditor(data, editorId = undefined, fname = null) {
         if (title) {
           const clazz = regEditorsClazz.get(key);
           tabs.openTab(new clazz(data, fname), title);
-          throw new Error("break here");
+          throw new Error("break here");// todo：用throw中断不太合理
         };
       } catch (error) {
         console.log(`编辑器 ${key} 无法验证文件类型：`, error);

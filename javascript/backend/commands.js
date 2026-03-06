@@ -24,14 +24,14 @@ export function isCommand(cmd) {
 
 /**
  * 执行一个注册的命令
- * @param {String} cmd 命令
+ * @param {String} cmd 命令，忽略大小写和空白字符
  * @param  {...any} arg 命令参数
  * @returns 该命令的返回值；
  * @throws 命令不存在或者执行出错，会自动通知前端
  */
 export function executeCommand(cmd, ...arg) {
   try {
-    const cmdLowerCase = cmd.toLocaleLowerCase();
+    const cmdLowerCase = cmd.toLocaleLowerCase().replace(/\s+/g, "");
     if (!isCommand(cmdLowerCase)) { throw new Error(i18n.parseSafe("command_panel.notFound", { cmd: cmd })); };
     const v = commands.get(cmdLowerCase);
     return v.apply(this, arg);
@@ -44,14 +44,14 @@ export function executeCommand(cmd, ...arg) {
 
 /**
  * 静默执行一个注册的命令
- * @param {String} cmd 命令
+ * @param {String} cmd 命令，忽略大小写和空白字符
  * @param  {...any} arg 命令参数
  * @returns 该命令的返回值；
  * @throws 命令不存在或者执行出错，不会自动通知前端
  */
 export function executeCommandSlient(cmd, ...arg) {
   try {
-    const cmdLowerCase = cmd.toLowerCase();
+    const cmdLowerCase = cmd.toLowerCase().replace(/\s+/g, "");
     if (!isCommand(cmdLowerCase)) { throw new Error(i18n.parseSafe("command_panel.notFound", { cmd: cmd })); };
     const v = commands.get(cmdLowerCase);
     return v.apply(this, arg);
@@ -67,11 +67,12 @@ window.joyous.executeCommandSlient = executeCommandSlient;
 
 /**
  * 注册一个命令
- * @param {String} command 
+ * @apinote 可以活用 this 判断上下文，例如 Event 通常是来自某个事件，而 window 可能来自命令面板
+ * @param {String} command 命令，忽略大小写和空白字符
  * @param {Function} func 
  */
 export function regisiterCommand(command, func) {
-  commands.set(command.toLowerCase(), func);
+  commands.set(command.toLowerCase().replace(/\s+/g, ""), func);
 }
 
 /**
@@ -80,9 +81,10 @@ export function regisiterCommand(command, func) {
  * @param {Function} func 
  * @param {string} key 快捷键
  * @param {...*} args 快捷键触发时的参数
+ * @see {@link regisiterCommand(command, func)}
  */
 export function regisiterCommandWithHotkey(command, func, key, ...args) {
-  commands.set(command.toLowerCase(), func);
+  commands.set(command.toLowerCase().replace(/\s+/g, ""), func);
   if (key) {
     hotkeys(key, () => { executeCommand(command, ...args); return false; });
   };
@@ -90,6 +92,7 @@ export function regisiterCommandWithHotkey(command, func, key, ...args) {
 
 /**
  * 注册一个快捷键绑定命令
+ * 该快捷键被注册后会自动取消默认行为和冒泡，不能监听和影响浏览器保留按键
  * @param {string} key 快捷键
  * @param {String} command 
  * @param {...*} args 快捷键触发时的参数
@@ -100,7 +103,7 @@ export function regisiterHotkey(key, command, ...args) {
 }
 
 /**
- * 注册某个元素下的声明式命令执行
+ * 注册某个元素下的声明式命令
  * @param {Element} root 
  */
 export function hook(root = document.body) {

@@ -47,6 +47,12 @@ export class Editor {
 2. 此时 tabs.js 自动维护标签页周期，流程略
 3. 可能会触发 Editor.getData() 来保存数据
 4. 最后使用 destroy() 方法允许 Editor 做清理
+    注：先调用再销毁任何已渲染的前端元素
+
+主题：
+页面主题状态是被动更新的，即不会主动下发给编辑器
+在 ui/utils.js 里面有探测当前颜色主题（黑暗还是白天）的函数 getColorTheme()
+推荐注册一个监听 media 的事件，自动切换颜色主题就依赖于这个监听，记得要销毁
 */
 
 function UnsupportedMethodException() {
