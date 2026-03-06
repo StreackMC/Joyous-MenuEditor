@@ -18,7 +18,7 @@
     "editor": {
       "welcome": {
         "headline": "欢迎",
-        "text1": "您可以打开一个文件来开始编辑菜单。<br>在支持的浏览器上，我们也支持打开文件夹作为工作区以批量编辑。",
+        "text1": "您可以打开一个文件来开始编辑菜单。<br>在支持的浏览器上，也支持打开文件夹作为工作区以批量编辑菜单。",
         "text2": "或者：<a target='_blank' href='https://github.com/StreackMC/Joyous/releases'>获取Joyous插件</a>"
       }
     },
@@ -30,8 +30,8 @@
   "command_panel": {
     "invaild_session": "无法获取到命令面板元素。",
     "title": "命令执行器",
-    "input": "在此输入命令，使用「|」分割参数",
-    "readme": "就绪。<br>命令将在 window 作用域下被执行。",
+    "input": "在此输入命令；可以使用「|」分割参数",
+    "readme": "就绪。<br>将在 window 作用域下执行命令。",
     "result": "成功执行命令：<br>%result%",
     "error": "执行命令时发生错误：<br>%result%",
     "notFound": "找不到命令 %cmd% 。",
