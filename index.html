@@ -5,19 +5,29 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,minimum-scale=1,maximum-scale=1,user-scalable=no" />
   <meta name="mobile-web-app-capable" content="yes" />
+  <!-- import js -->
   <script src="./javascript/library/sober@1.1.8.min.js"></script>
+  <script src="./javascript/library/hotkeys-js@4.0.2.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.4.12/ace.js"></script>
   <script type="module" src="./javascript/i18n.js"></script>
+  <!-- import stylesheet -->
   <link rel="stylesheet" href="./css/sober-theme.css" />
   <link rel="stylesheet" href="./css/frame.css" />
-  <link rel="stylesheet" href="./css/editor.css" />
   <link rel="stylesheet" href="./css/predef.css" />
+  <!-- PWA -->
+  <link rel="manifest" href="./manifest.json" />
+  <!-- preload -->
+  <link rel="preload" href="./javascript/main.js" as="script" />
+  <link rel="preload" href="./assets/i18n/zh_cn.json" as="fetch" />
 </head>
-<body>
+<body><!-- 请勿在此处使用 data-i18n 标记，会影响性能 -->
   <s-page color-theme="green" theme="light">
+
+    <!-- 标题栏 -->
     <s-appbar>
       <div id="ui-title" slot="headline"></div>
 
-      <s-tooltip data-i18n="ui.tooltip.explorerSwitcher" slot="navigation">
+      <s-tooltip data-i18n slot="navigation">
         <s-icon-button id="explorerSwitcher" type="filled-tonal" slot="trigger" onclick="document.querySelector('s-drawer').toggle()">
           <s-icon>
             <svg viewBox="0 -960 960 960">
@@ -27,17 +37,17 @@
             </svg>
           </s-icon>
         </s-icon-button>
-        $$
+        $ui.tooltip.explorerSwitcher$
       </s-tooltip>
 
-      <s-tooltip data-i18n="ui.tooltip.appbarToolsFolded" class="mobile-fold" mobile slot="action">
+      <s-tooltip data-i18n class="mobile-fold" mobile slot="action">
         <s-icon-button slot="trigger" onclick="">
           <s-icon name="menu"></s-icon>
         </s-icon-button>
-        $$
+        $ui.tooltip.appbarToolsFolded$
       </s-tooltip>
 
-      <s-tooltip data-i18n="ui.tooltip.revert" class="mobile-fold" slot="action">
+      <s-tooltip data-i18n class="mobile-fold" slot="action">
         <s-icon-button slot="trigger" data-click="editor.revert">
           <s-icon>
             <svg viewBox="0 -960 960 960">
@@ -47,9 +57,9 @@
             </svg>
           </s-icon>
         </s-icon-button>
-        $$
+        $ui.tooltip.revert$
       </s-tooltip>
-      <s-tooltip data-i18n="ui.tooltip.redo" class="mobile-fold" slot="action">
+      <s-tooltip data-i18n class="mobile-fold" slot="action">
         <s-icon-button slot="trigger" data-click="editor.redo">
           <s-icon>
             <svg viewBox="0 -960 960 960">
@@ -59,10 +69,10 @@
             </svg>
           </s-icon>
         </s-icon-button>
-        $$
+        $ui.tooltip.redo$
       </s-tooltip>
-      <s-tooltip data-i18n="ui.tooltip.save" class="mobile-fold" slot="action">
-        <s-icon-button slot="trigger"  data-click="editor.saveBtn">
+      <s-tooltip data-i18n class="mobile-fold" slot="action">
+        <s-icon-button slot="trigger"  data-click="editor.save">
           <s-icon>
             <svg viewBox="0 -960 960 960">
               <path
@@ -71,41 +81,43 @@
             </svg>
           </s-icon>
         </s-icon-button>
-        $$
+        $ui.tooltip.save$
       </s-tooltip>
 
     </s-appbar>
+
+    <!-- 侧边栏与主面板 -->
     <s-drawer>
       <div id="explorer" slot="start"><s-scroll-view class="unselectable" style="height: 100%; padding-bottom: 1rem;">
+        <!--  -->
       </s-scroll-view></div>
-      <s-scroll-view id="editor">
 
-        <s-card id="welcome" type="outlined">
-          <div slot="headline" data-i18n="ui.editor.welcome.headline">$$</div>
-          <div slot="text">
-            <p data-i18n="ui.editor.welcome.text1">$$</p>
-            <p data-i18n="ui.editor.welcome.text2">$$</p>
-          </div>
-          <s-button data-i18n="editor.actions.openFile" slot="action" data-click="editor.openFile">$$</s-button>
-          <s-button data-i18n="editor.actions.openFolder" slot="action" data-click="editor.openFolder">$$</s-button>
-        </s-card>
-
-        <s-card id="editor-je" type="outlined" class="hide">
-          <div slot="headline" data-i18n="ui.editor.je.headline">$$</div>
-          <div slot="text">
-            <p data-i18n="ui.editor.je.text1">$$</p>
-          </div>
-        </s-card>
-
-        <s-card id="editor-be" type="outlined" class="hide">
-          <div slot="headline" data-i18n="ui.editor.be.headline">$$</div>
-          <div slot="text">
-            <p data-i18n="ui.editor.be.text1">$$</p>
-          </div>
-        </s-card>
-
-      </s-scroll-view>
+      <div id="editor">
+        <s-tab id="editor-tabs">
+        </s-tab>
+        <s-scroll-view id="editor-views">
+        </s-scroll-view>
+      </div>
     </s-drawer>
+
+    <!-- 命令面板 -->
+    <s-bottom-sheet id="command-panel">
+      <div slot="text">
+        <s-text-field id="command-panel-input" data-i18n label="$command_panel.title$">
+          <div slot="text">$command_panel.input$</div>
+            <s-icon-button data-click="command.panel.clear" slot="end">
+              <s-icon name="close"></s-icon>
+            </s-icon-button>
+            <s-icon-button data-click="command.panel.run" slot="end">
+              <s-icon name="arrow_forward"></s-icon>
+            </s-icon-button>
+        </s-text-field>
+        <s-scroll-view id="command-panel-console-scroll">
+          <div id="command-panel-console" class="selectable" data-i18n>$command_panel.readme$</div>
+        </s-scroll-view>
+      </div>
+    </s-bottom-sheet>
+
   </s-page>
   <div id="loading" data-status="loading">
     <style>
@@ -123,6 +135,8 @@
         background-color: rgba(0,0,0,0.1);
         backdrop-filter: blur(10px);
         transition: all 100000ms ease-out;
+        user-select: none;
+        pointer-events: all;
         /* 添加过渡 */
         opacity: 1;
         transition: opacity 0.6s ease-out;
@@ -156,9 +170,11 @@
     </s-icon>
     <p>正在加载 Joyous Menu Editor</p>
     <script>
+      window.joyous = {};
       const ele = document.getElementById("loading");
       const p = document.querySelector("div#loading p");
       function putErrorStatusOnLoading(msg) {
+        if (!ele) { return; };
         ele.dataset.status = "error";
         p.innerHTML = msg;
       };
@@ -177,6 +193,7 @@
       setTimeout(()=>{if(ele&&ele.dataset.status=="loading"){p.innerHTML="仍在加载 Joyous Menu Editor<br>似乎无法加载。清除缓存后再试，若仍失败请联系我们。";};}, 90e3);
     </script>
   </div>
+  <script type="module" src="./javascript/editor/editorImport.js"></script>
   <script type="module" src="./javascript/main.js"></script>
 </body>
 </html>

@@ -67,7 +67,7 @@ export function msg(Message, ConfirmBtnText, type, duration, onclick, align, ico
   return infoJSON;
 };
 // 挂载到全局对象上
-window.msg = msg;
+window.joyous.msg = msg;
 
 /**
  * 修改页面明暗主题

@@ -1,5 +1,7 @@
+import i18n from "../i18n.js";
+
 export default {
-  executeCommand, regisiterCommand
+  executeCommand, regisiterCommand, isCommand, executeCommandSlient, hook, regisiterCommandWithHotkey, regisiterHotkey
 }
 
 /**
@@ -7,19 +9,61 @@ export default {
  * @type {Map<String,Function>}
  */
 const commands = new Map([
-  ["editor.revert", () => { }],
+  ["echo", (...args) => { return new String(args.join("")); }],
 ]);
+
+/**
+ * 判断指定的命令是否存在
+ * @param {String} cmd 
+ * @returns 
+ */
+export function isCommand(cmd) {
+  if (!commands.has(cmd)) return false;
+  return (typeof (commands.get(cmd)) === "function");
+}
 
 /**
  * 执行一个注册的命令
  * @param {String} cmd 命令
  * @param  {...any} arg 命令参数
- * @returns 该命令的返回值；找不到命令时返回 undefined
+ * @returns 该命令的返回值；
+ * @throws 命令不存在或者执行出错，会自动通知前端
  */
 export function executeCommand(cmd, ...arg) {
-  const v = commands.get(cmd);
-  return (typeof (v) === "function") ? v(...arg) : undefined;
+  try {
+    const cmdLowerCase = cmd.toLocaleLowerCase();
+    if (!isCommand(cmdLowerCase)) { throw new Error(i18n.parseSafe("command_panel.notFound", { cmd: cmd })); };
+    const v = commands.get(cmdLowerCase);
+    return v.apply(this, arg);
+  } catch (e) {
+    window.joyous.msg(i18n.parse("msg.command_failure", { msg: e.message }), i18n.parse("msg.done"), "error");
+    console.error(`无法执行命令 ${cmd} [${arg.join("|")}] ：`, e);
+    throw e;
+  }
 }
+
+/**
+ * 静默执行一个注册的命令
+ * @param {String} cmd 命令
+ * @param  {...any} arg 命令参数
+ * @returns 该命令的返回值；
+ * @throws 命令不存在或者执行出错，不会自动通知前端
+ */
+export function executeCommandSlient(cmd, ...arg) {
+  try {
+    const cmdLowerCase = cmd.toLowerCase();
+    if (!isCommand(cmdLowerCase)) { throw new Error(i18n.parseSafe("command_panel.notFound", { cmd: cmd })); };
+    const v = commands.get(cmdLowerCase);
+    return v.apply(this, arg);
+  } catch (e) {
+    console.error(`无法执行命令 ${cmd} [${arg.join("|")}] ：`, e);
+    throw e;
+  }
+}
+
+// 挂载到全局
+window.joyous.executeCommand = executeCommand;
+window.joyous.executeCommandSlient = executeCommandSlient;
 
 /**
  * 注册一个命令
@@ -27,5 +71,44 @@ export function executeCommand(cmd, ...arg) {
  * @param {Function} func 
  */
 export function regisiterCommand(command, func) {
-  commands.set(command, func);
+  commands.set(command.toLowerCase(), func);
+}
+
+/**
+ * 注册一个命令，顺便绑定快捷键
+ * @param {String} command 
+ * @param {Function} func 
+ * @param {string} key 快捷键
+ * @param {...*} args 快捷键触发时的参数
+ */
+export function regisiterCommandWithHotkey(command, func, key, ...args) {
+  commands.set(command.toLowerCase(), func);
+  if (key) {
+    hotkeys(key, () => { executeCommand(command, ...args); return false; });
+  };
+}
+
+/**
+ * 注册一个快捷键绑定命令
+ * @param {string} key 快捷键
+ * @param {String} command 
+ * @param {...*} args 快捷键触发时的参数
+ */
+export function regisiterHotkey(key, command, ...args) {
+  if (!key || !command) { return; };
+  hotkeys(key, () => { executeCommand(command, ...args); return false; });
+}
+
+/**
+ * 注册某个元素下的声明式命令执行
+ * @param {Element} root 
+ */
+export function hook(root = document.body) {
+  root.querySelectorAll("*[data-click]").forEach((e) => {
+    const cmd = e.dataset.click;
+    e.addEventListener("click", (event) => {
+      executeCommand.apply(event, cmd.split("|"));
+    });
+    e.removeAttribute("data-click"); // 移除以免重复绑定
+  });
 }

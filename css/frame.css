@@ -1,4 +1,4 @@
-/* ui */
+/* print display */
 @media print {
   s-appbar {
     display: none !important;
@@ -37,6 +37,8 @@
   }
 }
 
+/* base frame */
+
 body {
   background-repeat: no-repeat;
   background-size: cover;
@@ -65,12 +67,25 @@ s-page {
   user-select: none;
 }
 
+s-page[dark] {
+  background: rgba(5, 2, 3, var(--bg-alpha-d, 0.82));
+  backdrop-filter: var(--bg-blur, blur(0px));
+}
+
+s-page[dark] * {
+  color-scheme: dark;
+}
+
+/* appbar */
+
 s-appbar {
   margin: 0 0 0 0;
   position: sticky;
   top: 0;
   z-index: 1000;
 }
+
+/* sidebar */
 
 s-drawer {
   display: flex;
@@ -83,11 +98,90 @@ s-drawer {
   flex-direction: column;
 }
 
-s-page[dark] {
-  background: rgba(5, 2, 3, var(--bg-alpha-d, 0.82));
-  backdrop-filter: var(--bg-blur, blur(0px));
+/* editor frame */
+s-tab {
+  position: sticky;
+  top: 0;
+  height: 48px;
 }
 
-s-page[dark] * {
-  color-scheme: dark;
+#editor-tabs>s-tab-item s-icon-button {
+  margin-left: .3rem;
+  /* padding-left: 1rem; */
+}
+
+/* #editor-tabs>s-tab-item s-icon-button::part(ripple) {
+  transform: translateX(+.5rem);
+} */
+
+#editor {
+  height: 100%;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+#editor-views {
+  height: calc(100% - 48px);
+  width: 100%;
+}
+
+.editor-frame {
+  width: min-content;
+  min-width: 100%;
+  height: min-content;
+  min-height: 100%;
+  flex-direction: column;
+}
+
+.editor-frame[data-hidden="false"] {
+  display: flex;
+}
+
+.editor-frame[data-hidden="true"] {
+  display: none;
+}
+
+/* popup pannel */
+s-bottom-sheet::part(container) {
+  min-width: 60%;
+  min-height: 40%;
+  width: var(--panel-width, fit-content);
+  height: var(--panel-height, fit-content);
+  max-width: 90%;
+  max-height: 80%;
+  /* border-radius: 3px; */
+}
+
+s-dialog::part(container) {
+  min-width: 80%;
+  min-height: 60%;
+  width: var(--panel-width, fit-content);
+  height: var(--panel-height, fit-content);
+  max-width: 90%;
+  max-height: 80%;
+  /* border-radius: 2px; */
+}
+
+/* command panel */
+#command-panel {
+  --panel-width: 70%;
+}
+
+#command-panel-input {
+  display: grid;
+  width: auto;
+}
+
+#command-panel-console-scroll {
+  border: var(--s-color-outline, #6f7979) solid 1px;
+  border-radius: 8px;
+  padding: .6em .4em .5em .4em;
+}
+
+#command-panel-console {
+  margin: 0;
+  padding: 0;
+  width: calc(100% - .8em - 2px);
+  font-family: 'Consolas', 'Monaco', 'Bitstream Vera Sans Mono', 'Lucida Console', 'Courier New', monospace;;
 }
