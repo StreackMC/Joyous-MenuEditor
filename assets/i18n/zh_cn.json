@@ -1,6 +1,11 @@
 {
   "product": {
-    "name": "Joyous 菜单编辑器"
+    "name": "Joyous 菜单编辑器",
+    "i18n_pack": {
+      "credits": "@kdxiaoyi",
+      "description": "编辑器的默认语言",
+      "lang": "中文（简体）"
+    }
   },
   "ui": {
     "tooltip": {
