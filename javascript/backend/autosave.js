@@ -73,7 +73,12 @@ export function recoverOpened() {
   let loopId = setInterval(() => {
     if (func.length == 0) {
       clearInterval(loopId);
-      tabs.switchTab(which);
+      try {
+        tabs.switchTab(which);
+      } catch (error) {
+        console.error("无法恢复工作区原有标签页，使用默认值。");
+        tabs.switchTab(0);
+      }
       editorManager.untitledCounts = untitledCount;
       return;
     };
