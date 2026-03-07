@@ -11,9 +11,15 @@
     "tooltip": {
       "explorerSwitcher": "切换侧栏",
       "appbarToolsFolded": "工具箱",
-      "save": "保存文件<br>按住 Ctrl 以另存为",
+      "save": "保存文件",
+      "saveAs": "另存为",
+      "open": "打开",
+      "openFolder": "打开工作区",
+      "openFile": "打开文件",
       "revert": "撤销一步",
-      "redo": "恢复一步"
+      "redo": "恢复一步",
+      "command_panel": "命令面板",
+      "about": "关于"
     },
     "editor": {
       "welcome": {

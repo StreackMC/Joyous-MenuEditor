@@ -185,3 +185,12 @@ s-dialog::part(container) {
   width: calc(100% - .8em - 2px);
   font-family: 'Consolas', 'Monaco', 'Bitstream Vera Sans Mono', 'Lucida Console', 'Courier New', monospace;;
 }
+
+/* s-popup-menu */
+s-popup-menu-item.divide {
+  border-top: solid 1px var(--s-color-outline-variant, #C0C8CC);
+}
+
+s-popup-menu-item.divideBottom {
+  border-bottom: solid 1px var(--s-color-outline-variant, #C0C8CC);
+}
