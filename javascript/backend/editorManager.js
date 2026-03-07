@@ -42,7 +42,7 @@ export function regisiterEditor(id, varify, clazz) {
  * @param {string} fname 编辑器标题，建议传入文件名，最终由实际的编辑器决定
  * @throws 找不到目标编辑器
  */
-export function openEditor(data, editorId = undefined, fname = null) {
+export function openEditor(data = "", editorId = undefined, fname = null) {
   fname = (fname) ? fname : `Untitled-${getUntitledId()}`;
   if (editorId) {
     // 如果指定了打开方式则直接打开
