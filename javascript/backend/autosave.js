@@ -66,7 +66,7 @@ export function recoverOpened() {
     return;
   };
 
-  if (tabs.getTabsLength >= 2) {
+  if (tabs.getTabsLength() >= 2) {
     tabs.closeAllTabs();
   };
   func.shift().apply(this);
