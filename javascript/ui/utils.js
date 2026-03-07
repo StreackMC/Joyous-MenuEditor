@@ -3,9 +3,12 @@ import i18n from '../i18n.js';
 export default {
   setPageTitle, setTitle, setUITitle,
   msg,
-  changeColorTheme, changeShadeTheme
+  changeColorTheme, changeShadeTheme,
+  getColorTheme, getShadeTheme,
 }
 
+let shadeTheme = "light";
+let colorTheme = "green";
 const spageEle = document.querySelector("s-page");
 const titleEle = document.querySelector("title");
 const uiTitleEle = document.getElementById("ui-title");
@@ -79,6 +82,7 @@ export function changeShadeTheme(target, animationCenter = mainBtn) {
   if /* 若传入无效动画中心元素则指定为侧栏按钮 */ (!(animationCenter instanceof HTMLElement)) {
     animationCenter = mainBtn;
   };
+  shadeTheme = target;
   return spageEle.toggle(target, animationCenter);
 };
 
@@ -87,5 +91,22 @@ export function changeShadeTheme(target, animationCenter = mainBtn) {
  * @param {string} target 目标主题
  */
 export function changeColorTheme(target = "green") {
+  colorTheme = target;
   spageEle.colorTheme = target;
+};
+
+/**
+ * 获取页面明暗主题
+ * @returns {string} auto, light, dark
+ */
+export function getShadeTheme() {
+  return shadeTheme;
+};
+
+/**
+ * 获取页面配色主题
+ * @returns {string} 目标主题
+ */
+export function getColorTheme() {
+  return colorTheme;
 };
