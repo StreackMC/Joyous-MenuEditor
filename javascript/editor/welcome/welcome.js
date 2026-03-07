@@ -35,6 +35,8 @@ export class EditorWelcome extends Editor {
   setData(data) { this.data = data; };
   getRegId() { return EditorId; };
   init() { return; };
+  revert(step = 1) { return; };
+  redo(step = 1) { return; };
   destroy() { return; };
 }
 

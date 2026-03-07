@@ -5,14 +5,51 @@ const EditorId = "exampleEditor";
  * @interface Editor 需要覆写全部方法并注册 Editor
  */
 export class Editor {
+  /**
+   * 初始化一个编辑器
+   * @param {*} data 
+   * @param {string} filename 文件名
+   */
   constructor(data, filename) {
     if (new.target === Editor) { UnsupportedMethodException(); };
   };
+  /**
+   * 获取编辑器的标识符
+   * @returns {String}
+   */
   getRegId() { return EditorId; };
+  /**
+   * 获取编辑器当前数据
+   * @returns {*}
+   */
   getData() { UnsupportedMethodException(); return {}; };
+  /**
+   * 获取编辑器要插入的元素
+   * @returns {Element}
+   */
   getElement() { UnsupportedMethodException(); return new Element(); };
+  /**
+   * 通知DOM树已插入，可进行初始化
+   */
   init() { UnsupportedMethodException(); };
+  /**
+   * 设置编辑器数据
+   * @param {*} data 
+   */
   setData(data) { UnsupportedMethodException(); };
+  /**
+   * 撤销操作
+   * @param {number} step 步数
+   */
+  revert(step = 1) { UnsupportedMethodException(); };
+  /**
+   * 重做操作
+   * @param {number} step 步数
+   */
+  redo(step = 1) { UnsupportedMethodException(); };
+  /**
+   * 通知清理编辑器数据，准备销毁
+   */
   destroy() { UnsupportedMethodException(); };
 };
 

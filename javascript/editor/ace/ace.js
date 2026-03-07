@@ -113,6 +113,10 @@ export class EditorAce extends Editor {
   getRegId() {
     return EditorId;
   }
+
+  revert(step = 1) { UnsupportedMethodException(); };
+
+  redo(step = 1) { UnsupportedMethodException(); };
 }
 
 // 注册编辑器
