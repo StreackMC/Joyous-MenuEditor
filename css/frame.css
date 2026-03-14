@@ -193,12 +193,14 @@ s-dialog::part(scrim)::before {
   border: var(--s-color-outline, #6f7979) solid 1px;
   border-radius: 8px;
   padding: .6em .4em .5em .4em;
+  width: unset;
 }
 
 #command-panel-console {
   margin: 0;
   padding: 0;
   width: calc(100% - .8em - 2px);
+  line-break: anywhere;
   font-family: 'Consolas', 'Monaco', 'Bitstream Vera Sans Mono', 'Lucida Console', 'Courier New', monospace;;
 }
 
