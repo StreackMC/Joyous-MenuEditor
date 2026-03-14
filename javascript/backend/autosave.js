@@ -49,11 +49,15 @@ export function recoverOpened() {
     data.forEach((i) => {// todo 没有错误处理
       const clazz = editorManager.regEditorsClazz.get(i.editor);
       func.push(function () {
-        tabs.openTab(
-          new clazz(i.data, i.name),
-          i.name,
-          i.id
-        );
+        try {
+          tabs.openTab(
+            new clazz(i.data, i.name),
+            i.name,
+            i.id
+          );
+        } catch (error) {
+          console.error(`恢复工作区时遇到错误: `, error, `\n@ processData: `, i);
+        }
       });
     });
     which = webstorage.Local.get("autosave.which");
@@ -69,7 +73,11 @@ export function recoverOpened() {
   if (tabs.getTabsLength() >= 2) {
     tabs.closeAllTabs();
   };
-  func.shift().apply(this);
+  if (func.length == 0/* 处理一下意外情况 */) {
+    tabs.switchTab(0);
+  } else {
+    func.shift().apply(this);
+  }
   let loopId = setInterval(() => {
     if (func.length == 0) {
       clearInterval(loopId);
