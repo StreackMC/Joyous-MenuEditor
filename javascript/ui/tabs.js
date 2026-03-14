@@ -6,7 +6,7 @@ import editorManager from "../backend/editorManager.js";
 const uuidv4 = v4;
 
 function newEditorWelcome(...arg) {
-  const clazz = editorManager.regEditorsClazz.get("welcomeEditor");
+  const clazz = editorManager.regEditorsClazz.get("welcome");
   return new clazz(...arg);
 }
 

@@ -69,7 +69,7 @@ export function openEditor(data = "", editorId = undefined, fname = null) {
   };
 
   // 没有打开方式，尝试默认编辑器 ACE
-  const aceClazz = regEditorsClazz.get("aceDefaultEditor");
+  const aceClazz = regEditorsClazz.get("ace");
   if (!aceClazz) {
     throw new Error(i18n.parseSafe("editor.ACE.err"));
   }
