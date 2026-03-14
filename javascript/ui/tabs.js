@@ -106,8 +106,8 @@ export function openTab(editorInstance = newEditorWelcome(), name = i18n.parseSa
   // 推送到前端渲染
   eTabs.appendChild(tabsMap.get(uuid).switcher.root);
   eView.appendChild(tabsMap.get(uuid).frame);
-  commands.hook(eView);
   i18n.refresh(eView);
+  commands.hook(eView);
 
   // 完成创建并显示
   switchTab(uuid);

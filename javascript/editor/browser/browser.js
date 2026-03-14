@@ -41,8 +41,8 @@ export class EditorBrowser extends Editor {
    * @param {*} data 
    */
   setData(data) {
-    this.url = data;
-    this.iframe.src = this.url;
+    this.iframe.src = new URL(data,this.url).href;
+    this.url = this.iframe.src;
   };
   /**
    * 撤销操作
