@@ -5,7 +5,7 @@ export default {
   msg,
   changeColorTheme, changeShadeTheme,
   getColorTheme, getShadeTheme,
-}
+};
 
 let shadeTheme = "light";
 let colorTheme = "green";

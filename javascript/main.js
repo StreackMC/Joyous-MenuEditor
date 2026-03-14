@@ -10,7 +10,7 @@ import autosave from "./backend/autosave.js";
 // 加载 versions.json
 const response = await fetch('./version.json');
 if (!response.ok) {
-  putErrorStatusOnLoading("无法加载版本信息文件："+response.status);
+  putErrorStatusOnLoading("无法加载版本信息文件：" + response.status);
   throw new Error(`HTTP error! status: ${response.status}`);
 }
 const versionJson = await response.json();
@@ -33,8 +33,8 @@ function versionDialogPopup() {
   const title = i18n.parse("ui.about.title");
   const div = document.createElement("div");
   div.style = `margin: 1.2em .5em 1em .5em;width:max-content;`;
-  div.innerHTML = 
-`${versionJson.hash}@${versionJson.ref} [${versionJson.build_time}]<br>
+  div.innerHTML =
+    `${versionJson.hash}@${versionJson.ref} [${versionJson.build_time}]<br>
 <br>
 Copyright (C) 2025-present, StreackMC & kdxiaoyi.<br>
 This software is licensed under <a target='_blank' href='https://github.com/StreackMC/Joyous-MenuEditor/'>Apache 2.0</a>.

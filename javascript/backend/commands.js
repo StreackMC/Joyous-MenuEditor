@@ -2,7 +2,7 @@ import i18n from "../i18n.js";
 
 export default {
   executeCommand, regisiterCommand, isCommand, executeCommandSlient, hook, regisiterCommandWithHotkey, regisiterHotkey
-}
+};
 
 /**
  * 命令列表

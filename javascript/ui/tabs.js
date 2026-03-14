@@ -125,7 +125,7 @@ export function openTab(editorInstance = newEditorWelcome(), name = i18n.parseSa
  * 关闭全部标签页
  */
 export function closeAllTabs() {
-  tabs.forEach((id) => { closeTab(id) });
+  tabs.forEach((id) => { closeTab(id); });
 }
 
 /**
@@ -138,10 +138,10 @@ export function closeTab(index = currentTab) {
   try {
     origin = tabs[currentTab];
     if (typeof index === "string") {
-      if (!tabsMap.has(index) || tabs.indexOf(index) < 0) { throw new Error() };
+      if (!tabsMap.has(index) || tabs.indexOf(index) < 0) { throw new Error(); };
       target = index;
     } else {
-      if (index < 0 || index >= tabs.length) { throw new Error() };
+      if (index < 0 || index >= tabs.length) { throw new Error(); };
       target = tabs[index];
     }
   } catch (error) {
@@ -157,7 +157,7 @@ export function closeTab(index = currentTab) {
   if (target != origin) {
     eTabs.value = origin;
   } else {
-    eTabs.value = tabs[getTabsLength()-1]
+    eTabs.value = tabs[getTabsLength() - 1];
   };
 
   // 销毁标签页
@@ -187,14 +187,14 @@ export function switchTab(index = currentTab) {
     openTab();
     return;
   };
-  
+
   // 先隐藏旧的
   try {
     const oldOne = getTab(getCurrentTabId());
     oldOne.frame.dataset.hidden = "true";
   } catch (ignore) {
   }
-  
+
   // 显示新的
   const newOne = getTab(index);
   eTabs.value = newOne.id;
@@ -239,4 +239,4 @@ commands.regisiterCommand("editor.closeAll", closeAllTabs);
 
 export default {
   eTabs, eView, openTab, switchTab, getTab, Tab, tabs, getTabsLength, tabsMap, getCurrentTabId, closeAllTabs, closeTab
-}
+};

@@ -56,8 +56,8 @@ cmdInput.addEventListener('keypress', (e) => {
     default:
       break;
   }
-})
+});
 
 export default {
   switchCommandPanel, openCommandPanel, closeCommandPanel, cmdPanel, cmdInput, cmdConsole
-}
+};

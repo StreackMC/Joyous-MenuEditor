@@ -91,4 +91,4 @@ commands.regisiterCommand("autosave.recover", recoverOpened);
 
 export default {
   backupOpened, recoverOpened
-}
+};
