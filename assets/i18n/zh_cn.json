@@ -61,6 +61,7 @@
     "autosave": {
       "fail_recover": "无法恢复上次的工作区：%msg%"
     },
-    "done": "好"
+    "done": "好",
+    "unknownEditor": "未知的编辑器：%editor%"
   }
 }
