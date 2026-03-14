@@ -17,7 +17,7 @@ const h = `
 <s-button data-i18n slot="action" data-click="editor.openFile">$editor.actions.openFile$</s-button>
 <s-button data-i18n slot="action" data-click="editor.openFolder">$editor.actions.openFolder$</s-button>
 `;
-const EditorId = "welcomeEditor";
+const EditorId = "welcome";
 
 export class EditorWelcome extends Editor {
   ele = document.createElement("s-card");

@@ -2,7 +2,7 @@ import { Editor } from "../editor.js";
 import editorManager from "../../backend/editorManager.js";
 import utils from "../../ui/utils.js";
 
-const EditorId = "aceDefaultEditor";
+const EditorId = "ace";
 const s = `
 div.ace-editor-joyous { height:100%; }
 `;

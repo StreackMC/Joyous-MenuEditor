@@ -1,4 +1,4 @@
-const EditorId = "exampleEditor";
+const EditorId = "example";
 
 /**
  * 仅作为一个Interface使用，需要自行 extends
