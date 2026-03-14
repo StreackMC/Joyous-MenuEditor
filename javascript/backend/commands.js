@@ -32,7 +32,7 @@ export function isCommand(cmd) {
 export function executeCommand(cmd, ...arg) {
   try {
     const cmdLowerCase = cmd.toLocaleLowerCase().replace(/\s+/g, "");
-    if (!isCommand(cmdLowerCase)) { throw new Error(i18n.parseSafe("command_panel.notFound", { cmd: cmd })); };
+    if (!isCommand(cmdLowerCase)) { throw new Error(i18n.parseSafe("panel.command.notFound", { cmd: cmd })); };
     const v = commands.get(cmdLowerCase);
     return v.apply(this, arg);
   } catch (e) {
@@ -52,7 +52,7 @@ export function executeCommand(cmd, ...arg) {
 export function executeCommandSlient(cmd, ...arg) {
   try {
     const cmdLowerCase = cmd.toLowerCase().replace(/\s+/g, "");
-    if (!isCommand(cmdLowerCase)) { throw new Error(i18n.parseSafe("command_panel.notFound", { cmd: cmd })); };
+    if (!isCommand(cmdLowerCase)) { throw new Error(i18n.parseSafe("panel.command.notFound", { cmd: cmd })); };
     const v = commands.get(cmdLowerCase);
     return v.apply(this, arg);
   } catch (e) {

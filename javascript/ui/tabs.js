@@ -98,7 +98,7 @@ eTabs.addEventListener("dblclick", (e) => {
  * @param {string} uuid Tab的标识符，默认自动设置。不推荐手动覆写
  * @returns {string} Tab实例的UUID
  */
-export function openTab(editorInstance = newEditorWelcome(), name = i18n.parseSafe("ui.editor.welcome.headline"), uuid = uuidv4()) {
+export function openTab(editorInstance = newEditorWelcome(), name = i18n.parseSafe("editor.welcome.headline"), uuid = uuidv4()) {
   if (tabsMap.has(uuid)) { throw new Error("无法新建标签页，发现重复的UUID: ", uuid); };
   tabsMap.set(uuid, new Tab(editorInstance, name, uuid));
   tabs.push(uuid);

@@ -59,29 +59,31 @@ export function openEditor(data = "", editorId = undefined, fname = null) {
         title = fname;
       }
       tabs.openTab(new clazz(data, fname), title);//不catch潜在的null，由调用者自行处理
+      return;
     };
   } catch (error) {
     throw new Error(i18n.parseSafe("msg.unknownEditor", { editor: editorId }));
   }
 
   // 判断打开方式
-  try {
-    regEditorsVarify.forEach((value, key) => {
-      try {
-        const title = value.apply(this, [data, fname]);
-        if (title) {
-          const clazz = regEditorsClazz.get(key);
-          tabs.openTab(new clazz(data, fname), title);
-          throw new Error("break here");// todo：用throw中断不太合理
-        };
-      } catch (error) {
-        console.log(`编辑器 ${key} 无法验证文件类型：`, error);
-        return;
+  let success = false;
+  for (const key of regEditorsVarify.keys()) {
+    try {
+      const title = regEditorsVarify.get(key).apply(this, [data, fname]);
+      if (title) {
+        const clazz = regEditorsClazz.get(key);
+        tabs.openTab(new clazz(data, fname), title);
+        success = true;
+        break;
+      } else {
+        continue;
       };
-    });
-  } catch (ignore) {
-    return;
+    } catch (error) {
+      console.log(`编辑器 ${key} 无法验证文件类型：`, error);
+      continue;
+    };
   };
+  if (success) { return; };
 
   // 没有打开方式，尝试默认编辑器 ACE
   const aceClazz = regEditorsClazz.get("ace");

@@ -6,6 +6,7 @@ import tabs from "./ui/tabs.js";
 import command_panel from "./ui/command_panel.js";
 import editorManager from "./backend/editorManager.js";
 import autosave from "./backend/autosave.js";
+import mcText from "./ui/mctext_panel.js";
 
 // 加载 versions.json
 const response = await fetch('./version.json');
@@ -30,7 +31,7 @@ commands.hook();
 // 版本信息
 // todo: 后续分离到 ui/about.js 里面
 function versionDialogPopup() {
-  const title = i18n.parse("ui.about.title");
+  const title = i18n.parse("about.title");
   const div = document.createElement("div");
   div.style = `margin: 1.2em .5em 1em .5em;width:max-content;`;
   div.innerHTML =

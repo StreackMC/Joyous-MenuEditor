@@ -7,7 +7,7 @@ const cmdInput = document.getElementById("command-panel-input");
 const cmdConsole = document.getElementById("command-panel-console");
 if (!cmdPanel || !cmdInput) {
   UiUtils.msg(
-    i18n.parse("command_panel.invaild_session"),
+    i18n.parse("panel.command.invaild_session"),
     i18n.parse("msg.done"),
     "error"
   );
@@ -30,21 +30,21 @@ commands.regisiterCommand("command.panel.close", closeCommandPanel);
 commands.regisiterCommand("command.panel.run", () => {
   const input = cmdInput.value;
   if (!input) {
-    cmdConsole.innerHTML = i18n.parse("command_panel.readme");
+    cmdConsole.innerHTML = i18n.parse("panel.command.readme");
   };
   const cmd = input.split(/(?<!\\)\|/g);
   try {
-    if (cmd[0] == "command.panel.run")/* 不允许调用自己 */ { throw new Error(i18n.parseSafe("command_panel.loop", { cmd: cmd[0] })); };
+    if (cmd[0] == "command.panel.run")/* 不允许调用自己 */ { throw new Error(i18n.parseSafe("panel.command.loop", { cmd: cmd[0] })); };
     let r = new String(commands.executeCommandSlient.apply(window, cmd));
     //if (r.length == 0) { r = ""; };
-    cmdConsole.innerHTML = i18n.parse("command_panel.result", { result: r });
+    cmdConsole.innerHTML = i18n.parse("panel.command.result", { result: r });
   } catch (error) {
-    cmdConsole.innerHTML = i18n.parse("command_panel.error", { result: error.message });
+    cmdConsole.innerHTML = i18n.parse("panel.command.error", { result: error.message });
   }
 });
 commands.regisiterCommand("command.panel.clear", () => {
   cmdInput.value = "";
-  cmdConsole.innerHTML = i18n.parse("command_panel.readme");
+  cmdConsole.innerHTML = i18n.parse("panel.command.readme");
 });
 
 // 注册UI事件

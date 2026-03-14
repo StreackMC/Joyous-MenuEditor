@@ -7,42 +7,42 @@
       "lang": "中文（简体）"
     }
   },
-  "ui": {
-    "tooltip": {
-      "explorerSwitcher": "切换侧栏",
-      "appbarToolsFolded": "工具箱",
-      "save": "保存文件",
-      "saveAs": "另存为",
-      "open": "打开",
-      "openFolder": "打开工作区",
-      "openFile": "打开文件",
-      "revert": "撤销一步",
-      "redo": "恢复一步",
-      "command_panel": "命令面板",
-      "about": "关于"
-    },
-    "editor": {
-      "welcome": {
-        "headline": "欢迎",
-        "text1": "您可以打开一个文件来开始编辑菜单。<br>在支持的浏览器上，也支持打开文件夹作为工作区以批量编辑菜单。",
-        "text2": "或者：<a target='_blank' href='https://github.com/StreackMC/Joyous/releases'>获取Joyous插件</a>"
-      }
-    },
-    "about": {
-      "title": "关于 Joyous 菜单编辑器",
-      "motd1": ""
-    }
+  "tooltip": {
+    "explorerSwitcher": "切换侧栏",
+    "appbarToolsFolded": "工具箱",
+    "saveTo": "保存文件",
+    "saveAs": "另存为",
+    "open": "打开",
+    "openFolder": "打开工作区",
+    "openFile": "打开文件",
+    "revert": "撤销一步",
+    "redo": "恢复一步",
+    "command_panel": "命令面板",
+    "about": "关于",
+    "confirm": "确定",
+    "cancel": "取消",
+    "save": "保存"
   },
-  "command_panel": {
-    "invaild_session": "无法获取到命令面板元素。",
-    "title": "命令执行器",
-    "input": "在此输入命令；可以使用「|」分割参数",
-    "readme": "就绪。<br>将在 window 作用域下执行命令。",
-    "result": "成功执行命令：<br>%result%",
-    "error": "执行命令时发生错误：<br>%result%",
-    "notFound": "找不到命令 %cmd% 。",
-    "enter": "执行",
-    "loop": "检查到潜在的死循环风险，所以无法在此处使用命令 %cmd% 。"
+  "about": {
+    "title": "关于 Joyous 菜单编辑器"
+  },
+  "panel": {
+    "command": {
+      "invaild_session": "无法获取到命令面板元素。",
+      "title": "命令执行器",
+      "input": "在此输入命令；可以使用「|」分割参数",
+      "readme": "就绪。<br>将在 window 作用域下执行命令。",
+      "result": "成功执行命令：<br>%result%",
+      "error": "执行命令时发生错误：<br>%result%",
+      "notFound": "找不到命令 %cmd% 。",
+      "enter": "执行",
+      "loop": "检查到潜在的死循环风险，所以无法在此处使用命令 %cmd% 。"
+    },
+    "mctext": {
+      "title": "文本组件编辑器",
+      "unsaved": "尚未保存！再次点击以舍弃更改"
+    },
+    "mcitem": {}
   },
   "editor": {
     "actions": {
@@ -53,6 +53,11 @@
     },
     "ACE": {
       "err": "未能加载 ACE 编辑器。"
+    },
+    "welcome": {
+      "headline": "欢迎",
+      "text1": "您可以打开一个文件来开始编辑菜单。<br>在支持的浏览器上，也支持打开文件夹作为工作区以批量编辑菜单。",
+      "text2": "或者：<a target='_blank' href='https://github.com/StreackMC/Joyous/releases'>获取Joyous插件</a>"
     }
   },
   "msg": {

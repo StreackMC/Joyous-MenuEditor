@@ -37,6 +37,12 @@
 * `command.panel.clear`
   * 清空命令面板中的输入
 
+## javascript/ui/mctext_panel.js:
+* `editor.sub.mctext`
+  * 打开一个编辑器
+  * @param {String} data 原文本
+  * @param {function(data)} callback 回调函数
+
 ## javascript/ui/tabs.js:
 * `editor.openTab`
   * 打开一个标签页，默认使用「欢迎」

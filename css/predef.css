@@ -120,4 +120,5 @@ s-bottom-sheet>div[slot="text"] {
   height: fit-content;
   max-height: 100%;
   overflow: hidden;
+  width: 100%;
 }

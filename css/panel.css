@@ -1,0 +1,116 @@
+/* all popup pannel */
+s-bottom-sheet::part(container) {
+  min-width: 60%;
+  min-height: 40%;
+  width: var(--panel-width, fit-content);
+  height: var(--panel-height, fit-content);
+  max-width: 90%;
+  max-height: 80%;
+  /* border-radius: 3px; */
+}
+
+s-bottom-sheet::part(scrim) {
+  backdrop-filter: unset;
+}
+
+s-bottom-sheet[disable-bg-close]::part(scrim) {
+  pointer-events: none;
+}
+
+s-bottom-sheet::part(scrim)::before {
+  opacity: .35;
+}
+
+s-dialog::part(container) {
+  min-width: 80%;
+  min-height: 60%;
+  width: var(--panel-width, fit-content);
+  height: var(--panel-height, fit-content);
+  max-width: 90%;
+  max-height: 80%;
+  /* border-radius: 2px; */
+}
+
+s-dialog::part(scrim) {
+  backdrop-filter: unset;
+}
+
+s-dialog[disable-bg-close]::part(scrim) {
+  pointer-events: none;
+}
+
+s-dialog::part(scrim)::before {
+  opacity: .35;
+}
+
+/* command panel */
+#command-panel {
+  --panel-width: 70%;
+}
+
+#command-panel-input {
+  display: grid;
+  width: auto;
+}
+
+#command-panel-console-scroll {
+  border: var(--s-color-outline, #6f7979) solid 1px;
+  border-radius: 8px;
+  padding: .6em .4em .5em .4em;
+  width: unset;
+}
+
+#command-panel-console {
+  margin: 0;
+  padding: 0;
+  width: calc(100% - .8em - 2px);
+  line-break: anywhere;
+  font-family: 'Consolas', 'Monaco', 'Bitstream Vera Sans Mono', 'Lucida Console', 'Courier New', monospace;
+  ;
+}
+
+@media (max-width: 766px) {
+  #command-panel-console {
+    word-break: keep-all;
+    white-space: nowrap;
+  }
+}
+
+/* mcText panel */
+#mctext-panel>div[slot="text"] {
+  overflow: visible;
+  margin-top: 0;
+  margin-bottom: 0;
+}
+
+div#mctext-toolbar {
+  height: 36px;
+  width: 100%;
+  background: var(--s-color-surface-container-high, #E7E8EA);
+  position: sticky;
+  top: 0;
+  padding: 8px 0 8px 0;
+}
+
+.mctext-panel-content {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: row;
+}
+
+.mctext-panel-content>div {
+  width: 100%;
+  height: fit-content;
+  min-height: 100%;
+  background-color: aqua;
+  flex: 1;
+}
+
+.mctext-panel-content>div.mctext-edit-divide {
+  flex: unset;
+  width: 1px;
+  height: 100%;
+  margin: 0 .5em 0 .5em;
+  background-color: var(--s-color-outline, #6f7979);
+}

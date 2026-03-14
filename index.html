@@ -15,6 +15,7 @@
   <!-- import stylesheet -->
   <link rel="stylesheet" href="./css/sober-theme.css" />
   <link rel="stylesheet" href="./css/frame.css" />
+  <link rel="stylesheet" href="./css/panel.css" />
   <link rel="stylesheet" href="./css/predef.css" />
   <!-- PWA -->
   <link rel="manifest" href="./manifest.json" />
@@ -42,7 +43,7 @@
             </svg>
           </s-icon>
         </s-icon-button>
-        $ui.tooltip.explorerSwitcher$
+        $tooltip.explorerSwitcher$
       </s-tooltip>
 
       <!-- PC端快捷操作 -->
@@ -56,7 +57,7 @@
             </svg>
           </s-icon>
         </s-icon-button>
-        $ui.tooltip.revert$
+        $tooltip.revert$
       </s-tooltip>
       <s-tooltip data-i18n class="mobile-fold" slot="action">
         <s-icon-button slot="trigger" data-click="editor.redo">
@@ -68,7 +69,7 @@
             </svg>
           </s-icon>
         </s-icon-button>
-        $ui.tooltip.redo$
+        $tooltip.redo$
       </s-tooltip>
       <s-tooltip data-i18n class="mobile-fold" slot="action">
         <s-icon-button slot="trigger" data-click="editor.save">
@@ -80,7 +81,7 @@
             </svg>
           </s-icon>
         </s-icon-button>
-        $ui.tooltip.save$
+        $tooltip.saveTo$
       </s-tooltip>
 
       <!-- 工具箱入口 -->
@@ -90,7 +91,7 @@
           <s-icon-button slot="trigger" onclick="">
             <s-icon name="menu"></s-icon>
           </s-icon-button>
-          $ui.tooltip.appbarToolsFolded$
+          $tooltip.appbarToolsFolded$
         </s-tooltip>
 
         <!-- 移动端专属 -->
@@ -102,7 +103,7 @@
                 transform="translate(960, 0) scale(-1, 1)"></path>
             </svg>
           </s-icon>
-          $ui.tooltip.revert$
+          $tooltip.revert$
         </s-popup-menu-item>
         <s-popup-menu-item data-i18n class="mobile-fold" mobile data-click="editor.redo">
           <s-icon slot="start">
@@ -112,7 +113,7 @@
               </path>
             </svg>
           </s-icon>
-          $ui.tooltip.redo$
+          $tooltip.redo$
         </s-popup-menu-item>
         <s-popup-menu-item data-i18n class="mobile-fold" mobile data-click="editor.save">
           <s-icon slot="start">
@@ -122,7 +123,7 @@
               </path>
             </svg>
           </s-icon>
-          $ui.tooltip.save$
+          $tooltip.saveTo$
         </s-popup-menu-item>
 
         <!-- 一般 -->
@@ -134,7 +135,7 @@
               </path>
             </svg>
           </s-icon>
-          $ui.tooltip.saveAs$
+          $tooltip.saveAs$
         </s-popup-menu-item>
         <s-popup-menu>
           <s-popup-menu-item data-i18n slot="trigger">
@@ -145,14 +146,14 @@
                 </path>
               </svg>
             </s-icon>
-            $ui.tooltip.open$
+            $tooltip.open$
             <s-icon slot="end" name="arrow_drop_right"></s-icon>
           </s-popup-menu-item>
           <s-popup-menu-item data-i18n data-click="editor.openFile">
-            $ui.tooltip.openFile$
+            $tooltip.openFile$
           </s-popup-menu-item>
           <s-popup-menu-item data-i18n data-click="editor.openFolder">
-            $ui.tooltip.openFolder$
+            $tooltip.openFolder$
           </s-popup-menu-item>
         </s-popup-menu>
         <s-popup-menu-item data-i18n class="divide" data-click="command.panel.switch">
@@ -163,7 +164,7 @@
               </path>
             </svg>
           </s-icon>
-          $ui.tooltip.command_panel$
+          $tooltip.command_panel$
         </s-popup-menu-item>
         <s-popup-menu-item data-i18n data-click="about">
           <s-icon slot="start">
@@ -173,7 +174,7 @@
               </path>
             </svg>
           </s-icon>
-          $ui.tooltip.about$
+          $tooltip.about$
         </s-popup-menu-item>
 
       </s-popup-menu>
@@ -201,8 +202,8 @@
     <!-- 命令面板 -->
     <s-bottom-sheet id="command-panel">
       <div slot="text">
-        <s-text-field id="command-panel-input" data-i18n label="$command_panel.title$">
-          <div slot="text">$command_panel.input$</div>
+        <s-text-field id="command-panel-input" data-i18n label="$panel.command.title$">
+          <div slot="text">$panel.command.input$</div>
           <s-icon-button data-click="command.panel.clear" slot="end">
             <s-icon name="close"></s-icon>
           </s-icon-button>
@@ -211,11 +212,27 @@
           </s-icon-button>
         </s-text-field>
         <s-scroll-view id="command-panel-console-scroll">
-          <div id="command-panel-console" class="selectable" data-i18n>$command_panel.readme$</div>
+          <div id="command-panel-console" class="selectable" data-i18n>$panel.command.readme$</div>
         </s-scroll-view>
       </div>
     </s-bottom-sheet>
 
+    <!-- MC颜色字符编辑面板 -->
+    <s-dialog disable-bg-close id="mctext-panel">
+      <div slot="headline" data-i18n class="unselectable">$panel.mctext.title$</div>
+      <div slot="text" class="unselectable">
+        <div id="mctext-toolbar"></div>
+        <s-scroll-view class="mctext-panel-content">
+          <div id="mctext-edit">-63T160-420q0-94</div>
+          <div class="mctext-edit-divide"></div>
+          <div id="mctext-preview">t2</div>
+        </s-scroll-view>
+      </div>
+      <s-button slot="action" id="mctext-panel-btn-cancel" data-i18n type="text">$tooltip.cancel$</s-button>
+      <s-button slot="action" id="mctext-panel-btn-confirm" data-i18n type="text">$tooltip.confirm$</s-button>
+    </s-dialog>
+
+    <!-- 以下为动态插入元素 -->
   </s-page>
   <div id="loading" data-status="loading">
     <style>

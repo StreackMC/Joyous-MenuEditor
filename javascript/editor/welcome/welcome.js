@@ -8,10 +8,10 @@ const c = `
   margin: 20% min(20px, 3%) auto min(20px, 3%);
 `;
 const h = `
-<div slot="headline" data-i18n>$ui.editor.welcome.headline$</div>
+<div slot="headline" data-i18n>$editor.welcome.headline$</div>
 <div slot="text">
-  <p data-i18n>$ui.editor.welcome.text1$</p>
-  <p data-i18n>$ui.editor.welcome.text2$</p>
+  <p data-i18n>$editor.welcome.text1$</p>
+  <p data-i18n>$editor.welcome.text2$</p>
   <span style="color:var(--s-color-surface-container-lowest, #e0e3e2);font-size:small;">##uuidv4##</span>
 </div>
 <s-button data-i18n slot="action" data-click="editor.openFile">$editor.actions.openFile$</s-button>
