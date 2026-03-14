@@ -52,7 +52,7 @@ export function openEditor(data = "", editorId = undefined, fname = null) {
       const func = regEditorsVarify.get(editorId);
       let title;
       try {
-        title = func(this, fname);
+        title = func.apply(this, [data, fname]);
         if (!title) { throw new Error("目标编辑器不支持打开此类文件"); };
       } catch (error) {
         console.warn(`强制使用编辑器 ${editorId} 时，无法获取编辑器标题：`, error, "\n 目标数据：", data);
@@ -68,7 +68,7 @@ export function openEditor(data = "", editorId = undefined, fname = null) {
   try {
     regEditorsVarify.forEach((value, key) => {
       try {
-        const title = value.apply(this, data, fname);
+        const title = value.apply(this, [data, fname]);
         if (title) {
           const clazz = regEditorsClazz.get(key);
           tabs.openTab(new clazz(data, fname), title);
