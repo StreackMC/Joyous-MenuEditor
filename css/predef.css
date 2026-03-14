@@ -3,6 +3,11 @@ body {
   font-family: "Open Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
 }
 
+@font-face {
+  font-family: "mojangles";
+  src: url("https://rs.kdxiaoyi.top/res/fonts/Mojangles.ttf");
+}
+
 /* 常用样式 */
 .unselectable,
 #unselectable {
@@ -12,6 +17,10 @@ body {
 .selectable,
 #selectable {
   user-select: text;
+}
+
+.pixel {
+  font-family: "mojangles", "unifont";
 }
 
 .hide {
