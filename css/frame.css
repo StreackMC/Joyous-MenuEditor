@@ -204,6 +204,13 @@ s-dialog::part(scrim)::before {
   font-family: 'Consolas', 'Monaco', 'Bitstream Vera Sans Mono', 'Lucida Console', 'Courier New', monospace;;
 }
 
+@media (max-width: 766px) {
+  #command-panel-console {
+    word-break: keep-all;
+    white-space: nowrap;
+  }
+}
+
 /* s-popup-menu */
 s-popup-menu-item.divide {
   border-top: solid 1px var(--s-color-outline-variant, #C0C8CC);
