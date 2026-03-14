@@ -76,6 +76,13 @@ s-page[dark] * {
   color-scheme: dark;
 }
 
+iframe {
+  border: none;
+  width: 100%;
+  height: 100%;
+  flex: 1;
+}
+
 /* appbar */
 
 s-appbar {
