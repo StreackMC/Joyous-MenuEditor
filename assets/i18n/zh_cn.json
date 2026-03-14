@@ -25,7 +25,7 @@
       "welcome": {
         "headline": "欢迎",
         "text1": "您可以打开一个文件来开始编辑菜单。<br>在支持的浏览器上，也支持打开文件夹作为工作区以批量编辑菜单。",
-        "text2": "或者：<a data-click='editor.open|https://github.com/StreackMC/Joyous/releases'>获取Joyous插件</a>"
+        "text2": "或者：<a target='_blank' href='https://github.com/StreackMC/Joyous/releases'>获取Joyous插件</a>"
       }
     },
     "about": {
