@@ -39,14 +39,22 @@
 
 ## javascript/ui/tabs.js:
 * `editor.openTab`
-  * 
+  * 打开一个标签页，默认使用「欢迎」
+  * @param {Editor} editorInstance 编辑器实例
+  * @param {string} name 标签页名称
+  * @param {string} uuid Tab的标识符，默认自动设置。不推荐手动覆写
+  * @returns {string} Tab实例的UUID
 * `editor.switch`
-  * 
+  * 切换到指定标签页，如果标签页不存在抛出错误
+  * @param {number|string} index 以 0 开始为索引；使用文本时自动视作UUID
+  * @throws 标签页不存在
 * `editor.which`
-  * 
+  * 获取当前位于哪个标签页
 * `editor.howmany`
-  * 
+  * 获取当前有多少标签页
 * `editor.close`
-  * 
+  * 关闭指定标签页
+  * @param {number|string} index 以 0 开始为索引；使用文本时自动视作UUID
 * `editor.closeAll`
-  * 
+  * 关闭场上全部标签页
+  * 任何情况下没有活动标签页会自动新建一个「欢迎」标签页
