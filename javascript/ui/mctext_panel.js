@@ -1,5 +1,6 @@
 import i18n from "../i18n.js";
 import commands from "../backend/commands.js";
+import MCColors from "../library/MCColors.js";
 
 let originData = undefined;
 let currentData = "";
@@ -60,7 +61,7 @@ export function edit(data = "", callback = function (data) { }) {
 };
 commands.regisiterCommand("editor.sub.mctext", edit);
 
-//edit(); //debug usage!!!!!
+edit(); //debug usage!!!!!
 
 export default {
   edit, elements: mctPanel,
