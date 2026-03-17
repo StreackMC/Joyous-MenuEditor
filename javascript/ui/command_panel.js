@@ -24,17 +24,17 @@ export function switchCommandPanel() {
 }
 
 // 注册命令
-commands.regisiterCommandWithHotkey("command.panel.switch", switchCommandPanel, "ctrl+shift+p");
-commands.regisiterCommand("command.panel.open", openCommandPanel);
-commands.regisiterCommand("command.panel.close", closeCommandPanel);
-commands.regisiterCommand("command.panel.run", () => {
+commands.regisiterCommandWithHotkey("panel.commands.switch", switchCommandPanel, "ctrl+shift+p");
+commands.regisiterCommand("panel.commands.open", openCommandPanel);
+commands.regisiterCommand("panel.commands.close", closeCommandPanel);
+commands.regisiterCommand("panel.commands.run", () => {
   const input = cmdInput.value;
   if (!input) {
     cmdConsole.innerHTML = i18n.parse("panel.command.readme");
   };
   const cmd = input.split(/(?<!\\)\|/g);
   try {
-    if (cmd[0] == "command.panel.run")/* 不允许调用自己 */ { throw new Error(i18n.parseSafe("panel.command.loop", { cmd: cmd[0] })); };
+    if (cmd[0] == "panel.commands.run")/* 不允许调用自己 */ { throw new Error(i18n.parseSafe("panel.command.loop", { cmd: cmd[0] })); };
     let r = new String(commands.executeCommandSlient.apply(window, cmd));
     //if (r.length == 0) { r = ""; };
     cmdConsole.innerHTML = i18n.parse("panel.command.result", { result: r });
@@ -42,7 +42,7 @@ commands.regisiterCommand("command.panel.run", () => {
     cmdConsole.innerHTML = i18n.parse("panel.command.error", { result: error.message });
   }
 });
-commands.regisiterCommand("command.panel.clear", () => {
+commands.regisiterCommand("panel.commands.clear", () => {
   cmdInput.value = "";
   cmdConsole.innerHTML = i18n.parse("panel.command.readme");
 });
@@ -51,7 +51,7 @@ commands.regisiterCommand("command.panel.clear", () => {
 cmdInput.addEventListener('keypress', (e) => {
   switch (e.code) {
     case "Enter":
-      commands.executeCommand("command.panel.run");
+      commands.executeCommand("panel.commands.run");
       break;
     default:
       break;

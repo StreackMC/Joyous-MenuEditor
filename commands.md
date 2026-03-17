@@ -26,15 +26,15 @@
   * 打开一个编辑器
 
 ## javascript/ui/command_panel.js:
-* `command.panel.switch`
+* `panel.commands.switch`
   * 切换命令面板显示状态
-* `command.panel.open`
+* `panel.commands.open`
   * 展示命令面板
-* `command.panel.close`
+* `panel.commands.close`
   * 关闭命令面板
-* `command.panel.run`
+* `panel.commands.run`
   * 运行命令面板中的命令
-* `command.panel.clear`
+* `panel.commands.clear`
   * 清空命令面板中的输入
 
 ## javascript/ui/mctext_panel.js:
