@@ -137,11 +137,19 @@ div#mctext-toolbar>s-scroll-view {
   overflow-x: auto;
   overflow-y: hidden;
   transition: background-color .4s ease-in-out;
+  outline: dashed 1px;
+  margin: 1px 3px 1px 0;
+  padding-left: .4rem;
+  padding-right: 1rem;
 }
 
 /* 编辑框 */
 .mctext-panel-content>#mctext-edit {
   white-space: nowrap;
-    overflow-x: auto;
-    overflow-y: hidden;
+  overflow-x: auto;
+  overflow-y: hidden;
+  outline: dashed 1px;
+  margin: 1px 0 1px 3px;
+  padding-left: .4rem;
+  padding-right: 1rem;
 }
