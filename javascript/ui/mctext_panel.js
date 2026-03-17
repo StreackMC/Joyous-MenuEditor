@@ -17,12 +17,29 @@ export const mctPanel = {
   },
   toolbar: {
     root: document.getElementById("mctext-toolbar"),
+    scroll: document.getElementById("mctext-toolbar").firstElementChild,
   },
   view: {
     eidtor: document.getElementById("mctext-edit"),
     preview: document.getElementById("mctext-preview"),
   }
 };
+
+// 滚动转为水平
+let rafId = null, pendingScroll = 0;
+mctPanel.toolbar.root.addEventListener("wheel", (e) => {
+  e.stopImmediatePropagation();
+  e.preventDefault();
+  pendingScroll += e.deltaY + e.deltaX;
+
+  // 使用 requestAnimationFrame 合并更新，提升性能
+  if (rafId) cancelAnimationFrame(rafId);
+  rafId = requestAnimationFrame(() => {
+    mctPanel.toolbar.scroll.scrollLeft += pendingScroll;
+    pendingScroll = 0;
+    rafId = null;
+  });
+})
 
 // 点击「取消」时询问是否要保存
 mctPanel.dialogBtn.cancel.addEventListener("click", (e) => {
@@ -71,7 +88,24 @@ export function edit(data = "", callback = function (data) { }) {
   mctPanel.view.preview.innerHTML = MCColors.toHtml(MCColors.parse(data));
   mctPanel.root.showed = true;
 };
-commands.regisiterCommand("editor.sub.mctext", edit);
+commands.regisiterCommand("panel.mctext.open", edit);
+
+// 编辑器工具栏的命令绑定
+commands.regisiterCommand("panel.mctext.insert.italic", () => {
+  
+});
+commands.regisiterCommand("panel.mctext.insert.bold", () => {
+  
+});
+commands.regisiterCommand("panel.mctext.insert.underline", () => {
+  
+});
+commands.regisiterCommand("panel.mctext.insert.reset", () => {
+  
+});
+commands.regisiterCommand("panel.mctext.insert.format_code", () => {
+  
+});
 
 edit(`
 目前本功能还在开发\n这是测试用文本：

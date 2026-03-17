@@ -40,7 +40,14 @@
     },
     "mctext": {
       "title": "文本组件编辑器",
-      "unsaved": "尚未保存！再次点击以舍弃更改"
+      "unsaved": "尚未保存！再次点击以舍弃更改",
+      "toolbar": {
+        "reset": "重置",
+        "italic": "斜体",
+        "bold": "粗体",
+        "underline": "下划线",
+        "code": "插入格式化代码（§）<br>你也可以使用&快速插入"
+      }
     },
     "mcitem": {}
   },

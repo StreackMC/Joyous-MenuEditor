@@ -157,7 +157,7 @@
             $tooltip.openFolder$
           </s-popup-menu-item>
         </s-popup-menu>
-        <s-popup-menu-item data-i18n class="divide" data-click="command.panel.switch">
+        <s-popup-menu-item data-i18n class="divide" data-click="panel.commands.switch">
           <s-icon slot="start">
             <svg viewBox="0 -960 960 960">
               <path
@@ -205,10 +205,10 @@
       <div slot="text">
         <s-text-field id="command-panel-input" data-i18n label="$panel.command.title$">
           <div slot="text">$panel.command.input$</div>
-          <s-icon-button data-click="command.panel.clear" slot="end">
+          <s-icon-button data-click="panel.commands.clear" slot="end">
             <s-icon name="close"></s-icon>
           </s-icon-button>
-          <s-icon-button data-click="command.panel.run" slot="end">
+          <s-icon-button data-click="panel.commands.run" slot="end">
             <s-icon name="arrow_forward"></s-icon>
           </s-icon-button>
         </s-text-field>
@@ -222,7 +222,50 @@
     <s-dialog disable-bg-close id="mctext-panel">
       <div slot="headline" data-i18n class="unselectable">$panel.mctext.title$</div>
       <div slot="text" class="unselectable">
-        <div id="mctext-toolbar"></div>
+        <div id="mctext-toolbar">
+          <s-scroll-view>
+            <s-tooltip data-i18n>
+              <s-icon-button data-click="panel.mctext.insert.reset" slot="trigger">
+                <s-icon>
+                  <img src="./assets/images/reset.svg">
+                </s-icon>
+              </s-icon-button>
+              $panel.mctext.toolbar.reset$
+            </s-tooltip>
+            <s-tooltip data-i18n>
+              <s-icon-button data-click="panel.mctext.insert.format_code" slot="trigger">
+                <s-icon>
+                  <img src="./assets/images/format_code.svg">
+                </s-icon>
+              </s-icon-button>
+              $panel.mctext.toolbar.code$
+            </s-tooltip>
+            <s-tooltip data-i18n>
+              <s-icon-button data-click="panel.mctext.insert.bold" slot="trigger">
+                <s-icon>
+                  <img src="./assets/images/bold.svg">
+                </s-icon>
+              </s-icon-button>
+              $panel.mctext.toolbar.bold$
+            </s-tooltip>
+            <s-tooltip data-i18n>
+              <s-icon-button data-click="panel.mctext.insert.italic" slot="trigger">
+                <s-icon>
+                  <img src="./assets/images/italic.svg">
+                </s-icon>
+              </s-icon-button>
+              $panel.mctext.toolbar.italic$
+            </s-tooltip>
+            <s-tooltip data-i18n>
+              <s-icon-button data-click="panel.mctext.insert.underline" slot="trigger">
+                <s-icon>
+                  <img src="./assets/images/underline.svg">
+                </s-icon>
+              </s-icon-button>
+              $panel.mctext.toolbar.underline$
+            </s-tooltip>
+          </s-scroll-view>
+        </div>
         <s-scroll-view class="mctext-panel-content">
           <div id="mctext-edit" class="pixel"></div>
           <div class="mctext-edit-divide"></div>

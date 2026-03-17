@@ -84,12 +84,19 @@ s-dialog::part(scrim)::before {
 }
 
 div#mctext-toolbar {
-  height: 36px;
+  height: min-content;
   width: 100%;
   background: var(--s-color-surface-container-high, #E7E8EA);
   position: sticky;
   top: 0;
   padding: 8px 0 8px 0;
+  display: flex;
+  overflow: hidden;
+}
+
+div#mctext-toolbar>s-scroll-view {
+  display: flex;
+  flex-direction: row;
 }
 
 .mctext-panel-content {
