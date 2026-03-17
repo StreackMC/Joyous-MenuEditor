@@ -50,9 +50,10 @@ let renderTimeout = null;
  */
 function uploadToRender() {
   // 计划渲染，以免卡顿
+  currentData = mctPanel.view.editor.value.replace(codeReg, "§");
   if (renderTimeout) clearTimeout(renderTimeout);
   renderTimeout = setTimeout(() => {
-    mctPanel.view.preview.innerHTML = MCColors.toHtml(mctPanel.view.editor.value.replace(codeReg, "§"));
+    mctPanel.view.preview.innerHTML = MCColors.toHtml(currentData);
     renderTimeout = null;
   }, 200);
 
@@ -156,6 +157,7 @@ export function insertAtCursor(textToInsert) {
   const newCursorPos = startPos + textToInsert.length;
   textarea.setSelectionRange(newCursorPos, newCursorPos);
   textarea.focus();
+  uploadToRender(); // 触发更新事件
 }
 
 /**
