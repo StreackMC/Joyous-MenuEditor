@@ -156,6 +156,7 @@ export function insertAtCursor(textToInsert) {
   const newCursorPos = startPos + textToInsert.length;
   textarea.setSelectionRange(newCursorPos, newCursorPos);
   textarea.focus();
+  uploadToRender(); // 触发更新事件
 }
 
 /**
