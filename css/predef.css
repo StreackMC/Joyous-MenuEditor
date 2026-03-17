@@ -149,3 +149,7 @@ s-bottom-sheet>div[slot="text"] {
   overflow: hidden;
   width: 100%;
 }
+
+s-icon img {
+  touch-callout: none;
+}
