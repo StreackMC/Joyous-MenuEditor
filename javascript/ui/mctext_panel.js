@@ -2,6 +2,8 @@ import i18n from "../i18n.js";
 import commands from "../backend/commands.js";
 import MCColors from "../library/MCColors.js";
 
+/** 匹配复杂转义的& */
+const codeReg = /(?<!(?<!\\)\\(?:\\{2})*)&/g;
 let originData = undefined;
 let currentData = "";
 /** 存储当前是否处于未保存的二次确认期：负数为不处于；正数为计时器的id */
@@ -39,7 +41,53 @@ mctPanel.toolbar.root.addEventListener("wheel", (e) => {
     pendingScroll = 0;
     rafId = null;
   });
-})
+});
+
+// 自适应高度
+let renderTimeout = null;
+/**
+ * 计划渲染 textarea 中的文本，并立即更新 textarea 的高度
+ */
+function uploadToRender() {
+  // 计划渲染，以免卡顿
+  if (renderTimeout) clearTimeout(renderTimeout);
+  renderTimeout = setTimeout(() => {
+    mctPanel.view.preview.innerHTML = MCColors.toHtml(mctPanel.view.eidtor.value.replace(codeReg, "§"));
+    renderTimeout = null;
+  }, 200);
+
+  // 计算自适应高度
+  mctPanel.view.eidtor.style.height = `inherit`;
+  const viewHeight = mctPanel.view.preview.offsetHeight;
+  const editorHeight = mctPanel.view.eidtor.scrollHeight;
+  const finalHeight = /* 取最高的那个 */(viewHeight >= editorHeight) ? viewHeight : editorHeight;
+  mctPanel.view.eidtor.style.height = `${7 + finalHeight}px`;
+};
+mctPanel.view.eidtor.addEventListener("input", uploadToRender);
+
+/** 追加文本(本段为AI生成) */
+function insertAtCursor(textToInsert) {
+  const textarea = mctPanel.view.eidtor;
+  // 1. 获取当前光标位置
+  const startPos = textarea.selectionStart;
+  const endPos = textarea.selectionEnd;
+
+  // 2. 获取当前文本值
+  const oldValue = textarea.value;
+
+  // 3. 在光标位置插入新文本
+  const newValue =
+    oldValue.substring(0, startPos) +
+    textToInsert +
+    oldValue.substring(endPos);
+
+  // 4. 更新 textarea 的值
+  textarea.value = newValue;
+
+  // 5. 将光标移动到插入文本之后
+  const newCursorPos = startPos + textToInsert.length;
+  textarea.setSelectionRange(newCursorPos, newCursorPos);
+}
 
 // 点击「取消」时询问是否要保存
 mctPanel.dialogBtn.cancel.addEventListener("click", (e) => {
@@ -85,26 +133,26 @@ export function edit(data = "", callback = function (data) { }) {
 
   // 显示UI
   mctPanel.view.eidtor.textContent = data;
-  mctPanel.view.preview.innerHTML = MCColors.toHtml(MCColors.parse(data));
   mctPanel.root.showed = true;
+  uploadToRender();
 };
 commands.regisiterCommand("panel.mctext.open", edit);
 
 // 编辑器工具栏的命令绑定
 commands.regisiterCommand("panel.mctext.insert.italic", () => {
-  
+  insertAtCursor("§o");
 });
 commands.regisiterCommand("panel.mctext.insert.bold", () => {
-  
+  insertAtCursor("§l");
 });
 commands.regisiterCommand("panel.mctext.insert.underline", () => {
-  
+  insertAtCursor("§n");
 });
 commands.regisiterCommand("panel.mctext.insert.reset", () => {
-  
+  insertAtCursor("§r");
 });
 commands.regisiterCommand("panel.mctext.insert.format_code", () => {
-  
+  insertAtCursor("§");
 });
 
 edit(`

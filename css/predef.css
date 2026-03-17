@@ -100,6 +100,24 @@ h1 {
   margin-bottom: 0;
 }
 
+textarea {
+  resize: none;
+  background: transparent;
+  border: none;
+}
+
+textarea[resizeable="both"] {
+  resize: both;
+}
+
+textarea[resizeable="vertical"] {
+  resize: vertical;
+}
+
+textarea[resizeable="horizontal"] {
+  resize: horizontal;
+}
+
 /* Sober */
 s-scroll-view {
   height: 100%;

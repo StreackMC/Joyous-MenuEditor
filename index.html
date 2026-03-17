@@ -266,11 +266,12 @@
             </s-tooltip>
           </s-scroll-view>
         </div>
-        <s-scroll-view class="mctext-panel-content">
-          <div id="mctext-edit" class="pixel"></div>
+        <div class="mctext-panel-content">
+          <textarea id="mctext-edit" class="pixel" data-i18n
+              autocomplete="on" autocorrect="on" placeholder="$panel.mctext.placeholder$"></textarea>
           <div class="mctext-edit-divide"></div>
           <div id="mctext-preview" class="pixel"></div>
-        </s-scroll-view>
+        </div>
       </div>
       <s-button slot="action" id="mctext-panel-btn-cancel" data-i18n type="text">$tooltip.cancel$</s-button>
       <s-button slot="action" id="mctext-panel-btn-confirm" data-i18n type="text">$tooltip.confirm$</s-button>

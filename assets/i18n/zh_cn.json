@@ -41,6 +41,7 @@
     "mctext": {
       "title": "文本组件编辑器",
       "unsaved": "尚未保存！再次点击以舍弃更改",
+      "placeholder": "在此处输入原始文本……",
       "toolbar": {
         "reset": "重置",
         "italic": "斜体",
