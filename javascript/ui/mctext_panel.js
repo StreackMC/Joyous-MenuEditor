@@ -35,7 +35,7 @@ mctPanel.toolbar.root.addEventListener("wheel", (e) => {
   // 使用 requestAnimationFrame 合并更新，提升性能
   if (rafId) cancelAnimationFrame(rafId);
   rafId = requestAnimationFrame(() => {
-    mctPanel.toolbar.scroll.scrollLeft += pendingScroll;
+    mctPanel.toolbar.scroll.scrollLeft += pendingScroll * /* 滚动系数 */0.5;
     pendingScroll = 0;
     rafId = null;
   });
