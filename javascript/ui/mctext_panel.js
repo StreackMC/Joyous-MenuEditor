@@ -22,7 +22,7 @@ export const mctPanel = {
     scroll: document.getElementById("mctext-toolbar").firstElementChild,
   },
   view: {
-    eidtor: document.getElementById("mctext-edit"),
+    editor: document.getElementById("mctext-edit"),
     preview: document.getElementById("mctext-preview"),
   }
 };
@@ -52,42 +52,40 @@ function uploadToRender() {
   // 计划渲染，以免卡顿
   if (renderTimeout) clearTimeout(renderTimeout);
   renderTimeout = setTimeout(() => {
-    mctPanel.view.preview.innerHTML = MCColors.toHtml(mctPanel.view.eidtor.value.replace(codeReg, "§"));
+    mctPanel.view.preview.innerHTML = MCColors.toHtml(mctPanel.view.editor.value.replace(codeReg, "§"));
     renderTimeout = null;
   }, 200);
 
   // 计算自适应高度
-  mctPanel.view.eidtor.style.height = `inherit`;
+  mctPanel.view.editor.style.height = `inherit`;
   const viewHeight = mctPanel.view.preview.offsetHeight;
-  const editorHeight = mctPanel.view.eidtor.scrollHeight;
+  const editorHeight = mctPanel.view.editor.scrollHeight;
   const finalHeight = /* 取最高的那个 */(viewHeight >= editorHeight) ? viewHeight : editorHeight;
-  mctPanel.view.eidtor.style.height = `${7 + finalHeight}px`;
+  mctPanel.view.editor.style.height = `${7 + finalHeight}px`;
 };
-mctPanel.view.eidtor.addEventListener("input", uploadToRender);
+mctPanel.view.editor.addEventListener("input", uploadToRender);
 
-/** 追加文本(本段为AI生成) */
-function insertAtCursor(textToInsert) {
-  const textarea = mctPanel.view.eidtor;
-  // 1. 获取当前光标位置
-  const startPos = textarea.selectionStart;
-  const endPos = textarea.selectionEnd;
-
-  // 2. 获取当前文本值
-  const oldValue = textarea.value;
-
-  // 3. 在光标位置插入新文本
-  const newValue =
-    oldValue.substring(0, startPos) +
-    textToInsert +
-    oldValue.substring(endPos);
-
-  // 4. 更新 textarea 的值
-  textarea.value = newValue;
-
-  // 5. 将光标移动到插入文本之后
-  const newCursorPos = startPos + textToInsert.length;
-  textarea.setSelectionRange(newCursorPos, newCursorPos);
-}
+// 水平进度同步
+/** 防止循环触发 */
+let isSyncing = false;
+mctPanel.view.editor.addEventListener('scroll', () => {
+  if (!isSyncing) {
+    isSyncing = true;
+    // 计算编辑区滚动百分比
+    const percent = mctPanel.view.editor.scrollLeft / (mctPanel.view.editor.scrollWidth - mctPanel.view.editor.clientWidth);
+    // 设置预览区滚动位置
+    mctPanel.view.preview.scrollLeft = percent * (mctPanel.view.preview.scrollWidth - mctPanel.view.preview.clientWidth);
+    isSyncing = false;
+  }
+});
+mctPanel.view.preview.addEventListener('scroll', () => {
+  if (!isSyncing) {
+    isSyncing = true;
+    const percent = mctPanel.view.preview.scrollLeft / (mctPanel.view.preview.scrollWidth - mctPanel.view.preview.clientWidth);
+    mctPanel.view.editor.scrollLeft = percent * (mctPanel.view.editor.scrollWidth - mctPanel.view.editor.clientWidth);
+    isSyncing = false;
+  }
+});
 
 // 点击「取消」时询问是否要保存
 mctPanel.dialogBtn.cancel.addEventListener("click", (e) => {
@@ -117,10 +115,36 @@ mctPanel.root.addEventListener("closed", () => {
   currentData = undefined;
 });
 
+// --- EXPORTS ---
+/** 追加文本(本段为AI生成) */
+export function insertAtCursor(textToInsert) {
+  const textarea = mctPanel.view.editor;
+  // 1. 获取当前光标位置
+  const startPos = textarea.selectionStart;
+  const endPos = textarea.selectionEnd;
+
+  // 2. 获取当前文本值
+  const oldValue = textarea.value;
+
+  // 3. 在光标位置插入新文本
+  const newValue =
+    oldValue.substring(0, startPos) +
+    textToInsert +
+    oldValue.substring(endPos);
+
+  // 4. 更新 textarea 的值
+  textarea.value = newValue;
+
+  // 5. 将光标移动到插入文本之后
+  const newCursorPos = startPos + textToInsert.length;
+  textarea.setSelectionRange(newCursorPos, newCursorPos);
+}
+
 /**
  * 打开一个 MC文本组件 子编辑器
  * @param {String} data 原文本
  * @param {function(data)} callback 回调函数
+ * @throws 已有正在进行的编辑
  */
 export function edit(data = "", callback = function (data) { }) {
   if (mctPanel.root.showed == "true") {
@@ -132,7 +156,7 @@ export function edit(data = "", callback = function (data) { }) {
   callbackFunc = callback;
 
   // 显示UI
-  mctPanel.view.eidtor.textContent = data;
+  mctPanel.view.editor.textContent = data;
   mctPanel.root.showed = true;
   uploadToRender();
 };
@@ -258,4 +282,5 @@ export default {
   unsavedWarnStatus: () => unsavedWarnStatus,
   getData: () => currentData,
   getOriginData: () => originData,
+  insertAtCursor,
 };
