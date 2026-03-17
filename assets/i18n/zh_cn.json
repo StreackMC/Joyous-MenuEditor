@@ -44,6 +44,7 @@
       "placeholder": "在此处输入原始文本……",
       "toolbar": {
         "reset": "重置",
+        "color": "切换预览区背景色",
         "italic": "斜体",
         "bold": "粗体",
         "underline": "下划线",

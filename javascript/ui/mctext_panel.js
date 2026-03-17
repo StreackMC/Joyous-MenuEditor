@@ -115,6 +115,23 @@ mctPanel.root.addEventListener("closed", () => {
   currentData = undefined;
 });
 
+// 编辑器工具栏的命令绑定
+commands.regisiterCommand("panel.mctext.insert.italic", () => {
+  insertAtCursor("§o");
+});
+commands.regisiterCommand("panel.mctext.insert.bold", () => {
+  insertAtCursor("§l");
+});
+commands.regisiterCommand("panel.mctext.insert.underline", () => {
+  insertAtCursor("§n");
+});
+commands.regisiterCommand("panel.mctext.insert.reset", () => {
+  insertAtCursor("§r");
+});
+commands.regisiterCommand("panel.mctext.insert.format_code", () => {
+  insertAtCursor("§");
+});
+
 // --- EXPORTS ---
 /** 追加文本(本段为AI生成) */
 export function insertAtCursor(textToInsert) {
@@ -138,6 +155,7 @@ export function insertAtCursor(textToInsert) {
   // 5. 将光标移动到插入文本之后
   const newCursorPos = startPos + textToInsert.length;
   textarea.setSelectionRange(newCursorPos, newCursorPos);
+  textarea.focus();
 }
 
 /**
@@ -162,22 +180,21 @@ export function edit(data = "", callback = function (data) { }) {
 };
 commands.regisiterCommand("panel.mctext.open", edit);
 
-// 编辑器工具栏的命令绑定
-commands.regisiterCommand("panel.mctext.insert.italic", () => {
-  insertAtCursor("§o");
-});
-commands.regisiterCommand("panel.mctext.insert.bold", () => {
-  insertAtCursor("§l");
-});
-commands.regisiterCommand("panel.mctext.insert.underline", () => {
-  insertAtCursor("§n");
-});
-commands.regisiterCommand("panel.mctext.insert.reset", () => {
-  insertAtCursor("§r");
-});
-commands.regisiterCommand("panel.mctext.insert.format_code", () => {
-  insertAtCursor("§");
-});
+/**
+ * 切换预览区背景色
+ * @param {number} id 背景色编号，从0开始，溢出自动轮换
+ */
+export function switchPreviewBgColor(id = (mctPanel.view.preview.dataset.bgId + 1)) {
+  id = ((id % BgColors.length) + BgColors.length) % BgColors.length;
+  mctPanel.view.preview.style.backgroundColor = BgColors[id].cssBg;
+  mctPanel.view.preview.dataset.bgId = id;
+};
+commands.regisiterCommand("panel.mctext.color_switch", switchPreviewBgColor);
+const BgColors = [
+  { cssBg: "var(--s-color-surface-container-high, #E7E8EA)"},
+  { cssBg: "#fff" },
+  { cssBg: "#000" },
+];
 
 edit(`
 目前本功能还在开发\n这是测试用文本：
@@ -283,4 +300,5 @@ export default {
   getData: () => currentData,
   getOriginData: () => originData,
   insertAtCursor,
+  switchPreviewBgColor,
 };

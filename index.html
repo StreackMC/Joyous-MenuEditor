@@ -225,6 +225,18 @@
         <div id="mctext-toolbar">
           <s-scroll-view>
             <s-tooltip data-i18n>
+              <s-icon-button data-click="panel.mctext.color_switch" slot="trigger">
+                <s-icon>
+                  <svg viewBox="0 -960 960 960">
+                    <path
+                      d="M480-120q-133 0-226.5-92.5T160-436q0-66 25-122t69-100l226-222 226 222q44 44 69 100t25 122q0 131-93.5 223.5T480-120Zm0-80v-568L310-600q-35 33-52.5 74.5T240-436q0 97 70 166.5T480-200Z">
+                    </path>
+                  </svg>
+                </s-icon>
+              </s-icon-button>
+              $panel.mctext.toolbar.color$
+            </s-tooltip>
+            <s-tooltip data-i18n>
               <s-icon-button data-click="panel.mctext.insert.reset" slot="trigger">
                 <s-icon>
                   <img src="./assets/images/reset.svg">
@@ -270,7 +282,7 @@
           <textarea id="mctext-edit" class="pixel" data-i18n
               autocomplete="on" autocorrect="on" placeholder="$panel.mctext.placeholder$"></textarea>
           <div class="mctext-edit-divide"></div>
-          <div id="mctext-preview" class="pixel"></div>
+          <div id="mctext-preview" class="pixel" data-bg-id="0"></div>
         </div>
       </div>
       <s-button slot="action" id="mctext-panel-btn-cancel" data-i18n type="text">$tooltip.cancel$</s-button>

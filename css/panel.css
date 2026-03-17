@@ -136,6 +136,7 @@ div#mctext-toolbar>s-scroll-view {
   white-space: nowrap;
   overflow-x: auto;
   overflow-y: hidden;
+  transition: background-color .4s ease-in-out;
 }
 
 /* 编辑框 */
