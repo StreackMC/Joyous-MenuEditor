@@ -117,21 +117,19 @@ mctPanel.root.addEventListener("closed", () => {
 });
 
 // 编辑器工具栏的命令绑定
-commands.regisiterCommand("panel.mctext.insert.italic", () => {
-  insertAtCursor("§o");
-});
-commands.regisiterCommand("panel.mctext.insert.bold", () => {
-  insertAtCursor("§l");
-});
-commands.regisiterCommand("panel.mctext.insert.underline", () => {
-  insertAtCursor("§n");
-});
-commands.regisiterCommand("panel.mctext.insert.reset", () => {
-  insertAtCursor("§r");
-});
-commands.regisiterCommand("panel.mctext.insert.format_code", () => {
-  insertAtCursor("§");
-});
+commands.regisiterCommand("panel.mctext.insert.italic", () => { insertAtCursor("§o"); });
+commands.regisiterCommand("panel.mctext.insert.bold", () => { insertAtCursor("§l"); });
+commands.regisiterCommand("panel.mctext.insert.underline", () => { insertAtCursor("§n"); });
+commands.regisiterCommand("panel.mctext.insert.reset", () => { insertAtCursor("§r"); });
+commands.regisiterCommand("panel.mctext.insert.format_code", () => { insertAtCursor("§"); });
+
+// 插入颜色
+commands.regisiterCommand("panel.mctext.insert.color.a", () => { insertAtCursor("§a"); });
+commands.regisiterCommand("panel.mctext.insert.color.b", () => { insertAtCursor("§b"); });
+commands.regisiterCommand("panel.mctext.insert.color.c", () => { insertAtCursor("§c"); });
+commands.regisiterCommand("panel.mctext.insert.color.d", () => { insertAtCursor("§d"); });
+commands.regisiterCommand("panel.mctext.insert.color.e", () => { insertAtCursor("§e"); });
+commands.regisiterCommand("panel.mctext.insert.color.f", () => { insertAtCursor("§f"); });
 
 // --- EXPORTS ---
 /** 追加文本(本段为AI生成) */
