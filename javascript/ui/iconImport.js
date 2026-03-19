@@ -18,14 +18,17 @@ class IconImport extends HTMLImageElement {
   };
 
   // Name映射到src相关
-  updateSrc(name = this.getName()) {
-    if (this.getName().match(/\.[a-zA-Z0-9]{2,6}$/)) {
+  updateSrc(name = this.name()) {
+    if (name.match(/\.[a-zA-Z0-9]{2,6}$/)) {
       this.setAttribute("src", `./assets/icons/${name}`);
     } else {
       this.setAttribute("src", `./assets/icons/${name}.svg`);
     };
   };
-  getName() { return this.getAttribute('name'); };
+  name() {
+    const attr = this.getAttribute('name');
+    return (attr !== null) ? attr : '';
+  };
 
   // 注册更新
   connectedCallback() {// 被渲染
