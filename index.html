@@ -10,6 +10,7 @@
   <!-- import js -->
   <script src="./javascript/library/sober@1.1.8.min.js"></script>
   <script src="./javascript/library/hotkeys-js@4.0.2.min.js"></script>
+  <script src="./javascript/ui/iconImport.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.4.12/ace.js"></script>
   <script type="module" src="./javascript/i18n.js"></script>
   <!-- import stylesheet -->
@@ -239,7 +240,7 @@
             <s-tooltip data-i18n>
               <s-icon-button data-click="panel.mctext.insert.reset" slot="trigger">
                 <s-icon>
-                  <img src="./assets/images/reset.svg">
+                  <img is="icon-import" name="reset"></icon-import>
                 </s-icon>
               </s-icon-button>
               $panel.mctext.toolbar.reset$
@@ -247,7 +248,7 @@
             <s-tooltip data-i18n>
               <s-icon-button data-click="panel.mctext.insert.format_code" slot="trigger">
                 <s-icon>
-                  <img src="./assets/images/format_code.svg">
+                  <img is="icon-import" name="format_code"></icon-import>
                 </s-icon>
               </s-icon-button>
               $panel.mctext.toolbar.code$
@@ -255,7 +256,7 @@
             <s-tooltip data-i18n>
               <s-icon-button data-click="panel.mctext.insert.bold" slot="trigger">
                 <s-icon>
-                  <img src="./assets/images/bold.svg">
+                  <img is="icon-import" name="bold">
                 </s-icon>
               </s-icon-button>
               $panel.mctext.toolbar.bold$
@@ -263,7 +264,7 @@
             <s-tooltip data-i18n>
               <s-icon-button data-click="panel.mctext.insert.italic" slot="trigger">
                 <s-icon>
-                  <img src="./assets/images/italic.svg">
+                  <img is="icon-import" name="italic"></icon-import>
                 </s-icon>
               </s-icon-button>
               $panel.mctext.toolbar.italic$
@@ -271,7 +272,7 @@
             <s-tooltip data-i18n>
               <s-icon-button data-click="panel.mctext.insert.underline" slot="trigger">
                 <s-icon>
-                  <img src="./assets/images/underline.svg">
+                  <img is="icon-import" name="underline"></icon-import>
                 </s-icon>
               </s-icon-button>
               $panel.mctext.toolbar.underline$
