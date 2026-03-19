@@ -8,7 +8,8 @@ let originData = undefined;
 let currentData = "";
 /** 存储当前是否处于未保存的二次确认期：负数为不处于；正数为计时器的id */
 let unsavedWarnStatus = -1;
-let callbackFunc = (data) => { };
+/** @type {Function[]} 存储当前的Promise，分别表示 resolve 和 reject */
+let promiseCall = null;
 
 // 初始化子编辑器
 export const mctPanel = {
@@ -64,7 +65,12 @@ function uploadToRender() {
   const finalHeight = /* 取最高的那个 */(viewHeight >= editorHeight) ? viewHeight : editorHeight;
   mctPanel.view.editor.style.height = `${7 + finalHeight}px`;
 };
+
+// 绑定事件
 mctPanel.view.editor.addEventListener("input", uploadToRender);
+mctPanel.view.editor.addEventListener("focus", uploadToRender);
+mctPanel.view.editor.addEventListener("cut", uploadToRender);
+mctPanel.view.editor.addEventListener("paste", uploadToRender);
 
 // 水平进度同步
 /** 防止循环触发 */
@@ -88,12 +94,26 @@ mctPanel.view.preview.addEventListener('scroll', () => {
   }
 });
 
+// 点击「确认」时判断修改
+mctPanel.dialogBtn.confirm.addEventListener("click", (e) => {
+  uploadToRender(); // 更新一次数据
+  if (originData === currentData/* 未产生更改，不保存 */) {
+    promiseCall[0].apply(this, [[false, originData]]);
+    return;
+  };
+  promiseCall[0].apply(this, [[true, currentData]]);
+});
+
 // 点击「取消」时询问是否要保存
 mctPanel.dialogBtn.cancel.addEventListener("click", (e) => {
+  uploadToRender(); // 更新一次数据
   if (
     originData === currentData/* 未产生更改，不询问是否保存 */
     || unsavedWarnStatus > 0/* 处于二次确认期，允许关闭 */
-  ) { return; };
+  ) {
+    promiseCall[0].apply(this, [[false, originData]]);
+    return;
+  };
   e.stopImmediatePropagation();
   e.preventDefault();
   mctPanel.dialogBtn.cancel.innerHTML = i18n.parseSafe("panel.mctext.unsaved");
@@ -110,6 +130,7 @@ mctPanel.root.addEventListener("closed", () => {
     clearTimeout(unsavedWarnStatus);
     mctPanel.dialogBtn.cancel.innerHTML = i18n.parseSafe("tooltip.cancel");
     unsavedWarnStatus = -1;
+    promiseCall = null;
   };
   // 清理数据
   originData = undefined;
@@ -161,22 +182,26 @@ export function insertAtCursor(textToInsert) {
 /**
  * 打开一个 MC文本组件 子编辑器
  * @param {String} data 原文本
- * @param {function(data)} callback 回调函数
+ * @returns {Promise} 返回一个异步 Promise ，含有数据 [status, data] :
+ * * {boolean} status 是否产生了修改
+ * * {string} data 最终数据
  * @throws 已有正在进行的编辑
  */
-export function edit(data = "", callback = function (data) { }) {
-  if (mctPanel.root.showed == "true") {
-    throw new Error("已有正在进行的编辑");
-  };
-  // 存储数据
-  originData = data;
-  currentData = data;
-  callbackFunc = callback;
-
-  // 显示UI
-  mctPanel.view.editor.textContent = data;
-  mctPanel.root.showed = true;
-  uploadToRender();
+export function edit(data = "") {
+  return new Promise((resolve, reject) => {
+    if (promiseCall != null) {
+      reject(new Error("已有正在进行的编辑"));
+    };
+    // 存储数据
+    originData = data;
+    currentData = data;
+    promiseCall = [resolve, reject];
+  
+    // 显示UI
+    mctPanel.view.editor.textContent = data;
+    mctPanel.root.showed = true;
+    uploadToRender();
+  });
 };
 commands.regisiterCommand("panel.mctext.open", edit);
 
@@ -196,7 +221,7 @@ const BgColors = [
   { cssBg: "#000" },
 ];
 
-edit(`
+console.log("创建新编辑请求：", edit(`
 目前本功能还在开发\n这是测试用文本：
 
 &l&a《年年对对》&r
@@ -292,7 +317,7 @@ edit(`
 §#ff3796又§#ff3796听§#ff3696 §#ff3696岁§#ff3697钟§#ff3597响§#ff3597 
 §#ff3598我§#ff3498将§#ff3498 §#ff3498年§#ff3399年§#ff3399对§#ff3399对§#ff329a §#ff329a歌§#ff319a唱§#ff319a 
 §#ff319b长§#ff309b望§#ff309b §#ff309c人§#ff2f9c间§#ff2f9c喜§#ff2f9c气§#ff2e9d洋§#ff2e9d洋
-`);
+`).then((v) => { console.log("Promise 返回值：", v); }));
 
 export default {
   edit, elements: mctPanel,
