@@ -151,5 +151,7 @@ s-bottom-sheet>div[slot="text"] {
 }
 
 s-icon img {
-  touch-callout: none;
+  touch-action: none;
+  user-select: none;
+  pointer-events: none;
 }
