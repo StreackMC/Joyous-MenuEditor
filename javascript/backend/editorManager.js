@@ -1,7 +1,7 @@
 import { Editor } from "../editor/editor.js";
 import i18n from "../i18n.js";
 import tabs from "../ui/tabs.js";
-import commands from "./commands.js";
+import commands from "./commandServer.js";
 
 export let untitledCounts = 1;
 /**

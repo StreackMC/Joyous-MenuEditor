@@ -1,4 +1,4 @@
-import commands from "../backend/commands.js";
+import commands from "../backend/commandServer.js";
 import i18n from "../i18n.js";
 import { Editor } from "../editor/editor.js";
 import v4 from "../library/uuidjs/v4.js";

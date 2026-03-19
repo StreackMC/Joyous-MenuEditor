@@ -3,7 +3,7 @@ import tabs from "../ui/tabs.js";
 import editorManager from "./editorManager.js";
 import { msg } from "../ui/utils.js";
 import i18n from "../i18n.js";
-import commands from "./commands.js";
+import commands from "./commandServer.js";
 
 /**
  * 保存编辑器组

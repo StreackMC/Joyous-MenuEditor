@@ -1,6 +1,6 @@
-import i18n from "../i18n.js";
-import commands from "../backend/commands.js";
-import MCColors from "../library/MCColors.js";
+import i18n from "../../i18n.js";
+import commands from "../../backend/commandServer.js";
+import MCColors from "../../library/MCColors.js";
 
 /** 匹配复杂转义的& */
 const codeReg = /(?<!(?<!\\)\\(?:\\{2})*)&/g;

@@ -1,6 +1,6 @@
-import commands from "../backend/commands.js";
-import i18n from "../i18n.js";
-import UiUtils from "./utils.js";
+import commands from "../../backend/commandServer.js";
+import i18n from "../../i18n.js";
+import UiUtils from "../utils.js";
 
 const cmdPanel = document.getElementById("command-panel");
 const cmdInput = document.getElementById("command-panel-input");
