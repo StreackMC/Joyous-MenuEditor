@@ -43,7 +43,7 @@ customElements.define('j-icon', IconImport, { extends: 'img' });
 // 由于 img 没有办法内联元素，也就没有办法插入样式，所以必须曲线救国
 const style = document.createElement('style');
 style.textContent = `
-img[is="icon-import"] {
+img[is="j-icon"] {
   touch-action: none;
   user-select: none;
   pointer-events: none;
