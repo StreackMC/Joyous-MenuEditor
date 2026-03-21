@@ -39,3 +39,14 @@ export class IconImport extends HTMLImageElement {
 
 // 注册自定义元素
 customElements.define('icon-import', IconImport, { extends: 'img' });
+
+// 由于 img 没有办法内联元素，也就没有办法插入样式，所以必须曲线救国
+const style = document.createElement('style');
+style.textContent = `
+img[is="icon-import"] {
+  touch-action: none;
+  user-select: none;
+  pointer-events: none;
+}`;
+style.dataset.comment = "Inserted by HTMLIconImportElement.js";
+document.head.appendChild(style);
