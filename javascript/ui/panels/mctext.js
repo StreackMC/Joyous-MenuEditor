@@ -10,7 +10,12 @@ let originData = undefined;
 let currentData = "";
 /** 存储当前是否处于未保存的二次确认期：负数为不处于；正数为计时器的id */
 let unsavedWarnStatus = -1;
-/** @type {Function[]} 存储当前的Promise，分别表示 resolve 和 reject */
+/** 
+ * 存储当前的Promise，分别表示 resolve 和 reject
+ * 
+ * 同时也肩负着会话锁的职责
+ * @type {Function[]}
+ * */
 let promiseCall = null;
 
 // 初始化子编辑器
@@ -132,8 +137,11 @@ mctPanel.root.addEventListener("closed", () => {
     clearTimeout(unsavedWarnStatus);
     mctPanel.dialogBtn.cancel.innerHTML = i18n.parseSafe("tooltip.cancel");
     unsavedWarnStatus = -1;
-    promiseCall = null;
   };
+
+  // 清理会话锁
+  promiseCall = null;
+
   // 清理数据
   originData = undefined;
   currentData = undefined;
