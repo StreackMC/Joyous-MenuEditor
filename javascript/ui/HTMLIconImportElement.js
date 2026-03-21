@@ -1,5 +1,3 @@
-/* 这不是一个 ESModule ! */
-
 /**
  * 快速引入 Joyous Menu Editor 的图标资源，该图标必须位于 /assets/icons/ 下。<br>
  * 若不指定后缀名，默认为 svg
@@ -7,14 +5,13 @@
  * <icon-import src=""></icon-import>
  * </code></pre>
  */
-class IconImport extends HTMLImageElement {
+export class IconImport extends HTMLImageElement {
   static get observedAttributes() {
     return ['name'];
   }
 
   constructor() {
     super();
-    this.updateSrc();
   };
 
   // Name映射到src相关
