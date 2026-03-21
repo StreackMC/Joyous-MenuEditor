@@ -84,7 +84,8 @@
       "api_not_found": "没有找到 ClipboardAPI ，部分功能将不可用。请将浏览器版本升到最新后再试。",
       "uncopied": "未能复制文本：%msg%",
       "copied": "已复制文本：%text%",
-      "ungot": "无法获取剪贴板，请检查是否授予权限：%msg%"
+      "ungot": "无法获取剪贴板，请检查是否授予权限：%msg%",
+      "max_displayed_chars": 25
     }
   }
 }

@@ -8,6 +8,19 @@ export default {
 import utils from "../ui/utils.js";
 import i18n from "../i18n.js";
 
+/**
+ * @returns 返回被安全处理后的开始截断的最大字符数
+ */
+function getMaxDisplayedChars() {
+  try {
+    let c = Math.floor(new Number(i18n.parseSafe("msg.clipboard.max_displayed_chars")));
+    if (c <= 0) throw new Error("");
+    return c;
+  } catch (ignore) {
+    return 25;
+  }
+}
+
 let api_not_found_msg = () => { return ""; };
 if (!navigator.clipboard) {
   api_not_found_msg = () => { return i18n.parseSafe("msg.clipboard.api_not_found"); };
@@ -66,8 +79,8 @@ export function copy(text = "", tip = true) {
     if (typeof text !== "string") { text = String(text); };
     let partedText;
     if (tip) {
-      partedText = text.slice(0, 20);
-      if (text.length > 20) partedText += "...";
+      partedText = text.slice(0, getMaxDisplayedChars());
+      if (text.length > getMaxDisplayedChars()) partedText += "...";
     };
 
     // 开始写入
