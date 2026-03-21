@@ -5,7 +5,10 @@ export default {
   get, getAsync, copy
 };
 
-let api_not_found_msg = undefined;
+import utils from "../ui/utils.js";
+import i18n from "../i18n.js";
+
+let api_not_found_msg = () => { return ""; };
 if (!navigator.clipboard) {
   api_not_found_msg = () => { return i18n.parseSafe("msg.clipboard.api_not_found"); };
   utils.msg(api_not_found_msg(), i18n.parseSafe("msg.done"), "error", 0);
@@ -34,7 +37,7 @@ export async function get(tip = true) {
 export function getAsync(tip = true) {
   return new Promise((resolve, reject) => {
     // API判断
-    if (!api_not_found_msg) reject(api_not_found_msg());
+    if (!navigator.clipboard) reject(api_not_found_msg());
 
     // 获取内容
     navigator.clipboard.readText().then((text) => {
@@ -56,7 +59,7 @@ export function getAsync(tip = true) {
 export function copy(text = "", tip = true) {
   return new Promise((resolve, reject) => {
     // API判断
-    if (!api_not_found_msg) reject(api_not_found_msg());
+    if (!navigator.clipboard) reject(api_not_found_msg());
 
     // 参数处理
     if (!text) { text = ""; };
