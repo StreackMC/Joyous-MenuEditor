@@ -38,10 +38,13 @@
   * 清空命令面板中的输入
 
 ## javascript/ui/mctext_panel.js:
-* `editor.sub.mctext`
+* `panel.mctext.edit`
   * 打开一个编辑器
   * @param {String} data 原文本
-  * @param {function(data)} callback 回调函数
+* `panel.mctext.open`
+  * 打开一个默认行为编辑器，会在用户保存文本时自动复制结果
+  * 复制行为无视结果，除非用户选择「取消」或清空编辑框
+  * @param {String} param 原文本
 
 ## javascript/ui/tabs.js:
 * `editor.openTab`

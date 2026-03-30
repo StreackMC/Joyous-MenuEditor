@@ -40,15 +40,18 @@
     },
     "mctext": {
       "title": "文本组件编辑器",
+      "astool": "工具：编辑MC颜色文本",
+      "astool_tip": "所作编辑将被复制到剪贴板内",
       "unsaved": "尚未保存！再次点击以舍弃更改",
       "placeholder": "在此处输入原始文本……",
+      "default": "§d我生分§l九野§r§d，以正§e四方象观§d，察§n宇宙晨昏§r§d去复始元§7；§9煌煌瞻河汉，晢晢欲浮天南，§o不曾败§r§9明月出云端§8。",
       "toolbar": {
         "reset": "插入【重置】标识",
         "color": "切换预览区背景色",
         "italic": "插入【斜体】标识",
         "bold": "插入【粗体】标识",
         "underline": "插入【下划线】标识",
-        "code": "插入格式化代码（§）<br>你也可以直接输入 & ，其会在保存时被自动转义<br>若要单独输入 & ，请使用 \\& 进行转义"
+        "code": "插入【格式化代码】（§）<br>你也可以直接输入 & ，其会在保存时被自动转义<br>若要单独输入 & ，请使用 \\& 进行转义"
       }
     },
     "mcitem": {}
@@ -76,6 +79,13 @@
       "fail_recover": "无法恢复上次的工作区：%msg%"
     },
     "done": "好",
-    "unknownEditor": "未知的编辑器：%editor%"
+    "unknownEditor": "未知的编辑器：%editor%",
+    "clipboard": {
+      "api_not_found": "没有找到 ClipboardAPI ，部分功能将不可用。请将浏览器版本升到最新后再试。",
+      "uncopied": "未能复制文本：%msg%",
+      "copied": "已复制文本：%text%",
+      "ungot": "无法获取剪贴板，请检查是否授予权限：%msg%",
+      "max_displayed_chars": 25
+    }
   }
 }
