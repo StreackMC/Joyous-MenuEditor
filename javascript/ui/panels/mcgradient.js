@@ -135,8 +135,11 @@ let previewTimer = null;
 /**
  * 同步更新 currentData（立即），并防抖刷新预览 DOM
  * 这是整个面板的数据中枢：所有编辑操作都必须调用此函数
+ * @returns {boolean} 会返回当前数据是否有效
  */
 function uploadToRender() {
+  let status = true;
+
   // 1. 读取当前颜色（无效颜色则降级为纯文本）
   const leftColor = MCColors.formatHex(elements.color.leftInput.value);
   const rightColor = MCColors.formatHex(elements.color.rightInput.value);
@@ -148,14 +151,25 @@ function uploadToRender() {
   } else {
     // 颜色无效时，降级为纯文本（去掉所有格式化代码）
     currentData = rawText.replace(/§[0-9a-fk-orA-FK-OR#][0-9a-fA-F]{0,6}/g, "");
+    status = false;
   }
 
   // 2. 防抖更新预览 DOM（仅 UI 延迟，数据已是最新）
   if (previewTimer) clearTimeout(previewTimer);
   previewTimer = setTimeout(() => {
-    elements.preview.innerHTML = MCColors.toHtml(currentData);
+    if (leftColor && rightColor) {
+      // 有效颜色
+      elements.preview.innerHTML = MCColors.toHtml(currentData);
+      elements.preview.classList.toggle("pixel", true);
+    } else {
+      // 颜色无效时，显示错误
+      elements.preview.innerHTML = i18n.parseSafe("panel.mcgradient.onerror.invaild_color");
+      elements.preview.classList.toggle("pixel", false);
+    }
     previewTimer = null;
   }, 200);
+
+  return status;
 }
 
 /**
@@ -197,7 +211,7 @@ function swapColors() {
   setColorFields(right, left);
   uploadToRender();
 }
-elements.color.swapBtn.addEventListener("click", swapColors);
+//elements.color.swapBtn.addEventListener("click", swapColors);
 
 // 文本编辑区域的事件
 elements.editarea.addEventListener("input", handleDataChange);
@@ -229,8 +243,11 @@ function createPresetButtons() {
 // ======================== 对话框按钮逻辑 ========================
 // 确认：返回当前数据（无论是否修改）
 elements.dialogBtn.confirm.addEventListener("click", () => {
-  // 确保数据最新（以防万一）
-  uploadToRender();
+  // 确保数据最新且有效（以防万一）
+  if (!uploadToRender()) {
+    return;
+  }
+
   if (activePromise) {
     const resolve = activePromise[0];
     const changed = (originData !== currentData);
@@ -316,6 +333,9 @@ commands.regisiterCommand("panel.mcgradient.open", (param) => {
     }
   });
   utils.msg(i18n.parseSafe("panel.mcgradient.astool_tip"), i18n.parseSafe("msg.done"), "info");
+});
+commands.regisiterCommand("panel.mcgradient.color_swap", () => {
+  swapColors();
 });
 
 // 初始化预设按钮

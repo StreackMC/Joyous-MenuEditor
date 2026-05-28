@@ -60,6 +60,9 @@
       "astool_tip": "所作编辑将被复制到剪贴板内",
       "unsaved": "尚未保存！再次点击以舍弃更改",
       "placeholder": "在此处输入原始文本……",
+      "onerror": {
+        "invaild_color": "错误：无效的颜色。"
+      },
       "default": "",
       "settings": {
         "left_label": "左端颜色",
@@ -67,7 +70,7 @@
         "swap": "交换",
         "presets": "预设颜色",
         "picker_label": "颜色选择器",
-        "color_placeholder": "#RRGGBB 或 rgb(255,0,0)"
+        "color_placeholder": "支持 HEX、RGB 和 Minecraft 颜色代码"
       },
       "areas": {
         "settings": {
