@@ -184,7 +184,7 @@ s-dialog::part(scrim)::before {
 
 input.invalid {
   border-color: #d32f2f;
-  box-shadow: 0 0 0 1px rgba(211, 47, 47, .2);
+  box-shadow: 0 0 0 3px rgba(211, 47, 47, .2);
 }
 
 @media (max-width: 768px) {
@@ -209,6 +209,10 @@ input#mcgradient-panel-edit-input {
   height: 1.5em;
   outline: none;
   overflow-x: auto;
+  font-size: large;
+}
+
+#mcgradient-panel-edit-preview {
   font-size: large;
 }
 
