@@ -196,8 +196,19 @@
                 </div>
               </div>
 
-              <button id="mcgradient-panel-swap-btn" class="mcgradient-panel-swap-button" type="button" data-i18n>$panel.mcgradient.settings.swap$</button>
-
+            <s-tooltip data-i18n>
+              <s-icon-button data-click="panel.mcgradient.color_swap" slot="trigger">
+                <s-icon>
+                  <svg viewBox="0 -960 960 960">
+                    <path
+                      d="M280-160 80-360l200-200 56 57-103 103h287v80H233l103 103-56 57Zm400-240-56-57 103-103H440v-80h287L624-743l56-57 200 200-200 200Z">
+                    </path>
+                  </svg>
+                </s-icon>
+              </s-icon-button>
+              $panel.mcgradient.settings.swap$
+            </s-tooltip>
+              
               <div class="mcgradient-panel-color-box">
                 <label for="mcgradient-panel-color-right" data-i18n>$panel.mcgradient.settings.right_label$</label>
                 <div class="mcgradient-panel-color-input-row">

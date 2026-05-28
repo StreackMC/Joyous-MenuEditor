@@ -299,11 +299,11 @@ elements.root.addEventListener("closed", () => {
 /**
  * 打开渐变编辑器
  * @param {string} data 初始文本（纯文本或已有 § 代码）
- * @param {string} color1 左端颜色（默认 #FFFFFF）
- * @param {string} color2 右端颜色（默认 #000000）
+ * @param {string} color1 左端颜色
+ * @param {string} color2 右端颜色
  * @returns {Promise<[boolean, string]>} [是否修改, 最终数据]
  */
-export function edit(data = "", color1 = "#FFFFFF", color2 = "#000000") {
+export function edit(data = "", color1 = PRESET_GRADIENTS[0].left, color2 = PRESET_GRADIENTS[0].right) {
   return new Promise((resolve, reject) => {
     if (activePromise) {
       reject(new Error("已有正在进行的编辑"));
