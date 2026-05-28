@@ -54,6 +54,25 @@
         "code": "插入【格式化代码】（§）<br>你也可以直接输入 & ，其会在保存时被自动转义<br>若要单独输入 & ，请使用 \\& 进行转义"
       }
     },
+    "mcgradient": {
+      "title": "渐变色编辑器",
+      "astool": "工具：编辑渐变MC文本",
+      "astool_tip": "所作编辑将被复制到剪贴板内",
+      "unsaved": "尚未保存！再次点击以舍弃更改",
+      "placeholder": "在此处输入原始文本……",
+      "default": "",
+      "areas": {
+        "settings": {
+          "title": "参数设置"
+        },
+        "edit": {
+          "title": "文本编辑"
+        },
+        "result": {
+          "title": "输出预览"
+        }
+      }
+    },
     "mcitem": {}
   },
   "editor": {

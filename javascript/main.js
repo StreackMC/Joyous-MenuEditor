@@ -7,6 +7,7 @@ import command_panel from "./ui/panels/command.js";
 import editorManager from "./backend/editorManager.js";
 import autosave from "./backend/autosave.js";
 import mcText from "./ui/panels/mctext.js";
+import mcGradient from './ui/panels/mcgradient.js';
 
 // 加载 versions.json
 const response = await fetch('./version.json');

@@ -181,6 +181,33 @@
       </div>
     </s-bottom-sheet>
 
+    <!-- 渐变色面板 -->
+    <s-bottom-sheet disable-bg-close id="mcgradient-panel">
+      <div slot="text">
+        <s-field>
+          <div slot="label" data-i18n>$panel.mcgradient.areas.settings.title$</div>
+          <div>
+          </div>
+        </s-field>
+        <s-field>
+          <div slot="label" data-i18n>$panel.mcgradient.areas.edit.title$</div>
+          <div class="mcgradient-panel-content">
+            <input data-i18n id="mcgradient-panel-edit-input" class="pixel"
+                type="text" autocomplete="on" autocorrect="on" placeholder="$panel.mcgradient.placeholder$">
+          </div>
+        </s-field>
+        <s-field>
+          <div slot="label" data-i18n>$panel.mcgradient.areas.result.title$</div>
+          <div id="mcgradient-panel-edit-preview" class="pixel">
+          </div>
+        </s-field>
+      </div>
+      <div fake-slot="action">
+        <s-button id="mcgradient-panel-btn-cancel" data-i18n type="text">$tooltip.cancel$</s-button>
+        <s-button id="mcgradient-panel-btn-confirm" data-i18n type="text">$tooltip.confirm$</s-button>
+      </div>
+    </s-bottom-sheet>
+
     <!-- MC颜色字符编辑面板 -->
     <s-dialog disable-bg-close id="mctext-panel">
       <div slot="headline" data-i18n class="unselectable">$panel.mctext.title$</div>

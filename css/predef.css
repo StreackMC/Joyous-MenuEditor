@@ -118,7 +118,7 @@ textarea[resizeable="horizontal"] {
   resize: horizontal;
 }
 
-/* Sober */
+/* SoberJS优化样式 */
 s-scroll-view {
   height: 100%;
   width: 100%;
@@ -141,11 +141,38 @@ s-menu-item s-card[slot="menu"] {
   margin: 0 2% 0 2%;
 }
 
+s-field {
+  margin-top: .5em;
+  margin-bottom: .5em;
+}
+
 s-dialog>div[slot="text"],
 s-bottom-sheet>div[slot="text"] {
   display: grid;
   height: fit-content;
   max-height: 100%;
   overflow: hidden;
-  width: 100%;
+  width: calc(100% - 48px);
+}
+
+s-bottom-sheet>div[fake-slot="action"] {
+  display: flex;
+  justify-content: flex-end;
+  padding: 0 14px;
+  flex-shrink: 0;
+  margin-top: auto;
+}
+
+s-bottom-sheet>div[fake-slot="action"]>s-button {
+  /* 修复底部面板没有能用的底部按钮的问题 */
+  min-width: 72px;
+  margin: 16px 2px;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 24px;
+  color: var(--s-color-primary, #006782);
+  box-sizing: border-box;
+  height: 40px;
+  font-size: .875rem;
+  cursor: pointer;
 }
