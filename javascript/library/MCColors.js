@@ -329,6 +329,128 @@ function parse(text, prefix = '&') {
 }
 
 /**
+ * 尝试将输入字符串解析为6位十六进制颜色值（#RRGGBB格式）
+ * 支持格式：
+ * - 标准HEX：有无#号、3位或6位（如 #FFF, #FFAA33, FFAA33）
+ * - CSS rgb/rgba函数：rgb(255,100,50)、rgba(100%,50%,25%,0.5)
+ * - 简单数字序列：255,100,50 或 255 100 50（支持百分比）
+ * - Minecraft格式：&7 / §a（单字符颜色码）、&#RRGGBB、&xRRGGBB、&x&R&R&G&G&B&B
+ * @param {string} input 待解析的颜色字符串
+ * @returns {string|null} 标准6位HEX颜色（如"#FFAA33"）或null
+ */
+export function formatHex(input) {
+  if (typeof input !== 'string') return null;
+
+  // 清理字符串：去除首尾空白和不可见控制字符（保留空格用于后续解析）
+  let str = input.trim();
+  if (str.length === 0) return null;
+
+  // ---------- 辅助函数 ----------
+  const isHexChar = c => /[0-9a-fA-F]/.test(c);
+  const isValidHex = s => /^[0-9a-fA-F]{3}$|^[0-9a-fA-F]{6}$/i.test(s);
+  const expandHex = hex3 => hex3.split('').map(ch => ch + ch).join('');
+
+  // 将0-255整数转换为两位十六进制
+  const toHexByte = n => Math.min(255, Math.max(0, Math.round(n))).toString(16).padStart(2, '0').toUpperCase();
+
+  // ---------- 1. 标准 HEX（带#）----------
+  if (str.startsWith('#')) {
+    const hexPart = str.slice(1);
+    if (isValidHex(hexPart)) {
+      const hex = hexPart.length === 3 ? expandHex(hexPart) : hexPart;
+      return '#' + hex.toUpperCase();
+    }
+  }
+
+  // ---------- 2. 无前缀纯 HEX ----------
+  if (isValidHex(str)) {
+    const hex = str.length === 3 ? expandHex(str) : str;
+    return '#' + hex.toUpperCase();
+  }
+
+  // ---------- 3. CSS rgb/rgba 函数 ----------
+  const rgbFuncMatch = str.match(/^rgba?\(\s*([^)]+)\)$/i);
+  if (rgbFuncMatch) {
+    const content = rgbFuncMatch[1];
+    // 提取数值（支持整数、百分比、逗号/空格分隔）
+    const parts = content.split(/[,\s]+/).filter(p => p !== '');
+    if (parts.length >= 3) {
+      const parseComp = (comp) => {
+        comp = comp.trim();
+        const isPercent = comp.endsWith('%');
+        let num = parseFloat(comp);
+        if (isNaN(num)) return null;
+        if (isPercent) num = (num / 100) * 255;
+        return Math.min(255, Math.max(0, Math.round(num)));
+      };
+      const r = parseComp(parts[0]);
+      const g = parseComp(parts[1]);
+      const b = parseComp(parts[2]);
+      if (r !== null && g !== null && b !== null) {
+        return `#${toHexByte(r)}${toHexByte(g)}${toHexByte(b)}`;
+      }
+    }
+  }
+
+  // ---------- 4. 简单数字序列（如 "255,100,50" 或 "255 100 50"）----------
+  // 要求整个字符串仅由三个数值和分隔符组成
+  const simpleNumMatch = str.match(/^\s*(\d{1,3}(?:\.\d+)?%?)\s*([,;\s]+)\s*(\d{1,3}(?:\.\d+)?%?)\s*([,;\s]+)\s*(\d{1,3}(?:\.\d+)?%?)\s*$/);
+  if (simpleNumMatch) {
+    const parseComp = (comp) => {
+      comp = comp.trim();
+      const isPercent = comp.endsWith('%');
+      let num = parseFloat(comp);
+      if (isNaN(num)) return null;
+      if (isPercent) num = (num / 100) * 255;
+      return Math.min(255, Math.max(0, Math.round(num)));
+    };
+    const r = parseComp(simpleNumMatch[1]);
+    const g = parseComp(simpleNumMatch[3]);
+    const b = parseComp(simpleNumMatch[5]);
+    if (r !== null && g !== null && b !== null) {
+      return `#${toHexByte(r)}${toHexByte(g)}${toHexByte(b)}`;
+    }
+  }
+
+  // ---------- 5. Minecraft 格式化代码 ----------
+  // 5.1 单字符颜色码（&a / §a）
+  if (/^[&§][0-9a-v]$/i.test(str)) {
+    const code = str[1].toLowerCase();
+    if (COLORS.hasOwnProperty(code)) {
+      return COLORS[code];
+    }
+  }
+
+  // 5.2 &#RRGGBB 或 §#RRGGBB
+  const shortRgbMatch = str.match(/^[&§]#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/);
+  if (shortRgbMatch) {
+    let hex = shortRgbMatch[1];
+    if (hex.length === 3) hex = expandHex(hex);
+    return '#' + hex.toUpperCase();
+  }
+
+  // 5.3 &x... / §x... 格式（支持 &xRRGGBB 和 &x&R&R&G&G&B&B）
+  const extendedMatch = str.match(/^[&§]x((?:[&§]?[0-9a-fA-F]){6})$/);
+  if (extendedMatch) {
+    const raw = extendedMatch[1];
+    // 提取所有十六进制字符（忽略分隔符 & 或 §）
+    const hexChars = [];
+    for (let i = 0; i < raw.length; i++) {
+      const ch = raw[i];
+      if (ch !== '&' && ch !== '§' && isHexChar(ch)) {
+        hexChars.push(ch.toLowerCase());
+      }
+    }
+    if (hexChars.length === 6) {
+      return '#' + hexChars.join('').toUpperCase();
+    }
+  }
+
+  // 所有解析失败
+  return null;
+}
+
+/**
  * Minecraft 格式化代码处理工具，提供转换 HTML、清除代码、替换前缀等功能。
  * 参考：https://zh.minecraft.wiki/w/格式化代码
  * @author DeepSeek
@@ -340,5 +462,6 @@ export default {
   strip,
   remove,
   parse,
-  COLORS
+  COLORS,
+  formatHex
 };
