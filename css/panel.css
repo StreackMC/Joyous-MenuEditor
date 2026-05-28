@@ -83,6 +83,121 @@ s-dialog::part(scrim)::before {
   margin-bottom: 0;
 }
 
+.mcgradient-panel-settings {
+  display: flex;
+  flex-direction: column;
+  gap: .75rem;
+}
+
+.mcgradient-panel-color-row {
+  display: flex;
+  gap: .75rem;
+  align-items: flex-end;
+  flex-wrap: wrap;
+}
+
+.mcgradient-panel-color-box {
+  display: flex;
+  flex-direction: column;
+  gap: .4rem;
+  flex: 1;
+  min-width: 10rem;
+}
+
+.mcgradient-panel-color-input-row {
+  display: flex;
+  gap: .5rem;
+  align-items: center;
+}
+
+.mcgradient-panel-color-input-row input[type="text"] {
+  flex: 1;
+  min-width: 0;
+  padding: .55em .75em;
+  border: 1px solid var(--s-color-outline, #6f7979);
+  border-radius: 10px;
+  background: transparent;
+  color: inherit;
+  outline: none;
+}
+
+.mcgradient-panel-color-input-row input[type="color"] {
+  width: 2.5rem;
+  height: 2.5rem;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+}
+
+.mcgradient-panel-swap-button {
+  min-width: 3rem;
+  height: 2.6rem;
+  border: none;
+  border-radius: 999px;
+  background: var(--s-color-secondary-container, #CFE6F1);
+  color: inherit;
+  cursor: pointer;
+  align-self: center;
+  padding: 0 .85em;
+  font-weight: 600;
+}
+
+.mcgradient-panel-presets {
+  display: flex;
+  flex-direction: column;
+  gap: .4rem;
+}
+
+.mcgradient-panel-presets-title {
+  font-size: .95rem;
+  color: var(--s-color-on-surface-variant, #40484C);
+}
+
+.mcgradient-panel-presets-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .5rem;
+}
+
+.mcgradient-preset-btn {
+  border: none;
+  border-radius: 999px;
+  padding: .45em .9em;
+  background: var(--s-color-surface-container-high, #E7E8EA);
+  color: inherit;
+  cursor: pointer;
+  font-size: .9rem;
+}
+
+.mcgradient-panel-edit-preview {
+  min-height: 3rem;
+  padding: .75em .8em;
+  background: var(--s-color-surface-container-high, #E7E8EA);
+  border-radius: 10px;
+  overflow-wrap: anywhere;
+}
+
+.mcgradient-panel-edit-preview span {
+  white-space: pre-wrap;
+}
+
+input.invalid {
+  border-color: #d32f2f;
+  box-shadow: 0 0 0 1px rgba(211, 47, 47, .2);
+}
+
+@media (max-width: 768px) {
+  .mcgradient-panel-color-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .mcgradient-panel-swap-button {
+    align-self: flex-start;
+  }
+}
+
 .mcgradient-panel-content {
   width: 100%;
 }

@@ -61,6 +61,14 @@
       "unsaved": "尚未保存！再次点击以舍弃更改",
       "placeholder": "在此处输入原始文本……",
       "default": "",
+      "settings": {
+        "left_label": "左端颜色",
+        "right_label": "右端颜色",
+        "swap": "交换",
+        "presets": "预设颜色",
+        "picker_label": "颜色选择器",
+        "color_placeholder": "#RRGGBB 或 rgb(255,0,0)"
+      },
       "areas": {
         "settings": {
           "title": "参数设置"

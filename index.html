@@ -186,7 +186,30 @@
       <div slot="text">
         <s-field>
           <div slot="label" data-i18n>$panel.mcgradient.areas.settings.title$</div>
-          <div>
+          <div class="mcgradient-panel-settings">
+            <div class="mcgradient-panel-color-row">
+              <div class="mcgradient-panel-color-box">
+                <label for="mcgradient-panel-color-left" data-i18n>$panel.mcgradient.settings.left_label$</label>
+                <div class="mcgradient-panel-color-input-row">
+                  <input id="mcgradient-panel-color-left" class="pixel" type="text" autocomplete="off" autocorrect="off" placeholder="$panel.mcgradient.settings.color_placeholder$">
+                  <input id="mcgradient-panel-color-left-picker" type="color" title="$panel.mcgradient.settings.picker_label$">
+                </div>
+              </div>
+
+              <button id="mcgradient-panel-swap-btn" class="mcgradient-panel-swap-button" type="button" data-i18n>$panel.mcgradient.settings.swap$</button>
+
+              <div class="mcgradient-panel-color-box">
+                <label for="mcgradient-panel-color-right" data-i18n>$panel.mcgradient.settings.right_label$</label>
+                <div class="mcgradient-panel-color-input-row">
+                  <input id="mcgradient-panel-color-right" class="pixel" type="text" autocomplete="off" autocorrect="off" placeholder="$panel.mcgradient.settings.color_placeholder$">
+                  <input id="mcgradient-panel-color-right-picker" type="color" title="$panel.mcgradient.settings.picker_label$">
+                </div>
+              </div>
+            </div>
+            <div class="mcgradient-panel-presets">
+              <div class="mcgradient-panel-presets-title" data-i18n>$panel.mcgradient.settings.presets$</div>
+              <div id="mcgradient-panel-presets" class="mcgradient-panel-presets-list"></div>
+            </div>
           </div>
         </s-field>
         <s-field>
