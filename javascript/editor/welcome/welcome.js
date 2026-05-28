@@ -15,6 +15,7 @@ const h = `
   <span style="color:var(--s-color-surface-container-lowest, #e0e3e2);font-size:small;">##uuidv4##</span>
 </div>
 <s-button data-i18n type="outlined" slot="action" data-click="panel.mctext.open">$panel.mctext.astool$</s-button>
+<s-button data-i18n type="outlined" slot="action" data-click="panel.mcgradient.open">$panel.mcgradient.astool$</s-button>
 <s-button data-i18n slot="action" data-click="editor.openFile">$editor.actions.openFile$</s-button>
 <s-button data-i18n slot="action" data-click="editor.openFolder">$editor.actions.openFolder$</s-button>
 `;
