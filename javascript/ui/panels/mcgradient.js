@@ -4,6 +4,7 @@ import MCColors from "../../library/MCColors.js";
 import utils from "../utils.js";
 import JClipboard from "../../library/JClipboard.js";
 
+// ======================== 预设渐变配置 ========================
 const PRESET_GRADIENTS = [
   { name: "sunset", left: "#ff7e5f", right: "#feb47b" },
   { name: "ocean", left: "#2193b0", right: "#6dd5ed" },
@@ -13,17 +14,18 @@ const PRESET_GRADIENTS = [
   { name: "twilight", left: "#4568dc", right: "#b06ab3" },
 ];
 
-const HEX_SHORT = /^#([0-9a-fA-F])([0-9a-fA-F])([0-9a-fA-F])([0-9a-fA-F])?$/;
-const HEX_LONG = /^#([0-9a-fA-F]{6})([0-9a-fA-F]{2})?$/;
-const RGB_FUNC = /^rgba?\(\s*([0-9]{1,3})\s*,\s*([0-9]{1,3})\s*,\s*([0-9]{1,3})(?:\s*,\s*(0|1|0?\.\d+))?\s*\)$/i;
-
-let originData = undefined;
+// ======================== 全局状态 ========================
+/** 打开编辑器时的原始数据（用于判断是否修改） */
+let originData = "";
+/** 当前编辑后的最终数据（同步更新，渐变色代码） */
 let currentData = "";
-let unsavedWarnStatus = -1;
-let promiseCall = null;
-let renderTimeout = null;
+/** 未保存警告计时器ID，-1 表示未激活 */
+let unsavedWarnTimer = -1;
+/** 会话锁：存储当前 Promise 的 resolve/reject */
+let activePromise = null;
 
-export const mcgPanel = {
+// ======================== DOM 元素引用 ========================
+const elements = {
   root: document.getElementById("mcgradient-panel"),
   dialogBtn: {
     cancel: document.getElementById("mcgradient-panel-btn-cancel"),
@@ -41,260 +43,288 @@ export const mcgPanel = {
   preview: document.getElementById("mcgradient-panel-edit-preview"),
 };
 
-function clamp(value, min, max) {
-  return Math.min(max, Math.max(min, value));
-}
-
+// ======================== 工具函数 ========================
+/**
+ * 将 0~255 数值转换为两位十六进制
+ * @param {number} value 0-255
+ * @returns {string} 两位十六进制字符串
+ */
 function toHexChannel(value) {
-  const hex = Number(value).toString(16);
+  const hex = Math.round(value).toString(16);
   return hex.length === 1 ? `0${hex}` : hex;
 }
 
-function normalizeHex(value) {
-  if (typeof value !== "string") return null;
-  const trimValue = value.trim();
-  const shortMatch = trimValue.match(HEX_SHORT);
-  if (shortMatch) {
-    const [_, r, g, b] = shortMatch;
-    return `#${r.repeat(2)}${g.repeat(2)}${b.repeat(2)}`.toUpperCase();
-  }
-
-  const longMatch = trimValue.match(HEX_LONG);
-  if (longMatch) {
-    return `#${longMatch[1]}`.toUpperCase();
-  }
-
-  return null;
-}
-
-function normalizeRgb(value) {
-  if (typeof value !== "string") return null;
-  const match = value.trim().match(RGB_FUNC);
-  if (!match) return null;
-  const r = clamp(Number(match[1]), 0, 255);
-  const g = clamp(Number(match[2]), 0, 255);
-  const b = clamp(Number(match[3]), 0, 255);
-  return `#${toHexChannel(r)}${toHexChannel(g)}${toHexChannel(b)}`.toUpperCase();
-}
-
-function parseColor(value) {
-  if (value == null) return null;
-  const parsedHex = normalizeHex(value);
-  if (parsedHex) return parsedHex;
-  return normalizeRgb(value);
-}
-
-function updateColorInput(input, picker) {
-  const parsed = parseColor(input.value);
-  if (parsed) {
-    input.classList.remove("invalid");
-    picker.value = parsed;
-  } else {
-    input.classList.add("invalid");
-  }
-  return parsed;
-}
-
-function setColorFields(leftValue, rightValue) {
-  mcgPanel.color.leftInput.value = leftValue;
-  mcgPanel.color.rightInput.value = rightValue;
-  const left = parseColor(leftValue) ?? "#FFFFFF";
-  const right = parseColor(rightValue) ?? "#000000";
-  mcgPanel.color.leftPicker.value = left;
-  mcgPanel.color.rightPicker.value = right;
-  mcgPanel.color.leftInput.classList.toggle("invalid", !parseColor(leftValue));
-  mcgPanel.color.rightInput.classList.toggle("invalid", !parseColor(rightValue));
-}
-
+/**
+ * 线性插值混合两种颜色
+ * @param {string} leftHex 起始颜色（含#）
+ * @param {string} rightHex 结束颜色（含#）
+ * @param {number} ratio 0~1 之间的比例
+ * @returns {string} 混合后的颜色（含#，大写）
+ */
 function mixColor(leftHex, rightHex, ratio) {
-  const left = leftHex.slice(1);
-  const right = rightHex.slice(1);
-  const r1 = parseInt(left.slice(0, 2), 16);
-  const g1 = parseInt(left.slice(2, 4), 16);
-  const b1 = parseInt(left.slice(4, 6), 16);
-  const r2 = parseInt(right.slice(0, 2), 16);
-  const g2 = parseInt(right.slice(2, 4), 16);
-  const b2 = parseInt(right.slice(4, 6), 16);
-  const r = Math.round(r1 + (r2 - r1) * ratio);
-  const g = Math.round(g1 + (g2 - g1) * ratio);
-  const b = Math.round(b1 + (b2 - b1) * ratio);
+  const left = leftHex.slice(1), right = rightHex.slice(1);
+  const r1 = parseInt(left.slice(0, 2), 16), g1 = parseInt(left.slice(2, 4), 16), b1 = parseInt(left.slice(4, 6), 16);
+  const r2 = parseInt(right.slice(0, 2), 16), g2 = parseInt(right.slice(2, 4), 16), b2 = parseInt(right.slice(4, 6), 16);
+  const r = r1 + (r2 - r1) * ratio;
+  const g = g1 + (g2 - g1) * ratio;
+  const b = b1 + (b2 - b1) * ratio;
   return `#${toHexChannel(r)}${toHexChannel(g)}${toHexChannel(b)}`.toUpperCase();
 }
 
+/**
+ * 根据文本和两端颜色生成渐变色 Minecraft 格式化代码
+ * @param {string} text 原始文本
+ * @param {string} leftHex 左端颜色（含#）
+ * @param {string} rightHex 右端颜色（含#）
+ * @returns {string} 包含 §#RRGGBB 的格式化字符串
+ */
 function buildGradientCode(text, leftHex, rightHex) {
   if (!text) return "";
   const chars = Array.from(text);
-  const visibleCount = chars.filter((ch) => ch !== "").length;
+  const visibleChars = chars.filter(ch => ch !== "");
+  const visibleCount = visibleChars.length;
   if (visibleCount === 0) return text;
 
-  let index = 0;
-  return chars.map((char) => {
-    if (char === "") {
-      return char;
-    }
-    const ratio = visibleCount === 1 ? 0 : index / (visibleCount - 1);
+  let idx = 0;
+  return chars.map(ch => {
+    if (ch === "") return ch;
+    const ratio = visibleCount === 1 ? 0 : idx / (visibleCount - 1);
     const color = mixColor(leftHex, rightHex, ratio);
-    index += 1;
-    return `§#${color}${char}`;
+    idx++;
+    return `§${color}${ch}`;
   }).join("");
 }
 
-function renderPreview() {
-  currentData = mcgPanel.editarea.value;
-  const leftColor = updateColorInput(mcgPanel.color.leftInput, mcgPanel.color.leftPicker);
-  const rightColor = updateColorInput(mcgPanel.color.rightInput, mcgPanel.color.rightPicker);
+/**
+ * 从输入框读取颜色并标准化，同时更新颜色选择器的值
+ * @param {HTMLInputElement} input 文本输入框
+ * @param {HTMLInputElement} picker color 类型输入框
+ * @returns {string|null} 标准化后的 HEX 颜色（含#），无效时返回 null
+ */
+function syncColorFromInput(input, picker) {
+  const parsed = MCColors.formatHex(input.value);
+  if (parsed) {
+    input.classList.remove("invalid");
+    picker.value = parsed;
+    return parsed;
+  } else {
+    input.classList.add("invalid");
+    return null;
+  }
+}
 
-  if (!leftColor || !rightColor) {
-    mcgPanel.preview.innerHTML = MCColors.toHtml(currentData);
-    return;
+/**
+ * 设置左右颜色控件的显示值（同步输入框和颜色选择器）
+ * @param {string} leftValue 左侧颜色（含#）
+ * @param {string} rightValue 右侧颜色（含#）
+ */
+function setColorFields(leftValue, rightValue) {
+  elements.color.leftInput.value = leftValue;
+  elements.color.rightInput.value = rightValue;
+  const leftHex = MCColors.formatHex(leftValue) ?? "#FFFFFF";
+  const rightHex = MCColors.formatHex(rightValue) ?? "#000000";
+  elements.color.leftPicker.value = leftHex;
+  elements.color.rightPicker.value = rightHex;
+  elements.color.leftInput.classList.toggle("invalid", !MCColors.formatHex(leftValue));
+  elements.color.rightInput.classList.toggle("invalid", !MCColors.formatHex(rightValue));
+}
+
+// ======================== 核心数据更新逻辑 ========================
+let previewTimer = null;
+
+/**
+ * 同步更新 currentData（立即），并防抖刷新预览 DOM
+ * 这是整个面板的数据中枢：所有编辑操作都必须调用此函数
+ */
+function uploadToRender() {
+  // 1. 读取当前颜色（无效颜色则降级为纯文本）
+  const leftColor = MCColors.formatHex(elements.color.leftInput.value);
+  const rightColor = MCColors.formatHex(elements.color.rightInput.value);
+  const rawText = elements.editarea.value;
+
+  if (leftColor && rightColor) {
+    // 有效颜色 -> 生成渐变色代码
+    currentData = buildGradientCode(rawText, leftColor, rightColor);
+  } else {
+    // 颜色无效时，降级为纯文本（去掉所有格式化代码）
+    currentData = rawText.replace(/§[0-9a-fk-orA-FK-OR#][0-9a-fA-F]{0,6}/g, "");
   }
 
-  const gradientText = buildGradientCode(currentData, leftColor, rightColor);
-  if (renderTimeout) clearTimeout(renderTimeout);
-  renderTimeout = setTimeout(() => {
-    mcgPanel.preview.innerHTML = MCColors.toHtml(gradientText);
-    renderTimeout = null;
+  // 2. 防抖更新预览 DOM（仅 UI 延迟，数据已是最新）
+  if (previewTimer) clearTimeout(previewTimer);
+  previewTimer = setTimeout(() => {
+    elements.preview.innerHTML = MCColors.toHtml(currentData);
+    previewTimer = null;
   }, 200);
 }
 
-function uploadToRender() {
-  if (renderTimeout) {
-    clearTimeout(renderTimeout);
-    renderTimeout = null;
-  }
-  renderPreview();
-}
-
-function swapColors() {
-  const leftValue = mcgPanel.color.leftInput.value;
-  const rightValue = mcgPanel.color.rightInput.value;
-  setColorFields(rightValue, leftValue);
+/**
+ * 包装 syncDataAndSchedulePreview，用于事件绑定（保持一致性）
+ */
+function handleDataChange() {
   uploadToRender();
 }
 
+// ======================== 交互事件绑定 ========================
+// 颜色输入框失焦时同步颜色选择器并刷新
+elements.color.leftInput.addEventListener("focusout", () => {
+  syncColorFromInput(elements.color.leftInput, elements.color.leftPicker);
+  uploadToRender();
+});
+elements.color.rightInput.addEventListener("focusout", () => {
+  syncColorFromInput(elements.color.rightInput, elements.color.rightPicker);
+  uploadToRender();
+});
+
+// 颜色选择器直接修改输入框的值
+elements.color.leftPicker.addEventListener("input", () => {
+  const normalized = elements.color.leftPicker.value.toUpperCase();
+  elements.color.leftInput.value = normalized;
+  elements.color.leftInput.classList.remove("invalid");
+  uploadToRender();
+});
+elements.color.rightPicker.addEventListener("input", () => {
+  const normalized = elements.color.rightPicker.value.toUpperCase();
+  elements.color.rightInput.value = normalized;
+  elements.color.rightInput.classList.remove("invalid");
+  uploadToRender();
+});
+
+// 交换左右颜色
+function swapColors() {
+  const left = elements.color.leftInput.value;
+  const right = elements.color.rightInput.value;
+  setColorFields(right, left);
+  uploadToRender();
+}
+elements.color.swapBtn.addEventListener("click", swapColors);
+
+// 文本编辑区域的事件
+elements.editarea.addEventListener("input", handleDataChange);
+elements.editarea.addEventListener("focus", handleDataChange);
+elements.editarea.addEventListener("cut", handleDataChange);
+elements.editarea.addEventListener("paste", handleDataChange);
+
+// ======================== 预设按钮生成 ========================
 function createPresetButtons() {
-  if (!mcgPanel.color.presetWrap) return;
-  PRESET_GRADIENTS.forEach((preset) => {
-    const button = document.createElement("button");
-    button.type = "button";
-    button.className = "mcgradient-preset-btn";
-    button.textContent = preset.name;
-    button.title = `${preset.left} → ${preset.right}`;
-    button.addEventListener("click", () => {
-      setColorFields(preset.left, preset.right);
+  if (!elements.color.presetWrap) return;
+  for (const preset of PRESET_GRADIENTS) {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "mcgradient-preset-btn";
+    btn.textContent = preset.name;
+    btn.title = `${preset.left} → ${preset.right}`;
+    btn.addEventListener("click", (e) => {
+      if (e.shiftKey) {
+        setColorFields(preset.right, preset.left);
+      } else {
+        setColorFields(preset.left, preset.right);
+      }
       uploadToRender();
     });
-    mcgPanel.color.presetWrap.appendChild(button);
-  });
+    elements.color.presetWrap.appendChild(btn);
+  }
 }
 
-mcgPanel.color.leftInput.addEventListener("input", () => {
-  updateColorInput(mcgPanel.color.leftInput, mcgPanel.color.leftPicker);
+// ======================== 对话框按钮逻辑 ========================
+// 确认：返回当前数据（无论是否修改）
+elements.dialogBtn.confirm.addEventListener("click", () => {
+  // 确保数据最新（以防万一）
   uploadToRender();
-});
-mcgPanel.color.rightInput.addEventListener("input", () => {
-  updateColorInput(mcgPanel.color.rightInput, mcgPanel.color.rightPicker);
-  uploadToRender();
-});
-mcgPanel.color.leftPicker.addEventListener("input", () => {
-  const normalized = mcgPanel.color.leftPicker.value.toUpperCase();
-  mcgPanel.color.leftInput.value = normalized;
-  mcgPanel.color.leftInput.classList.remove("invalid");
-  uploadToRender();
-});
-mcgPanel.color.rightPicker.addEventListener("input", () => {
-  const normalized = mcgPanel.color.rightPicker.value.toUpperCase();
-  mcgPanel.color.rightInput.value = normalized;
-  mcgPanel.color.rightInput.classList.remove("invalid");
-  uploadToRender();
-});
-mcgPanel.color.swapBtn.addEventListener("click", swapColors);
-mcgPanel.editarea.addEventListener("input", uploadToRender);
-mcgPanel.editarea.addEventListener("focus", uploadToRender);
-mcgPanel.editarea.addEventListener("cut", uploadToRender);
-mcgPanel.editarea.addEventListener("paste", uploadToRender);
-
-mcgPanel.dialogBtn.confirm.addEventListener("click", () => {
-  uploadToRender();
-  const resolveFn = promiseCall && promiseCall[0];
-  if (originData === currentData) {
-    mcgPanel.root.showed = false;
-    resolveFn?.apply(this, [[false, originData]]);
-    return;
+  if (activePromise) {
+    const resolve = activePromise[0];
+    const changed = (originData !== currentData);
+    resolve([changed, currentData]);
+    activePromise = null;
   }
-  mcgPanel.root.showed = false;
-  resolveFn?.apply(this, [[true, currentData]]);
+  elements.root.showed = false;
 });
 
-mcgPanel.dialogBtn.cancel.addEventListener("click", (e) => {
-  uploadToRender();
-  if (
-    originData === currentData ||
-    unsavedWarnStatus >= 0
-  ) {
-    promiseCall[0].apply(this, [[false, originData]]);
-    mcgPanel.root.showed = false;
+// 取消：如果有未保存修改，显示警告；否则直接关闭
+elements.dialogBtn.cancel.addEventListener("click", (e) => {
+  uploadToRender();  // 刷新数据，用于比较
+  const changed = (originData !== currentData);
+  if (!changed || unsavedWarnTimer >= 0) {
+    // 无修改，或已处于二次确认期 -> 直接关闭，放弃更改
+    if (activePromise) {
+      activePromise[0]([false, originData]);
+      activePromise = null;
+    }
+    elements.root.showed = false;
     return;
   }
 
+  // 有未保存修改，显示警告并阻止关闭
   e.stopImmediatePropagation();
   e.preventDefault();
-  mcgPanel.dialogBtn.cancel.innerHTML = i18n.parseSafe("panel.mcgradient.unsaved");
-  unsavedWarnStatus = setTimeout(() => {
-    mcgPanel.dialogBtn.cancel.innerHTML = i18n.parseSafe("tooltip.cancel");
-    unsavedWarnStatus = -1;
+  elements.dialogBtn.cancel.innerHTML = i18n.parseSafe("panel.mcgradient.unsaved");
+  unsavedWarnTimer = setTimeout(() => {
+    elements.dialogBtn.cancel.innerHTML = i18n.parseSafe("tooltip.cancel");
+    unsavedWarnTimer = -1;
   }, 5000);
 });
 
-mcgPanel.root.addEventListener("closed", () => {
-  if (unsavedWarnStatus > 0) {
-    clearTimeout(unsavedWarnStatus);
-    mcgPanel.dialogBtn.cancel.innerHTML = i18n.parseSafe("tooltip.cancel");
-    unsavedWarnStatus = -1;
+// 面板关闭时清理资源
+elements.root.addEventListener("closed", () => {
+  if (unsavedWarnTimer >= 0) {
+    clearTimeout(unsavedWarnTimer);
+    elements.dialogBtn.cancel.innerHTML = i18n.parseSafe("tooltip.cancel");
+    unsavedWarnTimer = -1;
   }
-  promiseCall = null;
-  originData = undefined;
-  currentData = undefined;
-  mcgPanel.editarea.value = "";
-  mcgPanel.preview.innerHTML = "";
+  activePromise = null;
+  originData = "";
+  currentData = "";
+  elements.editarea.value = "";
+  elements.preview.innerHTML = "";
 });
 
+// ======================== 对外 API ========================
+/**
+ * 打开渐变编辑器
+ * @param {string} data 初始文本（纯文本或已有 § 代码）
+ * @param {string} color1 左端颜色（默认 #FFFFFF）
+ * @param {string} color2 右端颜色（默认 #000000）
+ * @returns {Promise<[boolean, string]>} [是否修改, 最终数据]
+ */
 export function edit(data = "", color1 = "#FFFFFF", color2 = "#000000") {
   return new Promise((resolve, reject) => {
-    if (promiseCall != null) {
+    if (activePromise) {
       reject(new Error("已有正在进行的编辑"));
       return;
     }
-
     originData = data;
-    currentData = data;
-    promiseCall = [resolve, reject];
+    currentData = data;           // 临时值，稍后 sync 会覆盖
+    activePromise = [resolve, reject];
 
-    mcgPanel.editarea.value = data;
+    // 设置界面初始值
+    elements.editarea.value = data;
     setColorFields(color1, color2);
-    mcgPanel.root.showed = true;
+    // 立即计算一次 currentData 并显示预览
     uploadToRender();
+
+    elements.root.showed = true;
   });
 }
 
+// 注册命令
 commands.regisiterCommand("panel.mcgradient.edit", edit);
 commands.regisiterCommand("panel.mcgradient.open", (param) => {
-  if (!param) { param = i18n.parseSafe("panel.mcgradient.default"); }
-  edit(param).then(([status, data]) => {
-    if (status) {
+  if (!param) param = i18n.parseSafe("panel.mcgradient.default");
+  edit(param).then(([changed, data]) => {
+    if (changed) {
       JClipboard.copy(data);
     }
   });
   utils.msg(i18n.parseSafe("panel.mcgradient.astool_tip"), i18n.parseSafe("msg.done"), "info");
-  originData = "";
 });
 
+// 初始化预设按钮
 createPresetButtons();
 
 export default {
   edit,
-  elements: mcgPanel,
-  unsavedWarnStatus: () => unsavedWarnStatus,
+  elements,
+  unsavedWarnStatus: () => unsavedWarnTimer,
   getData: () => currentData,
   getOriginData: () => originData,
   swapColors,
