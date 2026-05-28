@@ -387,7 +387,7 @@ export function formatHex(input) {
       const g = parseComp(parts[1]);
       const b = parseComp(parts[2]);
       if (r !== null && g !== null && b !== null) {
-        return `#${toHexByte(r)}${toHexByte(g)}${toHexByte(b)}`;
+        return `#${toHexByte(r)}${toHexByte(g)}${toHexByte(b)}`.toUpperCase();
       }
     }
   }
@@ -408,7 +408,7 @@ export function formatHex(input) {
     const g = parseComp(simpleNumMatch[3]);
     const b = parseComp(simpleNumMatch[5]);
     if (r !== null && g !== null && b !== null) {
-      return `#${toHexByte(r)}${toHexByte(g)}${toHexByte(b)}`;
+      return `#${toHexByte(r)}${toHexByte(g)}${toHexByte(b)}`.toUpperCase();
     }
   }
 
@@ -417,7 +417,7 @@ export function formatHex(input) {
   if (/^[&§][0-9a-v]$/i.test(str)) {
     const code = str[1].toLowerCase();
     if (COLORS.hasOwnProperty(code)) {
-      return COLORS[code];
+      return COLORS[code].toUpperCase();
     }
   }
 
