@@ -103,13 +103,20 @@ commands.regisiterCommand("version.autoupdate", () => {
 });
 
 // 注册离开提示框
-window.addEventListener('beforeunload', function (e) {
-  // 阻止离开
-  e.preventDefault();
-  e.returnValue = /* 兼容旧浏览器，这里的值在现代浏览器上会被忽略 */'现在离开可能不会保存您的修改';
-  // 保存，这里在上下文结尾，就不 catch 了
-  commands.executeCommandSlient("autosave.backup");
-});
+if (!versionJson.debugmode) {
+  window.addEventListener('beforeunload', function (e) {
+    // 阻止离开
+    e.preventDefault();
+    e.returnValue = /* 兼容旧浏览器，这里的值在现代浏览器上会被忽略 */'现在离开可能不会保存您的修改';
+    // 保存，这里在上下文结尾，就不 catch 了
+    commands.executeCommandSlient("autosave.backup");
+  });
+} else {
+  window.addEventListener('beforeunload', function (e) {
+    // 保存，这里在上下文结尾，就不 catch 了
+    commands.executeCommandSlient("autosave.backup");
+  });
+}
 
 // 测试版提示
 uiUtils.msg("当前您正在使用预览版", "好", "warning", -1);
