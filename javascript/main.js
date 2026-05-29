@@ -55,5 +55,61 @@ let autoSaveInterval = setInterval(() => {
   commands.executeCommand("autosave.backup");
 }, 60e3);
 
+// 注册版本更新探测
+var JME_update = {
+  detect: async function (requestParam = new Date().getTime()) {
+    if (this.session) { return; };
+    // 请求最新的版本配置文件
+    this.session = await fetch("./version.json?" + ((requestParam) ? requestParam : "")).then(async (rsp) => {
+      const newVersionJson = await rsp.json();
+      console.debug("Detecting new version: ", newVersionJson);
+      if (newVersionJson.rev == versionJson.rev && newVersionJson.hash != versionJson.hash) {
+        // 版本不一致
+        console.warn("New version detected: ", newVersionJson, " , compared with ", versionJson);
+        clearInterval(JME_update.timer);
+        JME_update.timer = -1;
+        uiUtils.msg(i18n.parseSafe(
+          "about.update.message",
+          {
+            old: `${versionJson.hash}@${versionJson.ref}`,
+            old_time: versionJson.build_time,
+            new: `${newVersionJson.hash}@${versionJson.ref}`,
+            new_time: newVersionJson.build_time,
+          }
+        ), i18n.parseSafe("about.update.tooltip"), "info", -1, () => { window.location.reload(); });
+      }
+    }).catch((e) => {
+      console.error("Failed in detecting new version: ", e);
+      // 静默处理
+    }).finally(() => {
+      this.session = null;
+    });
+  },
+  /** 会话锁，保证同一时间只能存在一个请求 */
+  session: null,
+  /** 检查到更新后就检查了 */
+  timer: -1,
+};
+JME_update.timer = setInterval(JME_update.detect, 60 * 1e3/* 每60秒检查一次 */);
+commands.regisiterCommand("version.update", JME_update.detect);
+commands.regisiterCommand("version.autoupdate", () => {
+  if (JME_update.timer >= 0) {
+    return (JME_update.session)
+      ? `已启用自动更新检查(#${JME_update.timer})；正在检查更新。`
+      : `已启用自动更新检查(#${JME_update.timer})；正等待下次检查。`;
+  } else {
+    return `已禁用自动更新检查(#${JME_update.timer})。`;
+  }
+});
+
+// 注册离开提示框
+window.addEventListener('beforeunload', function (e) {
+  // 阻止离开
+  e.preventDefault();
+  e.returnValue = /* 兼容旧浏览器，这里的值在现代浏览器上会被忽略 */'现在离开可能不会保存您的修改';
+  // 保存，这里在上下文结尾，就不 catch 了
+  commands.executeCommandSlient("autosave.backup");
+});
+
 // 测试版提示
 uiUtils.msg("当前您正在使用预览版", "好", "warning", -1);

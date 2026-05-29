@@ -3,6 +3,10 @@
 ## javascript/main.js:
 * `version`
   * 弹出「关于」信息
+* `version.update`
+  * 立即进行更新检查
+* `version.autoupdate`
+  * 显示自动更新检查的相关信息
 * `about`
   * 弹出「关于」信息
 * `ver`
@@ -38,6 +42,15 @@
   * 清空命令面板中的输入
 
 ## javascript/ui/mctext_panel.js:
+* `panel.mctext.edit`
+  * 打开一个编辑器
+  * @param {String} data 原文本
+* `panel.mctext.open`
+  * 打开一个默认行为编辑器，会在用户保存文本时自动复制结果
+  * 复制行为无视结果，除非用户选择「取消」或清空编辑框
+  * @param {String} param 原文本
+
+## javascript/ui/mcgradient_panel.js:
 * `panel.mctext.edit`
   * 打开一个编辑器
   * @param {String} data 原文本

@@ -87,6 +87,7 @@ s-dialog::part(scrim)::before {
   display: flex;
   flex-direction: column;
   gap: .75rem;
+  width: 100%;
 }
 
 .mcgradient-panel-color-row {
@@ -156,8 +157,9 @@ s-dialog::part(scrim)::before {
 
 .mcgradient-panel-presets-list {
   display: flex;
-  flex-wrap: wrap;
+  padding-bottom: 5px;
   gap: .5rem;
+  overflow-x: auto;
 }
 
 .mcgradient-preset-btn {
@@ -168,6 +170,7 @@ s-dialog::part(scrim)::before {
   color: inherit;
   cursor: pointer;
   font-size: .9rem;
+  flex-shrink: 0;
 }
 
 .mcgradient-panel-edit-preview {

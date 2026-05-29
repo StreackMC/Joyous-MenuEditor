@@ -24,7 +24,12 @@
     "save": "保存"
   },
   "about": {
-    "title": "关于 Joyous 菜单编辑器"
+    "title": "关于 Joyous 菜单编辑器",
+    "update": {
+      "tooltip": "更新",
+      "tooltip_long": "有可用更新，请立即刷新页面以应用并防止未预料的结果。在此之前请先保存您的修改。",
+      "message": "发现在 %new_time% 发布的可用更新 %new% ，现行为 %old_time% 时发布的旧版本 %old% 。建议立即刷新页面以防止产生未预料的结果。"
+    }
   },
   "panel": {
     "command": {
