@@ -4,14 +4,23 @@ import MCColors from "../../library/MCColors.js";
 import utils from "../utils.js";
 import JClipboard from "../../library/JClipboard.js";
 
+/*
+TODO:
+1. 添加更多渐变色
+2. 优化渐变色按钮展示
+3. 将预览区弄成单行的
+4. 给三个横向展示的框添加横向滚动
+*/
+
 // ======================== 预设渐变配置 ========================
 const PRESET_GRADIENTS = [
-  { name: "sunset", left: "#ff7e5f", right: "#feb47b" },
-  { name: "ocean", left: "#2193b0", right: "#6dd5ed" },
-  { name: "orchid", left: "#8e2de2", right: "#4a00e0" },
-  { name: "emerald", left: "#0f9b0f", right: "#a8e063" },
-  { name: "fire", left: "#f12711", right: "#f5af19" },
-  { name: "twilight", left: "#4568dc", right: "#b06ab3" },
+  { name: "Warm Flame", left: "#ff9a9e", right: "#fad0c4" },
+  { name: "Night Fade", left: "#a18cd1", right: "#fbc2eb" },
+  { name: "Spring Warmth", left: "#fad0c4", right: "#ffd1ff" },
+  { name: "Winter Neva", left: "#a1c4fd", right: "#c2e9fb" },
+  { name: "Tempting Azure", left: "#84fab0", right: "#8fd3f4" },
+  { name: "Twilight", left: "#4568dc", right: "#b06ab3" },
+  { name: "Heavy Rain", left: "#cfd9df", right: "#e2ebf0" },
 ];
 
 // ======================== 全局状态 ========================
@@ -39,8 +48,10 @@ const elements = {
     swapBtn: document.getElementById("mcgradient-panel-swap-btn"),
     presetWrap: document.getElementById("mcgradient-panel-presets"),
   },
-  editarea: document.getElementById("mcgradient-panel-edit-input"),
+  editarea: document.getElementById("mcgradient-panel-edit-parent"),
+  inputbox: document.getElementById("mcgradient-panel-edit-input"),
   preview: document.getElementById("mcgradient-panel-edit-preview"),
+  toolbar: document.getElementById("mcgradient-toolbar-n"),
 };
 
 // ======================== 工具函数 ========================
@@ -143,7 +154,8 @@ function uploadToRender() {
   // 1. 读取当前颜色（无效颜色则降级为纯文本）
   const leftColor = MCColors.formatHex(elements.color.leftInput.value);
   const rightColor = MCColors.formatHex(elements.color.rightInput.value);
-  const rawText = elements.editarea.value;
+  const rawText = elements.inputbox.value;
+  elements.inputbox.style.width = `calc(${rawText.length} * 1em + 1em)`;
 
   if (leftColor && rightColor) {
     // 有效颜色 -> 生成渐变色代码
@@ -214,14 +226,34 @@ function swapColors() {
 //elements.color.swapBtn.addEventListener("click", swapColors);
 
 // 文本编辑区域的事件
-elements.editarea.addEventListener("input", handleDataChange);
-elements.editarea.addEventListener("focus", handleDataChange);
-elements.editarea.addEventListener("cut", handleDataChange);
-elements.editarea.addEventListener("paste", handleDataChange);
+elements.inputbox.addEventListener("input", handleDataChange);
+elements.inputbox.addEventListener("focus", handleDataChange);
+elements.inputbox.addEventListener("cut", handleDataChange);
+elements.inputbox.addEventListener("paste", handleDataChange);
+
+// 滚动转为水平
+[elements.toolbar, elements.color.presetWrap, elements.editarea].forEach((i) => {
+  i.addEventListener("wheel", (e) => {
+    let rafId = null, pendingScroll = 0;
+    e.stopImmediatePropagation();
+    e.preventDefault();
+    pendingScroll += e.deltaY + e.deltaX;
+  
+    // 使用 requestAnimationFrame 合并更新，提升性能
+    if (rafId) cancelAnimationFrame(rafId);
+    rafId = requestAnimationFrame(() => {
+      i.scrollLeft += pendingScroll * /* 滚动系数 */0.5;
+      pendingScroll = 0;
+      rafId = null;
+    });
+  });
+});
 
 // ======================== 预设按钮生成 ========================
 function createPresetButtons() {
   if (!elements.color.presetWrap) return;
+  elements.color.presetWrap.innerHTML = "";
+  const fragment = document.createDocumentFragment();
   for (const preset of PRESET_GRADIENTS) {
     const btn = document.createElement("button");
     btn.type = "button";
@@ -236,8 +268,9 @@ function createPresetButtons() {
       }
       uploadToRender();
     });
-    elements.color.presetWrap.appendChild(btn);
+    fragment.appendChild(btn);
   }
+  elements.color.presetWrap.appendChild(fragment);
 }
 
 // ======================== 对话框按钮逻辑 ========================
@@ -291,11 +324,53 @@ elements.root.addEventListener("closed", () => {
   activePromise = null;
   originData = "";
   currentData = "";
-  elements.editarea.value = "";
+  elements.inputbox.value = "";
   elements.preview.innerHTML = "";
 });
 
 // ======================== 对外 API ========================
+/** 追加文本(本段为AI生成) */
+export function insertAtCursor(textToInsert) {
+  const textarea = elements.inputbox;
+  // 1. 获取当前光标位置
+  const startPos = textarea.selectionStart;
+  const endPos = textarea.selectionEnd;
+
+  // 2. 获取当前文本值
+  const oldValue = textarea.value;
+
+  // 3. 在光标位置插入新文本
+  const newValue =
+    oldValue.substring(0, startPos) +
+    textToInsert +
+    oldValue.substring(endPos);
+
+  // 4. 更新 textarea 的值
+  textarea.value = newValue;
+
+  // 5. 将光标移动到插入文本之后
+  const newCursorPos = startPos + textToInsert.length;
+  textarea.setSelectionRange(newCursorPos, newCursorPos);
+  textarea.focus();
+  uploadToRender(); // 触发更新事件
+}
+
+/**
+ * 切换预览区背景色
+ * @param {number} id 背景色编号，从0开始，溢出自动轮换
+ */
+export function switchPreviewBgColor(id = (elements.preview.dataset.bgId + 1)) {
+  id = ((id % BgColors.length) + BgColors.length) % BgColors.length;
+  elements.preview.style.backgroundColor = BgColors[id].cssBg;
+  elements.preview.dataset.bgId = id;
+};
+commands.regisiterCommand("panel.mctext.color_switch", switchPreviewBgColor);
+const BgColors = [
+  { cssBg: "var(--s-color-surface-container-high, #E7E8EA)"},
+  { cssBg: "#fff" },
+  { cssBg: "#000" },
+];
+
 /**
  * 打开渐变编辑器
  * @param {string} data 初始文本（纯文本或已有 § 代码）
@@ -314,7 +389,7 @@ export function edit(data = "", color1 = PRESET_GRADIENTS[0].left, color2 = PRES
     activePromise = [resolve, reject];
 
     // 设置界面初始值
-    elements.editarea.value = data;
+    elements.inputbox.value = data;
     setColorFields(color1, color2);
     // 立即计算一次 currentData 并显示预览
     uploadToRender();
@@ -338,6 +413,13 @@ commands.regisiterCommand("panel.mcgradient.color_swap", () => {
   swapColors();
 });
 
+// 编辑器工具栏的命令绑定
+commands.regisiterCommand("panel.mcgradient.insert.italic", () => { insertAtCursor("§o"); });
+commands.regisiterCommand("panel.mcgradient.insert.bold", () => { insertAtCursor("§l"); });
+commands.regisiterCommand("panel.mcgradient.insert.underline", () => { insertAtCursor("§n"); });
+commands.regisiterCommand("panel.mcgradient.insert.reset", () => { insertAtCursor("§r"); });
+commands.regisiterCommand("panel.mcgradient.insert.format_code", () => { insertAtCursor("§"); });
+
 // 初始化预设按钮
 createPresetButtons();
 
@@ -349,4 +431,6 @@ export default {
   getOriginData: () => originData,
   swapColors,
   setColorFields,
+  switchPreviewBgColor,
+  insertAtCursor
 };

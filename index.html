@@ -189,52 +189,105 @@
           <div class="mcgradient-panel-settings">
             <div class="mcgradient-panel-color-row">
               <div class="mcgradient-panel-color-box">
-                <label for="mcgradient-panel-color-left" data-i18n>$panel.mcgradient.settings.left_label$</label>
+                <label for="mcgradient-panel-color-left" data-i18n class="unselectable">$panel.mcgradient.settings.left_label$</label>
                 <div class="mcgradient-panel-color-input-row">
-                  <input id="mcgradient-panel-color-left" data-i18n type="text" autocomplete="off" autocorrect="off" placeholder="$panel.mcgradient.settings.color_placeholder$">
-                  <input id="mcgradient-panel-color-left-picker" data-i18n type="color" title="$panel.mcgradient.settings.picker_label$">
+                  <input id="mcgradient-panel-color-left" data-i18n type="text" autocomplete="off" autocorrect="off"
+                    placeholder="$panel.mcgradient.settings.color_placeholder$">
+                  <input id="mcgradient-panel-color-left-picker" data-i18n type="color"
+                    title="$panel.mcgradient.settings.picker_label$">
                 </div>
               </div>
 
-            <s-tooltip data-i18n>
-              <s-icon-button data-click="panel.mcgradient.color_swap" slot="trigger">
-                <s-icon>
-                  <svg viewBox="0 -960 960 960">
-                    <path
-                      d="M280-160 80-360l200-200 56 57-103 103h287v80H233l103 103-56 57Zm400-240-56-57 103-103H440v-80h287L624-743l56-57 200 200-200 200Z">
-                    </path>
-                  </svg>
-                </s-icon>
-              </s-icon-button>
-              $panel.mcgradient.settings.swap$
-            </s-tooltip>
-              
+              <s-tooltip data-i18n>
+                <s-icon-button data-click="panel.mcgradient.color_swap" slot="trigger">
+                  <s-icon>
+                    <svg viewBox="0 -960 960 960">
+                      <path
+                        d="M280-160 80-360l200-200 56 57-103 103h287v80H233l103 103-56 57Zm400-240-56-57 103-103H440v-80h287L624-743l56-57 200 200-200 200Z">
+                      </path>
+                    </svg>
+                  </s-icon>
+                </s-icon-button>
+                $panel.mcgradient.settings.swap$
+              </s-tooltip>
+
               <div class="mcgradient-panel-color-box">
-                <label for="mcgradient-panel-color-right" data-i18n>$panel.mcgradient.settings.right_label$</label>
+                <label for="mcgradient-panel-color-right" data-i18n class="unselectable">$panel.mcgradient.settings.right_label$</label>
                 <div class="mcgradient-panel-color-input-row">
-                  <input id="mcgradient-panel-color-right" data-i18n type="text" autocomplete="off" autocorrect="off" placeholder="$panel.mcgradient.settings.color_placeholder$">
-                  <input id="mcgradient-panel-color-right-picker" data-i18n type="color" title="$panel.mcgradient.settings.picker_label$">
+                  <input id="mcgradient-panel-color-right" data-i18n type="text" autocomplete="off" autocorrect="off"
+                    placeholder="$panel.mcgradient.settings.color_placeholder$">
+                  <input id="mcgradient-panel-color-right-picker" data-i18n type="color"
+                    title="$panel.mcgradient.settings.picker_label$">
                 </div>
               </div>
             </div>
-            <div class="mcgradient-panel-presets">
+            
+            <div class="mcgradient-panel-presets unselectable">
               <div class="mcgradient-panel-presets-title" data-i18n>$panel.mcgradient.settings.presets$</div>
-              <div id="mcgradient-panel-presets" class="mcgradient-panel-presets-list"></div>
+              <s-scroll-view id="mcgradient-panel-presets" class="mcgradient-panel-presets-list"></s-scroll-view>
+            </div>
+            
+            <div id="mcgradient-toolbar" style="background-color: transparent;">
+              <s-scroll-view id="mcgradient-toolbar-n">
+                <s-tooltip data-i18n>
+                  <s-icon-button data-click="panel.mcgradient.color_switch" slot="trigger">
+                    <s-icon>
+                      <img is="j-icon" name="color_switch">
+                    </s-icon>
+                  </s-icon-button>
+                  $panel.mcgradient.toolbar.color$
+                </s-tooltip>
+                <s-tooltip data-i18n>
+                  <s-icon-button data-click="panel.mcgradient.insert.reset" slot="trigger">
+                    <s-icon>
+                      <img is="j-icon" name="reset">
+                    </s-icon>
+                  </s-icon-button>
+                  $panel.mcgradient.toolbar.reset$
+                </s-tooltip>
+                <s-tooltip data-i18n>
+                  <s-icon-button data-click="panel.mcgradient.insert.format_code" slot="trigger">
+                    <s-icon>
+                      <img is="j-icon" name="format_code">
+                    </s-icon>
+                  </s-icon-button>
+                  $panel.mcgradient.toolbar.code$
+                </s-tooltip>
+                <s-tooltip data-i18n>
+                  <s-icon-button data-click="panel.mcgradient.insert.bold" slot="trigger">
+                    <s-icon>
+                      <img is="j-icon" name="bold">
+                    </s-icon>
+                  </s-icon-button>
+                  $panel.mcgradient.toolbar.bold$
+                </s-tooltip>
+                <s-tooltip data-i18n>
+                  <s-icon-button data-click="panel.mcgradient.insert.italic" slot="trigger">
+                    <s-icon>
+                      <img is="j-icon" name="italic">
+                    </s-icon>
+                  </s-icon-button>
+                  $panel.mcgradient.toolbar.italic$
+                </s-tooltip>
+                <s-tooltip data-i18n>
+                  <s-icon-button data-click="panel.mcgradient.insert.underline" slot="trigger">
+                    <s-icon>
+                      <img is="j-icon" name="underline">
+                    </s-icon>
+                  </s-icon-button>
+                  $panel.mcgradient.toolbar.underline$
+                </s-tooltip>
+              </s-scroll-view>
             </div>
           </div>
         </s-field>
-        <s-field>
-          <div slot="label" data-i18n>$panel.mcgradient.areas.edit.title$</div>
-          <div class="mcgradient-panel-content">
-            <input data-i18n id="mcgradient-panel-edit-input" class="pixel"
-                type="text" autocomplete="on" autocorrect="on" placeholder="$panel.mcgradient.placeholder$">
-          </div>
-        </s-field>
-        <s-field>
-          <div slot="label" data-i18n>$panel.mcgradient.areas.result.title$</div>
-          <div id="mcgradient-panel-edit-preview" class="pixel">
-          </div>
-        </s-field>
+        <div id="mcgradient-panel-edit-parent">
+          <label data-i18n class="unselectable">$panel.mcgradient.areas.edit.title$</label>
+          <input id="mcgradient-panel-edit-input" class="pixel" data-i18n type="text" autocomplete="off" autocorrect="off"
+            placeholder="$panel.mcgradient.placeholder$">
+          <label data-i18n class="unselectable">$panel.mcgradient.areas.result.title$</label>
+          <p id="mcgradient-panel-edit-preview" class="pixel unselectable"></p>
+        </div>
       </div>
       <div fake-slot="action">
         <s-button id="mcgradient-panel-btn-cancel" data-i18n type="text">$tooltip.cancel$</s-button>
@@ -299,8 +352,8 @@
           </s-scroll-view>
         </div>
         <div class="mctext-panel-content">
-          <textarea id="mctext-edit" class="pixel" data-i18n
-              autocomplete="on" autocorrect="on" placeholder="$panel.mctext.placeholder$"></textarea>
+          <textarea id="mctext-edit" class="pixel" data-i18n autocomplete="on" autocorrect="on"
+            placeholder="$panel.mctext.placeholder$"></textarea>
           <div class="mctext-edit-divide"></div>
           <div id="mctext-preview" class="pixel" data-bg-id="0"></div>
         </div>

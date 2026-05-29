@@ -73,20 +73,22 @@
         "left_label": "左端颜色",
         "right_label": "右端颜色",
         "swap": "交换",
-        "presets": "预设颜色",
+        "presets": "预设颜色与编辑工具",
         "picker_label": "颜色选择器",
         "color_placeholder": "支持 HEX、RGB 和 Minecraft 颜色代码"
       },
       "areas": {
         "settings": {
           "title": "参数设置"
-        },
-        "edit": {
-          "title": "文本编辑"
-        },
-        "result": {
-          "title": "输出预览"
         }
+      },
+      "toolbar": {
+        "reset": "插入【重置】标识",
+        "color": "切换预览区背景色",
+        "italic": "插入【斜体】标识",
+        "bold": "插入【粗体】标识",
+        "underline": "插入【下划线】标识",
+        "code": "插入【格式化代码】（§）"
       }
     },
     "mcitem": {}
