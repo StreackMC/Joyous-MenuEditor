@@ -155,7 +155,7 @@ function uploadToRender() {
   const leftColor = MCColors.formatHex(elements.color.leftInput.value);
   const rightColor = MCColors.formatHex(elements.color.rightInput.value);
   const rawText = elements.inputbox.value;
-  elements.inputbox.style.width = `calc(${rawText.length} * 1em + 1em)`;
+  elements.inputbox.style.width = `max(calc(${rawText.length} * 1em + 1em), 100%)`;
 
   if (leftColor && rightColor) {
     // 有效颜色 -> 生成渐变色代码
@@ -364,9 +364,9 @@ export function switchPreviewBgColor(id = (elements.preview.dataset.bgId + 1)) {
   elements.preview.style.backgroundColor = BgColors[id].cssBg;
   elements.preview.dataset.bgId = id;
 };
-commands.regisiterCommand("panel.mctext.color_switch", switchPreviewBgColor);
+commands.regisiterCommand("panel.mcgradient.color_switch", switchPreviewBgColor);
 const BgColors = [
-  { cssBg: "var(--s-color-surface-container-high, #E7E8EA)"},
+  { cssBg: "transparent"},
   { cssBg: "#fff" },
   { cssBg: "#000" },
 ];
