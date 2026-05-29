@@ -1,0 +1,49 @@
+/* 基础样式：隐藏原始字符，为 ::after 留出空间 */
+.mc-obf-char {
+  position: relative;
+  display: inline-block;
+}
+
+/* 半角字符显示半角随机字符 */
+.mc-obf-half::after {
+  position: absolute;
+  left: 0;
+  top: 0;
+  color: inherit;
+  font-weight: inherit;
+  font-style: inherit;
+}
+
+/* 全角字符显示 CJK 随机字符 */
+.mc-obf-full::after {
+  position: absolute;
+  left: 0;
+  top: 0;
+  color: inherit;
+  font-weight: inherit;
+  font-style: inherit;
+}
+
+/* 指派字符 */
+.mc-obf-half[data-obf="0"]::after { content: var(--mc-obf-char-h-0, "█"); }
+.mc-obf-half[data-obf="1"]::after { content: var(--mc-obf-char-h-1, "█"); }
+.mc-obf-half[data-obf="2"]::after { content: var(--mc-obf-char-h-2, "█"); }
+.mc-obf-half[data-obf="3"]::after { content: var(--mc-obf-char-h-3, "█"); }
+.mc-obf-half[data-obf="4"]::after { content: var(--mc-obf-char-h-4, "█"); }
+.mc-obf-half[data-obf="5"]::after { content: var(--mc-obf-char-h-5, "█"); }
+.mc-obf-half[data-obf="6"]::after { content: var(--mc-obf-char-h-6, "█"); }
+.mc-obf-half[data-obf="7"]::after { content: var(--mc-obf-char-h-7, "█"); }
+.mc-obf-half[data-obf="8"]::after { content: var(--mc-obf-char-h-8, "█"); }
+.mc-obf-half[data-obf="9"]::after { content: var(--mc-obf-char-h-9, "█"); }
+.mc-obf-half[data-obf="10"]::after { content: var(--mc-obf-char-h-10, "█"); }
+.mc-obf-full[data-obf="0"]::after { content: var(--mc-obf-char-f-0, "█"); }
+.mc-obf-full[data-obf="1"]::after { content: var(--mc-obf-char-f-1, "█"); }
+.mc-obf-full[data-obf="2"]::after { content: var(--mc-obf-char-f-2, "█"); }
+.mc-obf-full[data-obf="3"]::after { content: var(--mc-obf-char-f-3, "█"); }
+.mc-obf-full[data-obf="4"]::after { content: var(--mc-obf-char-f-4, "█"); }
+.mc-obf-full[data-obf="5"]::after { content: var(--mc-obf-char-f-5, "█"); }
+.mc-obf-full[data-obf="6"]::after { content: var(--mc-obf-char-f-6, "█"); }
+.mc-obf-full[data-obf="7"]::after { content: var(--mc-obf-char-f-7, "█"); }
+.mc-obf-full[data-obf="8"]::after { content: var(--mc-obf-char-f-8, "█"); }
+.mc-obf-full[data-obf="9"]::after { content: var(--mc-obf-char-f-9, "█"); }
+.mc-obf-full[data-obf="10"]::after { content: var(--mc-obf-char-f-10, "█"); }

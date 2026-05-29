@@ -37,6 +37,38 @@ const COLORS = {
   'v': '#EB7114'
 };
 
+// 半角字符库：ASCII 可见字符 32-126
+function randomHalfChar() {
+  return String.fromCharCode(32 + Math.floor(Math.random() * 95));
+}
+
+// 全角字符库：基本 CJK 统一表意文字 U+4E00 ~ U+9FFF
+function randomFullChar() {
+  const start = 0x4E00;
+  const end = 0x9FFF;
+  const codePoint = start + Math.floor(Math.random() * (end - start + 1));
+  return String.fromCodePoint(codePoint);
+}
+
+// 注册乱码字符
+let obfuscateTimer = null;
+function startObfuscateInterval(intervalMs = 20) {
+  stopObfuscateInterval();
+  obfuscateTimer = setInterval(() => {
+    for (let index = 0; index <= 10; index++) {
+      document.body.style.setProperty('--mc-obf-char-h-' + index, `"${randomHalfChar()}"`);
+      document.body.style.setProperty('--mc-obf-char-f-' + index, `"${randomFullChar()}"`);
+    }
+  }, intervalMs);
+}
+function stopObfuscateInterval() {
+  if (obfuscateTimer) {
+    clearInterval(obfuscateTimer);
+    obfuscateTimer = null;
+  }
+}
+startObfuscateInterval(20);
+
 /**
  * 判断字符是否为有效的十六进制字符
  * @param {string} c 单个字符
@@ -69,41 +101,57 @@ function isHex(s) {
  * @returns {string} 包装后的 HTML span 标签
  */
 function wrapWithHtmlSpan(text, color, bold, italic, underline, strikethrough, obfuscated) {
-  // HTML 转义（注意顺序：先转义 & 防止二次转义）
-  let escaped = text
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
+  let obfCount = 0;
+  let getObfCount = () => {
+    obfCount++;
+    if (obfCount > 10) obfCount = 0;
+    return obfCount;
+  };
+  // HTML 转义
+  function escapeHtml(str) {
+    return str
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
 
+  // 内部 HTML 处理
+  let innerHtml;
+  if (obfuscated) {
+    const chars = Array.from(text);
+    innerHtml = chars.map(ch => {
+      const code = ch.codePointAt(0);
+      // 判断是否属于 CJK 统一表意文字基本区（U+4E00 - U+9FFF）
+      const isCJK = (code >= 0x4E00 && code <= 0x9FFF);
+      const charClass = isCJK
+        ? 'mc-obf-char mc-obf-full'   // 全角 → 用 --mc-obf-char-f
+        : 'mc-obf-char mc-obf-half';  // 半角 → 用 --mc-obf-char-h
+      const blankChar = (isCJK)
+        ? "　"
+        : "&nbsp;"
+      return `<span class="${charClass}" data-obf="${getObfCount()}">${blankChar}</span>`;
+    }).join('');
+  } else {
+    innerHtml = escapeHtml(text);
+  }
+
+  // 外层 span 属性
   const attrs = [];
   const style = [];
-
-  if (obfuscated) {
-    attrs.push('class="MC-format-obfuscated"');
-  }
-  if (color) {
-    style.push(`color: ${color}`);
-  }
-  if (bold) {
-    style.push('font-weight: bold');
-  }
-  if (italic) {
-    style.push('font-style: italic');
-  }
-  if (strikethrough && underline) {
+  if (obfuscated) attrs.push('class="MC-format-obfuscated"');
+  if (color) style.push(`color: ${color}`);
+  if (bold) style.push('font-weight: bold');
+  if (italic) style.push('font-style: italic');
+  if (strikethrough && underline)
     style.push('text-decoration: line-through underline');
-  } else if (strikethrough) {
+  else if (strikethrough)
     style.push('text-decoration: line-through');
-  } else if (underline) {
+  else if (underline)
     style.push('text-decoration: underline');
-  }
+  if (style.length) attrs.push(`style="${style.join('; ')};"`);
 
-  if (style.length) {
-    attrs.push(`style="${style.join('; ')};"`);
-  }
-
-  return `<span ${attrs.join(' ')}>${escaped}</span>`;
+  return `<span ${attrs.join(' ')}>${innerHtml}</span>`;
 }
 
 /**
@@ -463,5 +511,9 @@ export default {
   remove,
   parse,
   COLORS,
-  formatHex
+  formatHex,
+  randomFullChar,
+  randomHalfChar,
+  startObfuscateInterval,
+  stopObfuscateInterval
 };
