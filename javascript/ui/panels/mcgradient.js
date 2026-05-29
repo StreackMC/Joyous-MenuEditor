@@ -84,21 +84,38 @@ function mixColor(leftHex, rightHex, ratio) {
 
 /**
  * 根据文本和两端颜色生成渐变色 Minecraft 格式化代码
- * @param {string} text 原始文本
+ * @param {string} originalText 原始文本
  * @param {string} leftHex 左端颜色（含#）
  * @param {string} rightHex 右端颜色（含#）
  * @returns {string} 包含 §#RRGGBB 的格式化字符串
  */
-function buildGradientCode(text, leftHex, rightHex) {
-  if (!text) return "";
-  const chars = Array.from(text);
-  const visibleChars = chars.filter(ch => ch !== "");
+function buildGradientCode(originalText, leftHex, rightHex) {
+  if (!originalText) return "";
+  // 过滤字符，只允许 k l m n o 和 r 修饰
+  let txt = originalText.replace(/§(?:#[0-9a-fA-F]{6}|x(?:§[0-9a-fA-F]){6}|[0-9]|([a-jA-J]|[s-zS-Z]|[pqPQ]))/g, '');
+  const chars = Array.from(txt);
+  const visibleChars = chars.filter((char, index) => {
+    // 跳过§和§转义的字符
+    if (char === "") {
+      return false;
+    } else if (char === "§") {
+      return false;
+    } else if (index != 0 && txt[index - 1] === "§") {
+      return false;
+    } else {
+      return true;
+    }
+  });
   const visibleCount = visibleChars.length;
-  if (visibleCount === 0) return text;
+  if (visibleCount === 0) return txt;
 
   let idx = 0;
-  return chars.map(ch => {
-    if (ch === "") return ch;
+  return chars.map((ch, index) => {
+    if (
+      ch === ""
+      || ch === "§"
+      || (index != 0 && chars[index - 1] === "§")
+    ) return ch;
     const ratio = visibleCount === 1 ? 0 : idx / (visibleCount - 1);
     const color = mixColor(leftHex, rightHex, ratio);
     idx++;
