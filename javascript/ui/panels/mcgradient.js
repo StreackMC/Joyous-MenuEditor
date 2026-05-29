@@ -258,6 +258,7 @@ function createPresetButtons() {
     const btn = document.createElement("button");
     btn.type = "button";
     btn.className = "mcgradient-preset-btn";
+    btn.style = `--c-left:${preset.left};--c-right:${preset.right};`;
     btn.textContent = preset.name;
     btn.title = `${preset.left} → ${preset.right}`;
     btn.addEventListener("click", (e) => {
