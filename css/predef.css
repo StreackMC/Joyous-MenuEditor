@@ -19,8 +19,13 @@ body {
   user-select: text;
 }
 
-.pixel {
-  font-family: "mojangles", "unifont";
+mc-item-display {
+  width: var(--size, 4em);
+  height: var(--size, 4em);
+}
+
+.pixel, mc-item-display::part(amount), mc-item-display::part(tooltip-title), mc-item-display::part(tooltip-description) {
+  font-family: "mojangles", "unifont", sans-serif;
 }
 
 .hide {

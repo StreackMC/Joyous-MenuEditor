@@ -5,7 +5,7 @@
  * <icon-import src=""></icon-import>
  * </code></pre>
  */
-export class IconImport extends HTMLImageElement {
+export class HTMLIconImportElemnt extends HTMLImageElement {
   static get observedAttributes() {
     return ['name'];
   }
@@ -38,7 +38,7 @@ export class IconImport extends HTMLImageElement {
 }
 
 // 注册自定义元素
-customElements.define('j-icon', IconImport, { extends: 'img' });
+customElements.define('j-icon', HTMLIconImportElemnt, { extends: 'img' });
 
 // 由于 img 没有办法内联元素，也就没有办法插入样式，所以必须曲线救国
 const style = document.createElement('style');
