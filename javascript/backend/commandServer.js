@@ -8,7 +8,7 @@ export default {
  * 命令列表
  * @type {Map<String,Function>}
  */
-const commands = new Map([
+export const regisiteredCommands = new Map([
   ["echo", (...args) => { return new String(args.join("")); }],
 ]);
 
@@ -18,8 +18,8 @@ const commands = new Map([
  * @returns 
  */
 export function isCommand(cmd) {
-  if (!commands.has(cmd)) return false;
-  return (typeof (commands.get(cmd)) === "function");
+  if (!regisiteredCommands.has(cmd)) return false;
+  return (typeof (regisiteredCommands.get(cmd)) === "function");
 }
 
 /**
@@ -33,7 +33,7 @@ export function executeCommand(cmd, ...arg) {
   try {
     const cmdLowerCase = cmd.toLocaleLowerCase().replace(/\s+/g, "");
     if (!isCommand(cmdLowerCase)) { throw new Error(i18n.parseSafe("panel.command.notFound", { cmd: cmd })); };
-    const v = commands.get(cmdLowerCase);
+    const v = regisiteredCommands.get(cmdLowerCase);
     return v.apply(this, arg);
   } catch (e) {
     window.joyous.msg(i18n.parse("msg.command_failure", { msg: e.message }), i18n.parse("msg.done"), "error");
@@ -53,7 +53,7 @@ export function executeCommandSlient(cmd, ...arg) {
   try {
     const cmdLowerCase = cmd.toLowerCase().replace(/\s+/g, "");
     if (!isCommand(cmdLowerCase)) { throw new Error(i18n.parseSafe("panel.command.notFound", { cmd: cmd })); };
-    const v = commands.get(cmdLowerCase);
+    const v = regisiteredCommands.get(cmdLowerCase);
     return v.apply(this, arg);
   } catch (e) {
     console.error(`无法执行命令 ${cmd} [${arg.join("|")}] ：`, e);
@@ -72,7 +72,7 @@ window.joyous.executeCommandSlient = executeCommandSlient;
  * @param {Function} func 
  */
 export function regisiterCommand(command, func) {
-  commands.set(command.toLowerCase().replace(/\s+/g, ""), func);
+  regisiteredCommands.set(command.toLowerCase().replace(/\s+/g, ""), func);
 }
 
 /**
@@ -84,7 +84,7 @@ export function regisiterCommand(command, func) {
  * @see {@link regisiterCommand(command, func)}
  */
 export function regisiterCommandWithHotkey(command, func, key, ...args) {
-  commands.set(command.toLowerCase().replace(/\s+/g, ""), func);
+  regisiteredCommands.set(command.toLowerCase().replace(/\s+/g, ""), func);
   if (key) {
     hotkeys(key, () => { executeCommand(command, ...args); return false; });
   };

@@ -1,10 +1,11 @@
 import uiUtils from "./ui/utils.js";
 import commands from './backend/commandServer.js'; // 通常情况下建议使用命令系统调用UI/Tabs等功能，会自动处理错误，否则你可能需要自行处理错误
+import { regisiteredCommands } from './backend/commandServer.js';
 import i18n from './i18n.js';
 // 虽然未使用，但需要确保加载
-import tabs from "./ui/tabs.js";
+import tabs, { getCurrentTabId, tabsMap } from "./ui/tabs.js";
 import command_panel from "./ui/panels/command.js";
-import editorManager from "./backend/editorManager.js";
+import { regEditorsClazz } from "./backend/editorManager.js";
 import autosave from "./backend/autosave.js";
 import mcText from "./ui/panels/mctext.js";
 import mcGradient from './ui/panels/mcgradient.js';
@@ -34,13 +35,8 @@ commands.hook();
 function versionDialogPopup() {
   const title = i18n.parse("about.title");
   const div = document.createElement("div");
-  div.style = `margin: 1.2em .5em 1em .5em;width:max-content;`;
-  div.innerHTML =
-    `${versionJson.hash}@${versionJson.ref} [${versionJson.build_time}]<br>
-<br>
-Copyright (C) 2025-present, StreackMC & kdxiaoyi.<br>
-This software is licensed under <a target='_blank' href='https://github.com/StreackMC/Joyous-MenuEditor/'>Apache 2.0</a>.
-`;
+  div.style = `margin: 1.2em .5em 1em .5em;width:max-content;text-wrap: nowrap;`;
+  div.innerHTML = `<h2>Details</h2><p>${getVersionInfo().join("\n\n").replace(/\n/g, "<br>")}</p><h2>Functional Tests</h2><iframe src="https://rs.kdxiaoyi.top/api/browser-check" style="height:80%;"/>`;
   customElements.get("s-dialog").builder({ headline: title, view: div });
 }
 commands.regisiterCommand("version", versionDialogPopup);
@@ -116,6 +112,49 @@ if (!versionJson.debugmode) {
     // 保存，这里在上下文结尾，就不 catch 了
     commands.executeCommandSlient("autosave.backup");
   });
+};
+
+// 调试信息与模式
+/** @returns {string[]} */
+export function getVersionInfo() {
+  let outputs = [];
+  // 一般信息
+  outputs.push([
+    `Joyous Menu Editor (${i18n.parse("product.name")})`,
+    "Copyright (C) 2025-present, StreackMC & kdxiaoyi.",
+    "This software is licensed under <a target='_blank' href='https://github.com/StreackMC/Joyous-MenuEditor/'>Apache 2.0</a>."
+  ].join("\n"));
+  outputs.push([
+    `Active Verison: ${versionJson.hash}`,
+    `- Branch: ${versionJson.ref}`,
+    `- Build Time: ${versionJson.build_time}`,
+  ].join("\n"));
+  outputs.push([
+    `Language Pack: ${i18n.parse("product.i18n_pack.lang")}`,
+    `- Description: ${i18n.parse("product.i18n_pack.description")}`,
+    `- Author: ${i18n.parse("product.i18n_pack.credits")}`,
+  ].join("\n"));
+
+  // 调试信息
+  if (versionJson.debugmode) {
+    outputs.push("You are running in DEBUG mode. The debug info is listed below.");
+    outputs.push([
+      "system.time.timestamp= (UTC+0)" + new Date().getTime(),
+      "system.time.offest= " + new Date().getTimezoneOffset(),
+      "i18n.CurrentTranslation= " + i18n.getCurrentTranslations(),
+      "commands.regisiteredCommands= " + [...regisiteredCommands.keys()],
+      "editorManager.regisiteredEditors= " + [...regEditorsClazz.keys()],
+      "tabs.currentTabs= " + getCurrentTabId(),
+      "tabs.Tabs.active= " + tabs,
+      "tabs.Tabs.bindmap= " + [...tabsMap.keys()],
+    ].join("\n"));
+  };
+
+  // 返回结果
+  return outputs;
+}
+export function isDebugMode() {
+  return versionJson.debugmode;
 }
 
 // 测试版提示
