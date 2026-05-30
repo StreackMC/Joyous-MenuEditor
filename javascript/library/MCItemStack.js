@@ -103,13 +103,29 @@ export class Item {
     return obj;
   }
 
+  #bind_element = null;
   /**
-   * 获取与此物品关联的 Minecraft 元素。
-   * 
-   * @returns {HTMLImageElement} 当前版本未实现，返回 null
+   * 获取、更新与此物品关联的 Minecraft 元素。
+   * @apiNote 调用此方法是**更新**元素内容，也就是说会绑定一个元素并更新它，除非你移除绑定
+   * @returns {HTMLmcItemDisplay} 当前版本未实现，返回 null
    */
   getElement() {
-    return null;
+    if (this.#bind_element == null) {
+      this.#bind_element = document.createElement("mc-item-display");
+    };
+    this.#bind_element.src = `./assets/minecraft/items/${this.id.trim().replace(/.*:/g, "")}.png` || "";
+    this.#bind_element.amount = this.amount || 1;
+    this.#bind_element.name = this.ISC.item_name || "";
+    this.#bind_element.enchantmentGlint = (this.ISC.enchantment_glint_override) ? true : false;
+    this.#bind_element.lore = this.ISC.lore || "";
+    return this.#bind_element;
+  }
+
+  /**
+   * 清除元素绑定，下次 get 时就会创建一个新的
+   */
+  clearElement() {
+    this.#bind_element = null;
   }
 
   /**
