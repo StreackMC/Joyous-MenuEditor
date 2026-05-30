@@ -4,7 +4,7 @@
  * 组件用于定义物品的额外属性和行为。支持的常用组件包括：
  * - `enchantment_glint_override` (boolean): 是否覆盖附魔光泽效果
  * - `item_name` (string): 自定义物品名称（JSON 文本格式）
- * - `lore` (Array): 物品描述文本（JSON 文本组件数组）
+ * - `lore` (Array<string>): 物品描述文本（JSON 文本组件数组）
  * - `item_model` (string): 物品模型 ID
  * 
  * 其他组件会被保存但仅在部分方法中使用（如拷贝、合并等）。
@@ -13,7 +13,7 @@
  * @typedef {Object} ItemComponents
  * @property {boolean} [enchantment_glint_override] - 覆盖附魔光泽效果
  * @property {string} [item_name] - 自定义物品名称（JSON 文本格式）
- * @property {Array} [lore] - 物品描述文本（JSON 文本组件数组）
+ * @property {string[]} [lore] - 物品描述文本（JSON 文本组件数组）
  * @property {string} [item_model] - 物品模型 ID
  * @property {...any} [key:string] - 其他组件（保留但仅部分方法可用）
  */
@@ -117,7 +117,7 @@ export class Item {
     this.#bind_element.amount = this.amount || 1;
     this.#bind_element.name = this.ISC.item_name || "";
     this.#bind_element.enchantmentGlint = (this.ISC.enchantment_glint_override) ? true : false;
-    this.#bind_element.lore = this.ISC.lore || "";
+    this.#bind_element.lore = this.ISC.lore.join("\n") || "";
     return this.#bind_element;
   }
 
@@ -130,50 +130,69 @@ export class Item {
 
   /**
    * 将物品堆叠序列化为原版 Minecraft 格式的字符串。
-   * 
-   * 格式规则：
-   * - 数量为 1 时省略数量前缀
-   * - 组件部分由 `ISC.toString()` 生成（仅包含实际存在的组件）
-   * - 最终格式：`[数量x ]物品id[组件字符串]`
+   * 格式：[数量x ]物品id[组件字符串]
+   * 组件字符串采用简化 SNBT 风格：key1=value1,key2=value2
    * 
    * @returns {string} 原版格式的物品堆叠字符串
-   * 
-   * @example
-   * const item = new Item('minecraft:stick', 3, { item_name: '{"text":"Good"}' });
-   * console.log(item.toString()); // '3x minecraft:stick[item_name="{\\"text\\":\\"Good\\"}"]'
    */
   toString() {
     let result = this.id;
-    const compStr = this.ISC.toString();
+
+    // 生成组件字符串
+    const componentPairs = [];
+    for (const [key, value] of Object.entries(this.ISC)) {
+      if (value === undefined || value === null) continue;
+      // 跳过内部方法
+      if (key === 'toString') continue;
+
+      // 序列化值
+      let serialized;
+      if (Array.isArray(value)) {
+        // 数组序列化为 [value1,value2,...]
+        const items = value.map(v => {
+          if (typeof v === 'string') {
+            // 字符串需要引号
+            return JSON.stringify(v);
+          }
+          return String(v);
+        });
+        serialized = `[${items.join(',')}]`;
+      } else if (typeof value === 'string') {
+        // 字符串需要引号
+        serialized = JSON.stringify(value);
+      } else if (typeof value === 'boolean' || typeof value === 'number') {
+        serialized = String(value);
+      } else if (typeof value === 'object') {
+        // 对象序列化为简化 SNBT
+        serialized = objectToSNBT(value);
+      } else {
+        serialized = String(value);
+      }
+
+      componentPairs.push(`${key}=${serialized}`);
+    }
+
+    const compStr = componentPairs.join(',');
     if (compStr) {
       result += `[${compStr}]`;
     }
+
     if (this.amount !== 1) {
       result = `${this.amount}x ${result}`;
     }
     return result;
   }
+
 }
 
 /**
  * 从原版格式的字符串解析物品堆叠。
- * 
- * 支持的格式：
- * - `"minecraft:apple"` → 1 个苹果
- * - `"minecraft:stick[lore=[{text:"Good"}]]"` → 1 个带有 lore 的木棍
- * - `"minecraft:air[minecraft:item_name=\"物品名\"] 5"` → 5 个带有自定义名称的空气（命名空间前缀会被去除）
- * - `"5x minecraft:diamond"` → 5 个钻石（数量前缀在前）
- * 
- * 数量可以出现在物品描述之前（`数量x 物品...`）或之后（`物品... 数量`），但不能同时出现。
- * 组件键名中的命名空间（如 `minecraft:`）会被自动去除。
- * 解析失败时，物品 ID 回退为 `minecraft:missingno`，数量默认为 1，组件为空对象。
+ * 支持格式：[数量x ]物品id[组件字符串] 或 物品id[组件字符串] 数量
+ * 组件字符串采用简化 SNBT 风格：key1=value1,key2=value2
+ * 支持字符串（引号可选）、数字、布尔值、数组
  * 
  * @param {string} mcString - 原版格式的物品堆叠字符串
  * @returns {Item} 解析得到的物品堆叠实例
- * 
- * @example
- * const apple = getItemFromMC('minecraft:apple');
- * const namedItem = getItemFromMC('minecraft:air[minecraft:item_name="Special"] 5');
  */
 export function getItemFromMC(mcString) {
   if (typeof mcString !== 'string' || mcString.trim() === '') {
@@ -185,23 +204,22 @@ export function getItemFromMC(mcString) {
     let amount = 1;
     let idAndComponents = trimmed;
 
-    // 尝试匹配末尾的数量：格式 " ... 数字"
-    const trailingNumberMatch = trimmed.match(/\s+(\d+)$/);
-    if (trailingNumberMatch) {
-      amount = parseInt(trailingNumberMatch[1], 10);
-      idAndComponents = trimmed.substring(0, trailingNumberMatch.index).trim();
+    // 匹配末尾数量：" ... 数字"
+    const trailingMatch = trimmed.match(/\s+(\d+)$/);
+    if (trailingMatch) {
+      amount = parseInt(trailingMatch[1], 10);
+      idAndComponents = trimmed.substring(0, trailingMatch.index).trim();
     }
 
-    // 尝试匹配开头的数量：格式 "数字x ..."
-    const leadingNumberMatch = idAndComponents.match(/^(\d+)\s*x\s*/i);
-    if (leadingNumberMatch) {
-      amount = parseInt(leadingNumberMatch[1], 10);
-      idAndComponents = idAndComponents.substring(leadingNumberMatch[0].length).trim();
+    // 匹配开头数量："数字x ..."
+    const leadingMatch = idAndComponents.match(/^(\d+)\s*x\s*/i);
+    if (leadingMatch) {
+      amount = parseInt(leadingMatch[1], 10);
+      idAndComponents = idAndComponents.substring(leadingMatch[0].length).trim();
     }
 
-    // 解析物品 ID 和组件部分
     let itemId = idAndComponents;
-    let componentString = '';
+    let componentStr = '';
     const bracketIndex = idAndComponents.indexOf('[');
     if (bracketIndex !== -1) {
       const lastBracket = idAndComponents.lastIndexOf(']');
@@ -209,98 +227,227 @@ export function getItemFromMC(mcString) {
         throw new Error('Unmatched square brackets');
       }
       itemId = idAndComponents.substring(0, bracketIndex).trim();
-      componentString = idAndComponents.substring(bracketIndex + 1, lastBracket);
+      componentStr = idAndComponents.substring(bracketIndex + 1, lastBracket);
     }
 
-    // 解析组件字符串为对象，同时去除组件键名中的命名空间
+    // 解析组件字符串为对象
     const components = {};
-    if (componentString) {
-      // 简单的键值对解析，支持不带引号的值、带双引号/单引号的值
-      let i = 0;
-      const len = componentString.length;
-      const skipWhitespace = () => {
-        while (i < len && /\s/.test(componentString[i])) i++;
-      };
-      const parseValue = () => {
-        skipWhitespace();
-        if (i >= len) return null;
-        const ch = componentString[i];
-        if (ch === '"' || ch === "'") {
-          const quote = ch;
-          i++;
-          let value = '';
-          let escaped = false;
-          while (i < len) {
-            const c = componentString[i];
-            if (escaped) {
-              value += c;
-              escaped = false;
-            } else if (c === '\\') {
-              escaped = true;
-            } else if (c === quote) {
-              i++;
-              break;
-            } else {
-              value += c;
-            }
-            i++;
-          }
-          return value;
-        } else if (ch === 't' && componentString.substr(i, 4) === 'true') {
-          i += 4;
-          return true;
-        } else if (ch === 'f' && componentString.substr(i, 5) === 'false') {
-          i += 5;
-          return false;
-        } else if (/[0-9-]/.test(ch)) {
-          let numStr = '';
-          while (i < len && /[0-9.-]/.test(componentString[i])) {
-            numStr += componentString[i];
-            i++;
-          }
-          const num = parseFloat(numStr);
-          return isNaN(num) ? numStr : num;
-        } else {
-          let str = '';
-          while (i < len && !/[=,\]]/.test(componentString[i]) && !/\s/.test(componentString[i])) {
-            str += componentString[i];
-            i++;
-          }
-          return str;
-        }
-      };
-
-      while (i < len) {
-        skipWhitespace();
-        if (i >= len) break;
-        let key = '';
-        while (i < len && componentString[i] !== '=') {
-          if (!/\s/.test(componentString[i])) {
-            key += componentString[i];
-          }
-          i++;
-        }
-        if (componentString[i] === '=') {
-          i++;
-          const value = parseValue();
-          if (key) {
-            // 去除键名中的命名空间（如 minecraft:item_name → item_name）
-            const cleanKey = key.includes(':') ? key.split(':').pop() : key;
-            components[cleanKey] = value;
-          }
-        }
-        if (i < len && componentString[i] === ',') {
-          i++;
-        }
+    if (componentStr) {
+      const parsed = parseSNBTComponents(componentStr);
+      // 解析结果合并到 components，键名去除命名空间
+      for (const [key, value] of Object.entries(parsed)) {
+        const cleanKey = key.includes(':') ? key.split(':').pop() : key;
+        components[cleanKey] = value;
       }
     }
 
     return new Item(itemId, amount, components);
   } catch (error) {
-    // 解析失败时返回 missingno
     return new Item('minecraft:missingno', 1, {});
   }
 }
+
+/**
+ * 解析简化 SNBT 风格的组件字符串
+ * @param {string} str - 组件字符串，如 'item_name="Magic Stick",enchantment_glint_override=true,lore=["Line1","Line2"]'
+ * @returns {Object} 解析后的对象
+ */
+function parseSNBTComponents(str) {
+  const result = {};
+  let i = 0;
+  const len = str.length;
+
+  const skipWhitespace = () => {
+    while (i < len && /\s/.test(str[i])) i++;
+  };
+
+  const parseValue = () => {
+    skipWhitespace();
+    if (i >= len) return null;
+    const ch = str[i];
+    if (ch === '"' || ch === "'") {
+      // 带引号的字符串
+      const quote = ch;
+      i++;
+      let value = '';
+      let escaped = false;
+      while (i < len) {
+        const c = str[i];
+        if (escaped) {
+          value += c;
+          escaped = false;
+        } else if (c === '\\') {
+          escaped = true;
+        } else if (c === quote) {
+          i++;
+          break;
+        } else {
+          value += c;
+        }
+        i++;
+      }
+      return value;
+    } else if (ch === '[') {
+      // 数组
+      i++;
+      const arr = [];
+      skipWhitespace();
+      if (i < len && str[i] === ']') {
+        i++;
+        return arr;
+      }
+      while (i < len) {
+        const val = parseValue();
+        if (val !== undefined) arr.push(val);
+        skipWhitespace();
+        if (i < len && str[i] === ',') {
+          i++;
+          skipWhitespace();
+        } else if (i < len && str[i] === ']') {
+          i++;
+          break;
+        }
+      }
+      return arr;
+    } else if (ch === '{') {
+      // 对象（简化 SNBT）
+      i++;
+      const obj = {};
+      skipWhitespace();
+      if (i < len && str[i] === '}') {
+        i++;
+        return obj;
+      }
+      while (i < len) {
+        let key = '';
+        while (i < len && str[i] !== ':' && !/\s/.test(str[i])) {
+          key += str[i];
+          i++;
+        }
+        skipWhitespace();
+        if (str[i] === ':') {
+          i++;
+          skipWhitespace();
+          const val = parseValue();
+          if (key) obj[key] = val;
+        }
+        skipWhitespace();
+        if (i < len && str[i] === ',') {
+          i++;
+          skipWhitespace();
+        } else if (i < len && str[i] === '}') {
+          i++;
+          break;
+        }
+      }
+      return obj;
+    } else if (ch === 't' && str.substr(i, 4) === 'true') {
+      i += 4;
+      return true;
+    } else if (ch === 'f' && str.substr(i, 5) === 'false') {
+      i += 5;
+      return false;
+    } else if (/[0-9-]/.test(ch)) {
+      let numStr = '';
+      while (i < len && /[0-9.eE+-]/.test(str[i])) {
+        numStr += str[i];
+        i++;
+      }
+      const num = parseFloat(numStr);
+      return isNaN(num) ? numStr : num;
+    } else {
+      // 无引号字符串
+      let strVal = '';
+      while (i < len && !/[=,\]]/.test(str[i]) && !/\s/.test(str[i])) {
+        strVal += str[i];
+        i++;
+      }
+      return strVal;
+    }
+  };
+
+  while (i < len) {
+    skipWhitespace();
+    if (i >= len) break;
+
+    // 解析键
+    let key = '';
+    while (i < len && str[i] !== '=' && !/\s/.test(str[i])) {
+      key += str[i];
+      i++;
+    }
+    skipWhitespace();
+    if (str[i] === '=') {
+      i++;
+      const value = parseValue();
+      if (key) result[key] = value;
+    }
+    skipWhitespace();
+    if (i < len && str[i] === ',') {
+      i++;
+    }
+  }
+  return result;
+}
+
+/**
+ * 将对象序列化为简化 SNBT 字符串
+ * @param {Object} obj - 要序列化的对象
+ * @returns {string} SNBT 字符串
+ */
+function objectToSNBT(obj) {
+  const entries = [];
+  for (const [k, v] of Object.entries(obj)) {
+    let serialized;
+    if (typeof v === 'string') {
+      serialized = JSON.stringify(v);
+    } else if (typeof v === 'boolean' || typeof v === 'number') {
+      serialized = String(v);
+    } else if (Array.isArray(v)) {
+      serialized = `[${v.map(item => {
+        if (typeof item === 'string') return JSON.stringify(item);
+        return String(item);
+      }).join(',')}]`;
+    } else if (typeof v === 'object') {
+      serialized = objectToSNBT(v);
+    } else {
+      serialized = String(v);
+    }
+    entries.push(`${k}:${serialized}`);
+  }
+  return `{${entries.join(',')}}`;
+}
+
+/**
+ * 将 §x 格式的文本转换为 Minecraft 文本组件 JSON 字符串
+ * @param {string} legacyText - 包含 §x 格式化代码的文本
+ * @returns {string} 文本组件 JSON 字符串
+ */
+export function legacyToTextComponent(legacyText) {
+  if (!legacyText || typeof legacyText !== 'string') return '""';
+  // 简化实现：直接返回带格式的纯文本
+  // 实际应解析 §x 代码并生成对应的 JSON 格式
+  return JSON.stringify(legacyText);
+}
+
+/**
+ * 将 Minecraft 文本组件 JSON 字符串转换为 §x 格式的文本
+ * @param {string} jsonText - 文本组件 JSON 字符串
+ * @returns {string} §x 格式的文本
+ */
+export function textComponentToLegacy(jsonText) {
+  if (!jsonText || typeof jsonText !== 'string') return '';
+  try {
+    const parsed = JSON.parse(jsonText);
+    if (typeof parsed === 'string') return parsed;
+    // 简化实现：仅提取纯文本
+    if (parsed.text) return parsed.text;
+    return '';
+  } catch (e) {
+    return jsonText;
+  }
+}
+
 // DEBUG
 document.getMC = getItemFromMC;
 
