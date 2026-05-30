@@ -145,8 +145,16 @@ function wrapWithHtmlSpan(text, color, bold, italic, underline, strikethrough, o
   const style = [];
   if (obfuscated) attrs.push('class="MC-format-obfuscated"');
   if (color) style.push(`color: ${color}`);
-  if (bold) style.push('font-weight: bold');
-  if (italic) style.push('font-style: italic');
+  if (bold) {
+    style.push('font-weight: bold');
+  } else {
+    style.push('font-weight: normal');
+  };
+  if (italic) {
+    style.push('font-style: italic');
+  } else {
+    style.push('font-style: unset');
+  };
   if (strikethrough && underline)
     style.push('text-decoration: line-through underline');
   else if (strikethrough)

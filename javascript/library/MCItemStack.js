@@ -764,7 +764,6 @@ export class HTMLmcItemDisplay extends HTMLElement {
           text-shadow: 1px 1px 0 rgba(0,0,0,0.8);
           position: relative;
           z-index: 1;
-          font-style: italic;
         }
       `;
 
@@ -892,10 +891,10 @@ export class HTMLmcItemDisplay extends HTMLElement {
         }
         break;
       case 'name':
-        this._tooltipTitleEl.innerHTML = MCColors.toHtml(value) || '';
+        this._tooltipTitleEl.innerHTML = MCColors.toHtml("§f" + value) || '';
         break;
       case 'lore':
-        this._tooltipDescEl.innerHTML = MCColors.toHtml(value) || '';
+        this._tooltipDescEl.innerHTML = MCColors.toHtml(value.replace(/\n/g, `\n§o§5`)) || '';
         break;
       default:
         break;
@@ -1189,26 +1188,26 @@ document.addEventListener("click", () => {
       lore=[
         "§r§f由大量碳原子通过共价键连接而成的晶体。或许你不记得那些什么「自范性」「各向异性」之类的术语，但你的脑海里却浮现出了一句话，「钻石恒久远，一颗永流传」。",
         "§r§f这颗钻石的重量不是很轻，正因如此它也价值连城。","§r§7§o挖掘相关矿石、探索宝藏、「熵流」、活动中获取",
-        "§r§#AABBCCPlaceholder",
-        "§r§#AABBCCPlaceholder",
-        "§r§#AABBCCPlaceholder",
-        "§r§#AABBCCPlaceholder",
-        "§r§#AABBCCPlaceholder",
-        "§r§#AABBCCPlaceholder",
-        "§r§#AABBCCPlaceholder",
-        "§r§#AABBCCPlaceholder",
-        "§r§#AABBCCPlaceholder",
-        "§r§#AABBCCPlaceholder",
-        "§r§#AABBCCPlaceholder",
-        "§r§#AABBCCPlaceholder",
-        "§r§#AABBCCPlaceholder",
-        "§r§#AABBCCPlaceholder",
-        "§r§#AABBCCPlaceholder",
-        "§r§#AABBCCPlaceholder",
-        "§r§#AABBCCPlaceholder",
-        "§r§#AABBCCPlaceholder",
-        "§r§#AABBCCPlaceholder",
-        "§r§#AABBCCPlaceholder",
+        "§#AABBCCPlaceholder",
+        "§#AABBCCPlaceholder",
+        "§#AABBCCPlaceholder",
+        "§#AABBCCPlaceholder",
+        "§#AABBCCPlaceholder",
+        "§#AABBCCPlaceholder",
+        "§#AABBCCPlaceholder",
+        "§#AABBCCPlaceholder",
+        "§#AABBCCPlaceholder",
+        "§#AABBCCPlaceholder",
+        "§#AABBCCPlaceholder",
+        "§#AABBCCPlaceholder",
+        "§#AABBCCPlaceholder",
+        "§#AABBCCPlaceholder",
+        "§#AABBCCPlaceholder",
+        "§#AABBCCPlaceholder",
+        "§#AABBCCPlaceholder",
+        "§#AABBCCPlaceholder",
+        "§#AABBCCPlaceholder",
+        "§#AABBCCPlaceholder",
         "§r§#AABBCCPlaceholder",
         "§r§#AABBCCPlaceholder",
         "§r§#AABBCCPlaceholder",
