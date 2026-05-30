@@ -301,6 +301,8 @@ export function getItemFromMC(mcString) {
     return new Item('minecraft:missingno', 1, {});
   }
 }
+// DEBUG
+document.getMC = getItemFromMC;
 
 // ───────────────────── 以下代码由 DeepSeek 生成 ─────────────────────
 // ───────────────────── 工具函数（模块级） ─────────────────────
@@ -397,6 +399,35 @@ export class HTMLmcItemDisplay extends HTMLElement {
   /** @override */
   static get observedAttributes() {
     return ['src', 'amount', 'name', 'lore'];
+  }
+
+  get src() {
+    return this.getAttribute('src');
+  }
+  set src(val) {
+    if (val == null) this.removeAttribute('src');
+    else this.setAttribute('src', val);
+  }
+  get amount() {
+    return this.getAttribute('amount');
+  }
+  set amount(val) {
+    if (val == null) this.removeAttribute('amount');
+    else this.setAttribute('amount', val);
+  }
+  get name() {
+    return this.getAttribute('name');
+  }
+  set name(val) {
+    if (val == null) this.removeAttribute('name');
+    else this.setAttribute('name', val);
+  }
+  get lore() {
+    return this.getAttribute('lore');
+  }
+  set lore(val) {
+    if (val == null) this.removeAttribute('lore');
+    else this.setAttribute('lore', val);
   }
 
   constructor() {
