@@ -51,23 +51,26 @@ function randomFullChar() {
 }
 
 // 注册乱码字符
-let obfuscateTimer = null;
-function startObfuscateInterval(intervalMs = 20) {
-  stopObfuscateInterval();
-  obfuscateTimer = setInterval(() => {
+let obfTimer = null, obfStyleEle = document.createElement("style");
+obfStyleEle.dataset.comment = "Inserted by MCColors.js";
+document.head.appendChild(obfStyleEle);
+function startObfuscateInterval(intervalMs = 50) {
+  if (obfTimer) return;
+  obfTimer = setInterval(() => {
+    let styles = ["--mc-obf-renderer-frame-at:" + new Date().getTime()];
     for (let index = 0; index <= 10; index++) {
-      document.body.style.setProperty('--mc-obf-char-h-' + index, `"${randomHalfChar()}"`);
-      document.body.style.setProperty('--mc-obf-char-f-' + index, `"${randomFullChar()}"`);
+      styles.push('--mc-obf-char-h-' + index + `:"${randomHalfChar()}"`);
+      styles.push('--mc-obf-char-f-' + index + `:"${randomFullChar()}"`);
     }
+    obfStyleEle.innerHTML = `.mc-obf-char{` + styles.join(";") + `}`;
   }, intervalMs);
 }
 function stopObfuscateInterval() {
-  if (obfuscateTimer) {
-    clearInterval(obfuscateTimer);
-    obfuscateTimer = null;
+  if (obfTimer) {
+    clearInterval(obfTimer);
+    obfTimer = null;
   }
 }
-startObfuscateInterval(20);
 
 /**
  * 判断字符是否为有效的十六进制字符
@@ -130,6 +133,7 @@ function wrapWithHtmlSpan(text, color, bold, italic, underline, strikethrough, o
       const blankChar = (isCJK)
         ? "　"
         : "&nbsp;"
+      startObfuscateInterval(); // 惰性初始化渲染进程，只在有 &k 被转义后才新建渲染循环
       return `<span class="${charClass}" data-obf="${getObfCount()}">${blankChar}</span>`;
     }).join('');
   } else {
