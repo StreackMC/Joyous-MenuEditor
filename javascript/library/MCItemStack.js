@@ -668,8 +668,8 @@ export class HTMLmcItemDisplay extends HTMLElement {
         this._imgEl.src = value || '';
         break;
       case 'amount':
-        // amount 为空则不显示
-        if (value === null || value === undefined || value === '') {
+        // amount 为空或者1则不显示
+        if (value === null || value === undefined || value === '' || value == 1) {
           this._amountEl.style.display = 'none';
           this._amountEl.textContent = '';
         } else {
