@@ -448,9 +448,6 @@ export function textComponentToLegacy(jsonText) {
   }
 }
 
-// DEBUG
-document.getMC = getItemFromMC;
-
 // ───────────────────── 以下代码由 DeepSeek 生成 ─────────────────────
 // ───────────────────── 工具函数（模块级） ─────────────────────
 
@@ -594,6 +591,14 @@ export class HTMLmcItemDisplay extends HTMLElement {
     this._tooltipVisible = false;
     /** ResizeObserver 实例 */
     this._resizeObserver = null;
+    /* 悬浮框文本溢出优化 */
+    this._onTooltipWheel = this._onWheel.bind(this);
+    this._wheelListenerAdded = false;
+    /* 文本溢出时触控滚动支持 */
+    this._touchScrollActive = false;     // 是否处于触摸滚动状态
+    this._lastTouchPos = { x: 0, y: 0 }; // 上一次触摸点位置
+    this._onDocTouchMove = this._onDocTouchMove.bind(this);
+    this._onDocTouchEnd = this._onDocTouchEnd.bind(this);
 
     // --- 构建 ShadowDOM 结构 ---
     this._buildShadowDOM();
@@ -685,6 +690,10 @@ export class HTMLmcItemDisplay extends HTMLElement {
           position: fixed;
           top: 0;
           left: 0;
+          overflow: auto;
+          scrollbar-width: thin;
+          max-width: 80vw;
+          max-height: 80vh;
           display: none;
           pointer-events: none;
           z-index: 9999;
@@ -699,6 +708,15 @@ export class HTMLmcItemDisplay extends HTMLElement {
           margin: 0.125em 0.25em;
           color: #ffffff;
           text-shadow: 1px 1px 0 rgba(0,0,0,0.8);
+        }
+        .minetip-tooltip::-webkit-scrollbar {
+          width: 6px;
+          height: 6px;
+          background: #2a0a3a;
+        }
+        .minetip-tooltip::-webkit-scrollbar-thumb {
+          background: #aa44aa;
+          border-radius: 3px;
         }
 
         /* ::before — 外边框效果 */
@@ -807,6 +825,7 @@ export class HTMLmcItemDisplay extends HTMLElement {
     this.addEventListener('mouseenter', this._onMouseEnter);
     this.addEventListener('mousemove', this._onMouseMove);
     this.addEventListener('mouseleave', this._onMouseLeave);
+    this.addEventListener('wheel', this._onWheel);
 
     // 移动端 touch
     this.addEventListener('touchstart', this._onTouchStart, { passive: false });
@@ -834,6 +853,7 @@ export class HTMLmcItemDisplay extends HTMLElement {
     this.removeEventListener('touchmove', this._onTouchMove);
     this.removeEventListener('touchend', this._onTouchEnd);
     this.removeEventListener('touchcancel', this._onTouchCancel);
+    this.removeEventListener('wheel', this._onWheel);
 
     // 确保 tooltip 隐藏
     this._hideTooltip();
@@ -917,12 +937,45 @@ export class HTMLmcItemDisplay extends HTMLElement {
       clientX, clientY, tipWidth, tipHeight, isMobile
     );
 
+    // 重置滚动位置（每次显示时回到顶部/左侧）
+    this._tooltipEl.scrollTop = 0;
+    this._tooltipEl.scrollLeft = 0;
+
     // 设置位置并显示
     this._tooltipEl.style.top = top + 'px';
     this._tooltipEl.style.left = left + 'px';
     this._tooltipEl.style.visibility = 'visible';
     this._tooltipEl.setAttribute('aria-hidden', 'false');
     this._tooltipVisible = true;
+
+    // 添加滚轮监听（避免重复添加）
+    if (!this._wheelListenerAdded) {
+      this._tooltipEl.addEventListener('wheel', this._onWheel, { passive: false });
+      this._wheelListenerAdded = true;
+    }
+
+    // 移动端额外添加全局触摸监听
+    if (isMobile) {
+      this._activateTouchScroll();
+    }
+  }
+
+  /** 移动端激活自定义滚动 */
+  _activateTouchScroll() {
+    if (this._touchScrollActive) return;
+    this._touchScrollActive = true;
+    document.addEventListener('touchmove', this._onDocTouchMove, { passive: false });
+    document.addEventListener('touchend', this._onDocTouchEnd);
+    document.addEventListener('touchcancel', this._onDocTouchEnd);
+  }
+
+  /** 移动端停用自定义滚动 */
+  _deactivateTouchScroll() {
+    if (!this._touchScrollActive) return;
+    this._touchScrollActive = false;
+    document.removeEventListener('touchmove', this._onDocTouchMove);
+    document.removeEventListener('touchend', this._onDocTouchEnd);
+    document.removeEventListener('touchcancel', this._onDocTouchEnd);
   }
 
   /** 隐藏 tooltip */
@@ -931,6 +984,12 @@ export class HTMLmcItemDisplay extends HTMLElement {
     this._tooltipEl.style.visibility = 'hidden';
     this._tooltipEl.setAttribute('aria-hidden', 'true');
     this._tooltipVisible = false;
+    if (this._wheelListenerAdded) {
+      this._tooltipEl.removeEventListener('wheel', this._onWheel);
+      this._wheelListenerAdded = false;
+    }
+    this._deactivateTouchScroll();
+    this._lastTouchPos = { x: 0, y: 0 };
   }
 
   /** 清除所有 touch 相关计时器 */
@@ -981,6 +1040,27 @@ export class HTMLmcItemDisplay extends HTMLElement {
     this._hideTooltip();
   }
 
+  /* wheel: 重定向滚动到悬浮框里面 */
+  _onWheel(e) {
+    e.preventDefault();
+    e.stopPropagation();
+
+    const el = this._tooltipEl;
+    if (!el) return;
+
+    if (e.shiftKey) {
+      // Shift + 滚轮 → 横向滚动
+      el.scrollLeft += e.deltaY;
+    } else {
+      // 普通滚轮 → 纵向滚动
+      el.scrollTop += e.deltaY;
+      // 如果鼠标支持横向滚轮，也处理横向
+      if (e.deltaX !== 0) {
+        el.scrollLeft += e.deltaX;
+      }
+    }
+  }
+
   // ──────────────────── 移动端事件处理 ────────────────────
 
   /** touchstart：延迟显示 tooltip（模拟长按，约 350ms） */
@@ -1002,8 +1082,17 @@ export class HTMLmcItemDisplay extends HTMLElement {
 
   /** touchmove：用户滑动 → 取消 tooltip */
   _onTouchMove() {
+    // 如果触摸点在 tooltip 内且 tooltip 可见，则不隐藏，让原生滚动继续
+    if (this._tooltipVisible && this._tooltipEl.contains(e.target)) {
+      // 不执行任何隐藏操作，让浏览器原生处理滚动
+      return;
+    }
+
     if (this._touchShowTimer) {
       // 还未显示，直接取消
+      this._clearTouchTimers();
+    }
+    if (this._touchShowTimer) {
       this._clearTouchTimers();
     }
     if (this._tooltipVisible) {
@@ -1015,11 +1104,17 @@ export class HTMLmcItemDisplay extends HTMLElement {
   /** touchend：延迟隐藏 tooltip */
   _onTouchEnd() {
     this._clearTouchTimers();
+
+    // 如果触摸点在 tooltip 内部，不自动隐藏（用户可能还在阅读）
+    if (this._tooltipVisible && this._tooltipEl.contains(e.target)) {
+      return;
+    }
+
     if (this._tooltipVisible) {
       // 1.5 秒后自动隐藏
       this._touchHideTimer = setTimeout(() => {
         this._hideTooltip();
-      }, 1500);
+      }, 2000);
     }
   }
 
@@ -1028,7 +1123,109 @@ export class HTMLmcItemDisplay extends HTMLElement {
     this._clearTouchTimers();
     this._hideTooltip();
   }
+
+  /** document.touchmove: 全局 touchmove 处理：滚动 tooltip 内容 */
+  _onDocTouchMove(e) {
+    // 如果 tooltip 未显示，忽略
+    if (!this._tooltipVisible) {
+      this._deactivateTouchScroll();
+      return;
+    }
+
+    // 获取第一个触摸点
+    const touch = e.touches[0];
+    if (!touch) return;
+
+    const currentX = touch.clientX;
+    const currentY = touch.clientY;
+
+    // 首次进入，记录起始点
+    if (this._lastTouchPos.x === 0 && this._lastTouchPos.y === 0) {
+      this._lastTouchPos = { x: currentX, y: currentY };
+      return;
+    }
+
+    const deltaX = currentX - this._lastTouchPos.x;
+    const deltaY = currentY - this._lastTouchPos.y;
+
+    // 阈值：避免微小抖动触发滚动
+    if (Math.abs(deltaX) < 2 && Math.abs(deltaY) < 2) return;
+
+    // 阻止页面滚动穿透
+    e.preventDefault();
+
+    // 决定滚动方向：若水平移动距离明显大于垂直，则横向滚动；否则竖向滚动
+    const el = this._tooltipEl;
+    if (Math.abs(deltaX) > Math.abs(deltaY)) {
+      // 横向滚动
+      el.scrollLeft -= deltaX;
+    } else {
+      // 竖向滚动
+      el.scrollTop -= deltaY;
+    }
+
+    // 更新上一次触摸位置
+    this._lastTouchPos = { x: currentX, y: currentY };
+  }
+
+  /** document.touchend 触摸结束，清理状态 */
+  _onDocTouchEnd() {
+    this._lastTouchPos = { x: 0, y: 0 };
+    this._deactivateTouchScroll();
+  }
 }
 if (!customElements.get('mc-item-display')) {
   customElements.define('mc-item-display', HTMLmcItemDisplay);
 }
+
+let a = false;
+document.addEventListener("click", () => {
+  if (a) return;
+  a = !a;
+  document.querySelector("#editor-views > div > s-card > div:nth-child(2)").appendChild(getItemFromMC(
+    `diamond
+    [
+      item_name="§eDiamond",
+      lore=[
+        "§r§f由大量碳原子通过共价键连接而成的晶体。或许你不记得那些什么「自范性」「各向异性」之类的术语，但你的脑海里却浮现出了一句话，「钻石恒久远，一颗永流传」。",
+        "§r§f这颗钻石的重量不是很轻，正因如此它也价值连城。","§r§7§o挖掘相关矿石、探索宝藏、「熵流」、活动中获取",
+        "§r§#AABBCCPlaceholder",
+        "§r§#AABBCCPlaceholder",
+        "§r§#AABBCCPlaceholder",
+        "§r§#AABBCCPlaceholder",
+        "§r§#AABBCCPlaceholder",
+        "§r§#AABBCCPlaceholder",
+        "§r§#AABBCCPlaceholder",
+        "§r§#AABBCCPlaceholder",
+        "§r§#AABBCCPlaceholder",
+        "§r§#AABBCCPlaceholder",
+        "§r§#AABBCCPlaceholder",
+        "§r§#AABBCCPlaceholder",
+        "§r§#AABBCCPlaceholder",
+        "§r§#AABBCCPlaceholder",
+        "§r§#AABBCCPlaceholder",
+        "§r§#AABBCCPlaceholder",
+        "§r§#AABBCCPlaceholder",
+        "§r§#AABBCCPlaceholder",
+        "§r§#AABBCCPlaceholder",
+        "§r§#AABBCCPlaceholder",
+        "§r§#AABBCCPlaceholder",
+        "§r§#AABBCCPlaceholder",
+        "§r§#AABBCCPlaceholder",
+        "§r§#AABBCCPlaceholder",
+        "§r§#AABBCCPlaceholder",
+        "§r§#AABBCCPlaceholder",
+        "§r§#AABBCCPlaceholder",
+        "§r§#AABBCCPlaceholder",
+        "§r§#AABBCCPlaceholder",
+        "§r§#AABBCCPlaceholder",
+        "§r§#AABBCCPlaceholder",
+        "§r§#AABBCCPlaceholder",
+        "§r§#AABBCCPlaceholder",
+        "§r§#AABBCCPlaceholder",
+        "§r§#AABBCCPlaceholder",
+        "§r§#AABBCCPlaceholder"
+      ]
+    ]`
+  .replace(/\n/g,"")).getElement());
+})
