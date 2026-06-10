@@ -1099,7 +1099,7 @@ commands.regisiterCommand("files.saveAs", (fileName, folder) => saveAsToFile(fil
 commands.regisiterCommandWithHotkey("files.saveCurrent", () => {
   try {
     saveToFile();
-    msg(i18n.parseSafe("msg.files.saved"), null, "success", 2000);
+    msg(i18n.parseSafe("msg.saved"), null, "success", 2000);
   } catch (e) {
     msg(e.message, i18n.parseSafe("msg.done"), "error");
   }
