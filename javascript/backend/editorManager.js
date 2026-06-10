@@ -58,22 +58,21 @@ export function openEditor(data = "", editorId = undefined, fname = null) {
         console.warn(`强制使用编辑器 ${editorId} 时，无法获取编辑器标题：`, error, "\n 目标数据：", data);
         title = fname;
       }
-      tabs.openTab(new clazz(data, fname), title);//不catch潜在的null，由调用者自行处理
-      return;
+      const tabId = tabs.openTab(new clazz(data, fname), title);
+      return tabId;
     };
   } catch (error) {
     throw new Error(i18n.parseSafe("msg.unknownEditor", { editor: editorId }));
   }
 
   // 判断打开方式
-  let success = false;
+  let tabId = null;
   for (const key of regEditorsVarify.keys()) {
     try {
       const title = regEditorsVarify.get(key).apply(this, [data, fname]);
       if (title) {
         const clazz = regEditorsClazz.get(key);
-        tabs.openTab(new clazz(data, fname), title);
-        success = true;
+        tabId = tabs.openTab(new clazz(data, fname), title);
         break;
       } else {
         continue;
@@ -83,14 +82,14 @@ export function openEditor(data = "", editorId = undefined, fname = null) {
       continue;
     };
   };
-  if (success) { return; };
+  if (tabId) { return tabId; };
 
   // 没有打开方式，尝试默认编辑器 ACE
   const aceClazz = regEditorsClazz.get("ace");
   if (!aceClazz) {
     throw new Error(i18n.parseSafe("editor.ACE.err"));
   }
-  tabs.openTab(new aceClazz(data, fname), fname);
+  return tabs.openTab(new aceClazz(data, fname), fname);
 }
 
 commands.regisiterCommand("editor.open", openEditor);

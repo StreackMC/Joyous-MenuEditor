@@ -24,6 +24,13 @@ export function backupOpened() {
   webstorage.Local.set("autosave.data", { e: data });
   webstorage.Local.set("autosave.which", tabs.getCurrentTabId());
   webstorage.Local.set("autosave.untitledCount", editorManager.untitledCounts);
+
+  // 同时持久化文件系统状态
+  try {
+    commands.executeCommandSlient("files.saveState");
+  } catch (e) {
+    // 文件系统可能未打开，静默忽略
+  }
 }
 
 /**

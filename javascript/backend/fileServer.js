@@ -1,38 +1,120 @@
-import tabs from "../ui/tabs";
+import commands from "./commandServer.js";
+import tabs from "../ui/tabs.js";
+import { msg } from "../ui/utils.js";
+import i18n from "../i18n.js";
 import { v4 as uuidv4 } from "../library/uuidjs/v4.js";
 
-// ------------------ 文件对象
+// ==================== 核心数据结构 ====================
 
 /**
- * 当前打开的文件系统
- * @type {FileNode|FolderNode|null}
+ * 当前打开的文件系统（根目录树）
+ * @type {FolderNode|null}
  */
 export let currentFileSystem = null;
 
+// ==================== 路径工具 ====================
+
+/**
+ * 将路径字符串解析为文件系统节点。
+ *
+ * 路径规则：
+ *  - 以 `/` 开头 → 从文件系统根 `currentFileSystem` 开始解析
+ *  - 否则以 `base` 路径为基准解析（base 为空则也用根）
+ *  - 支持 `.`（当前目录）、`..`（父目录）段
+ *
+ * @param {string} [path=""]   要解析的路径
+ * @param {string} [base=""]   基准路径，仅当 path 是相对路径时生效
+ * @returns {FileNode|FolderNode|null} 解析到的节点，失败返回 null
+ */
 export function resolvePath(path = "", base = "") {
   try {
-    let goal = currentFileSystem;
-    if (!goal) throw new Error("没有可用的文件系统");
+    if (!currentFileSystem) throw new Error("没有可用的文件系统");
 
-    // 解析 base ，先标准化输入
-    if (path.startsWith("/") || (!base)) base = "";
-
-    let triedResult = 
-
-    // UUID无效，尝试递归解析
-    const baseSplited = base.split("/");
-    for (const element of baseSplited) {
-      let triedResult = goal.resolve(element);
-      if ((!triedResult) || triedResult.type != 'dir') {
-        throw new Error("在节点", goal, "下发现无效的中间节点 ", element);
+    // 决定起始节点
+    let goal;
+    if (path.startsWith("/") || !base) {
+      // 绝对路径或无 base → 从根开始
+      goal = currentFileSystem;
+    } else {
+      // 相对路径 → 先解析 base
+      goal = resolvePath(base);
+      if (!goal || goal.type !== "dir") {
+        throw new Error(`基准路径 "${base}" 无效或不是文件夹`);
       }
-      goal = triedResult;
     }
+
+    // 标准化：移除开头的 /，然后按 / 分割
+    const normalized = path.replace(/^\/+/, "");
+    if (!normalized) return goal;
+
+    const parts = normalized.split("/");
+    for (const part of parts) {
+      if (!part || part === ".") continue;
+      if (part === "..") {
+        if (goal.parentId) {
+          const parent = nodeMap.get(goal.parentId);
+          if (!parent) throw new Error("无法找到父节点");
+          goal = parent;
+        }
+        // 已在根节点时忽略 ".."
+        continue;
+      }
+      if (goal.type !== "dir") {
+        throw new Error(`"${part}" 的父节点不是文件夹`);
+      }
+      const child = goal.resolve(part);
+      if (!child) {
+        throw new Error(`路径中找不到节点 "${part}"`);
+      }
+      goal = child;
+    }
+    return goal;
   } catch (e) {
-    console.warn("无法基于", base, "解析路径 ", path, "：", e);
+    console.warn("无法基于", base, "解析路径", path, "：", e);
     return null;
   }
 }
+
+/**
+ * 获取从根到指定节点的完整路径字符串
+ * @param {FileNode|FolderNode} node
+ * @returns {string} 例如 "/foo/bar/baz.txt"
+ */
+export function getNodePath(node) {
+  const segments = [];
+  let current = node;
+  while (current) {
+    segments.unshift(current.name);
+    current = current.parentId ? nodeMap.get(current.parentId) : null;
+  }
+  return "/" + segments.join("/");
+}
+
+/**
+ * 获取节点的父文件夹
+ * @param {FileNode|FolderNode} node
+ * @returns {FolderNode|null}
+ */
+export function getParent(node) {
+  return node.parentId ? (nodeMap.get(node.parentId)) : null;
+}
+
+/**
+ * 获取从根到指定节点的所有祖先（从近到远）
+ * @param {FileNode|FolderNode} node
+ * @returns {FolderNode[]}
+ */
+export function getAncestors(node) {
+  const result = [];
+  let current = node.parentId ? nodeMap.get(node.parentId) : null;
+  while (current) {
+    result.push(current);
+    current = current.parentId ? nodeMap.get(current.parentId) : null;
+  }
+  return result;
+}
+
+// ==================== 节点类 ====================
 
 /** 一个文件对象 */
 export class FileNode {
@@ -46,11 +128,19 @@ export class FileNode {
     this.lastSavedTimestamp = null; // 上次保存时文件的修改时间
   }
 
+  /**
+   * 从磁盘读取文件内容
+   * @returns {Promise<string>}
+   */
   async read() {
     const file = await this.handle.getFile();
     return await file.text();
   }
 
+  /**
+   * 写入内容到磁盘
+   * @param {string} content
+   */
   async save(content) {
     const writable = await this.handle.createWritable();
     await writable.write(content);
@@ -58,6 +148,49 @@ export class FileNode {
     const file = await this.handle.getFile();
     this.lastSavedTimestamp = file.lastModified;
     this.dirty = false;
+  }
+
+  /**
+   * 获取文件大小
+   * @returns {Promise<number>}
+   */
+  async getSize() {
+    const file = await this.handle.getFile();
+    return file.size;
+  }
+
+  /**
+   * 获取最后修改时间
+   * @returns {Promise<number>}
+   */
+  async getLastModified() {
+    const file = await this.handle.getFile();
+    return file.lastModified;
+  }
+
+  /**
+   * 克隆此节点（浅复制句柄，共享同一磁盘文件）
+   * @returns {FileNode}
+   */
+  clone(newParentId = null) {
+    const node = new FileNode(this.name, this.handle, newParentId);
+    node.lastSavedTimestamp = this.lastSavedTimestamp;
+    return node;
+  }
+
+  /**
+   * 序列化为可持久化的纯对象（不含 handle）
+   * @returns {Object}
+   */
+  toJSON() {
+    return {
+      id: this.id,
+      name: this.name,
+      type: this.type,
+      parentId: this.parentId,
+      dirty: this.dirty,
+      lastSavedTimestamp: this.lastSavedTimestamp,
+    };
   }
 }
 
@@ -74,7 +207,7 @@ export class FolderNode {
   }
 
   /**
-   * 递归加载目录下的所有子节点（懒加载，首次调用时填充 children）
+   * 加载目录下的所有直接子节点（懒加载）
    * @returns {Promise<void>}
    */
   async loadChildren() {
@@ -82,7 +215,7 @@ export class FolderNode {
     this.loaded = true;
     for await (const entry of this.handle.values()) {
       const existing = this.resolve(entry.name);
-      if (existing) continue; // 避免重复添加
+      if (existing) continue;
       let childNode;
       if (entry.kind === "file") {
         childNode = new FileNode(entry.name, entry, this.id);
@@ -97,8 +230,9 @@ export class FolderNode {
   }
 
   /**
-   * 导航到子节点
-   * @param {string} name 子文件（夹）名称
+   * 按名称查找直接子节点
+   * @param {string} name
+   * @returns {FileNode|FolderNode|null}
    */
   resolve(name) {
     for (const child of this.children.values()) {
@@ -107,17 +241,19 @@ export class FolderNode {
     return null;
   }
 
-  /** 根据 UUID 导航到子节点 */
+  /** 按 UUID 查找直接子节点 */
   resolveById(id) {
-    return this.children.get(id);
+    return this.children.get(id) || null;
   }
 
+  /** 添加子节点（内存中） */
   addChild(node) {
     node.parentId = this.id;
     this.children.set(node.id, node);
     nodeMap.set(node.id, node);
   }
 
+  /** 移除子节点（仅内存） */
   removeChild(id) {
     const node = this.children.get(id);
     if (node) {
@@ -126,17 +262,157 @@ export class FolderNode {
       nodeMap.delete(id);
     }
   }
+
+  /**
+   * 递归收集所有子节点（文件 + 文件夹），用于深拷贝等场景
+   * @returns {{ files: FileNode[], folders: FolderNode[] }}
+   */
+  collectAllDescendants() {
+    const files = [];
+    const folders = [];
+    for (const child of this.children.values()) {
+      if (child.type === "file") {
+        files.push(child);
+      } else {
+        folders.push(child);
+        const sub = child.collectAllDescendants();
+        files.push(...sub.files);
+        folders.push(...sub.folders);
+      }
+    }
+    return { files, folders };
+  }
+
+  /**
+   * 序列化为可持久化的纯对象（不含 handle）
+   * @returns {Object}
+   */
+  toJSON() {
+    const childrenArr = [];
+    for (const child of this.children.values()) {
+      childrenArr.push(child.toJSON());
+    }
+    return {
+      id: this.id,
+      name: this.name,
+      type: this.type,
+      parentId: this.parentId,
+      loaded: this.loaded,
+      children: childrenArr,
+    };
+  }
 }
 
-/** @type {Map<string, FileNode|FolderNode>} id -> 任意节点 */
+// ==================== 全局索引 ====================
+
+/** @type {Map<string, FileNode|FolderNode>} id → 任意节点 */
 export const nodeMap = new Map();
 
-/** @type {Map<string, string>} 文件句柄的引用计数或简单映射（未使用） */
+/** @type {WeakMap<object, string>} FileSystemHandle → 节点 id */
 export const handleToNodeId = new WeakMap();
 
+// ==================== 观察者模式（前端推送） ====================
+
 /**
- * 打开单个文件（通过文件选择器）
- * @returns {Promise<FileNode|null>} 返回创建的 FileNode，若用户取消则返回 null
+ * 文件系统变更事件类型枚举
+ * @readonly
+ * @enum {string}
+ */
+export const FileSystemEvent = {
+  /** 文件系统被打开（打开文件夹） */
+  OPENED: "opened",
+  /** 文件系统被关闭 */
+  CLOSED: "closed",
+  /** 新文件创建 */
+  FILE_CREATED: "file_created",
+  /** 新文件夹创建 */
+  FOLDER_CREATED: "folder_created",
+  /** 节点被删除 */
+  DELETED: "deleted",
+  /** 节点被重命名 */
+  RENAMED: "renamed",
+  /** 节点被移动 */
+  MOVED: "moved",
+  /** 节点被复制 */
+  COPIED: "copied",
+  /** 目录内容被刷新 */
+  REFRESHED: "refreshed",
+  /** 文件系统整体结构变化（复合操作后的全量通知） */
+  STRUCTURE_CHANGED: "structure_changed",
+};
+
+/** @type {Map<string, Set<Function>>} 事件类型 → 回调函数集合 */
+const eventListeners = new Map();
+
+/**
+ * 订阅文件系统变更事件
+ * @param {string|string[]} eventTypes 事件类型（FileSystemEvent 的值），传入 "*" 监听所有事件
+ * @param {Function} callback 回调函数，接收 (eventType, detail) 两个参数
+ * @returns {Function} 取消订阅的函数
+ */
+export function onFileSystemChange(eventTypes, callback) {
+  const types = Array.isArray(eventTypes) ? eventTypes : [eventTypes];
+  for (const type of types) {
+    if (!eventListeners.has(type)) {
+      eventListeners.set(type, new Set());
+    }
+    eventListeners.get(type).add(callback);
+  }
+  // 返回取消订阅函数
+  return () => offFileSystemChange(eventTypes, callback);
+}
+
+/**
+ * 取消订阅文件系统变更事件
+ * @param {string|string[]} eventTypes
+ * @param {Function} callback
+ */
+export function offFileSystemChange(eventTypes, callback) {
+  const types = Array.isArray(eventTypes) ? eventTypes : [eventTypes];
+  for (const type of types) {
+    const set = eventListeners.get(type);
+    if (set) {
+      set.delete(callback);
+      if (set.size === 0) eventListeners.delete(type);
+    }
+  }
+}
+
+/**
+ * 通知所有订阅者文件系统发生变更
+ * @param {string} eventType 事件类型
+ * @param {Object} [detail={}] 事件详情
+ * @param {FileNode|FolderNode} [detail.node] 受影响的节点
+ * @param {FileNode|FolderNode} [detail.oldNode] 变更前的节点（重命名时使用）
+ * @param {FolderNode} [detail.parent] 父节点
+ * @param {string} [detail.oldName] 旧名称（重命名时使用）
+ * @param {*} ... 其他自定义字段
+ */
+export function notifyFileSystemChange(eventType, detail = {}) {
+  const payload = { eventType, ...detail, timestamp: Date.now() };
+
+  // 通知指定类型的订阅者
+  const specific = eventListeners.get(eventType);
+  if (specific) {
+    for (const cb of specific) {
+      try { cb(eventType, payload); } catch (e) { console.warn("文件系统事件回调出错：", e); }
+    }
+  }
+
+  // 通知通配符 "*" 订阅者
+  const wildcard = eventListeners.get("*");
+  if (wildcard) {
+    for (const cb of wildcard) {
+      try { cb(eventType, payload); } catch (e) { console.warn("文件系统事件回调出错：", e); }
+    }
+  }
+}
+
+// ==================== 打开 / 关闭文件系统 ====================
+
+/**
+ * 打开单个文件（通过浏览器文件选择器）
+ * @returns {Promise<FileNode|null>} 用户取消时返回 null
  */
 export async function openFile() {
   if (!window.showOpenFilePicker) {
@@ -146,7 +422,9 @@ export async function openFile() {
     const [handle] = await window.showOpenFilePicker({
       types: [{
         description: "文本/配置文件",
-        accept: { "text/plain": [".txt", ".json", ".yaml", ".yml", ".cfg", ".conf", ".ini", ".xml", ".md"] }
+        accept: {
+          "text/plain": [".txt", ".json", ".yaml", ".yml", ".cfg", ".conf", ".ini", ".xml", ".md", ".js", ".ts", ".html", ".css"],
+        },
       }],
       excludeAcceptAllOption: false,
       multiple: false,
@@ -154,6 +432,7 @@ export async function openFile() {
     const file = await handle.getFile();
     const node = new FileNode(file.name, handle);
     nodeMap.set(node.id, node);
+    handleToNodeId.set(handle, node.id);
     return node;
   } catch (err) {
     if (err.name !== "AbortError") {
@@ -164,7 +443,7 @@ export async function openFile() {
 }
 
 /**
- * 打开文件夹，递归构建目录树，并添加到 roots 数组
+ * 打开文件夹，构建目录树
  * @returns {Promise<FolderNode|null>}
  */
 export async function openFolder() {
@@ -175,9 +454,10 @@ export async function openFolder() {
     const handle = await window.showDirectoryPicker();
     const rootNode = new FolderNode(handle.name, handle);
     nodeMap.set(rootNode.id, rootNode);
-    // 立即加载子节点（也可以懒加载，但通常用户期望看到内容）
+    handleToNodeId.set(handle, rootNode.id);
     await rootNode.loadChildren();
     currentFileSystem = rootNode;
+    notifyFileSystemChange(FileSystemEvent.OPENED, { node: rootNode });
     return rootNode;
   } catch (err) {
     if (err.name !== "AbortError") {
@@ -188,7 +468,608 @@ export async function openFolder() {
 }
 
 /**
- * 创建一个软链接，注意这不会往硬盘上面写一个软链接
+ * 关闭当前文件系统（清空索引）
+ */
+export function closeFileSystem() {
+  nodeMap.clear();
+  currentFileSystem = null;
+  // 同时清理标签页绑定
+  tab2File.clear();
+  notifyFileSystemChange(FileSystemEvent.CLOSED);
+}
+
+// ==================== 文件系统操作（增删改查） ====================
+
+/**
+ * 在指定文件夹下创建新文件
+ * @param {FolderNode} parentFolder
+ * @param {string} fileName 文件名（含扩展名）
+ * @returns {Promise<FileNode|null>}
+ */
+export async function createFile(parentFolder, fileName) {
+  if (parentFolder.type !== "dir") throw new Error("目标不是文件夹");
+  if (!parentFolder.handle.getFileHandle) {
+    throw new Error("文件夹句柄不支持创建文件（可能尚未加载）");
+  }
+  try {
+    const handle = await parentFolder.handle.getFileHandle(fileName, { create: true });
+    const node = new FileNode(fileName, handle, parentFolder.id);
+    parentFolder.addChild(node);
+    handleToNodeId.set(handle, node.id);
+    notifyFileSystemChange(FileSystemEvent.FILE_CREATED, { node, parent: parentFolder });
+    return node;
+  } catch (err) {
+    console.error("创建文件失败：", err);
+    throw new Error(`无法创建文件 "${fileName}"：${err.message}`);
+  }
+}
+
+/**
+ * 在指定文件夹下创建新文件夹
+ * @param {FolderNode} parentFolder
+ * @param {string} dirName
+ * @returns {Promise<FolderNode|null>}
+ */
+export async function createFolder(parentFolder, dirName) {
+  if (parentFolder.type !== "dir") throw new Error("目标不是文件夹");
+  if (!parentFolder.handle.getDirectoryHandle) {
+    throw new Error("文件夹句柄不支持创建文件夹");
+  }
+  try {
+    const handle = await parentFolder.handle.getDirectoryHandle(dirName, { create: true });
+    const node = new FolderNode(dirName, handle, parentFolder.id);
+    parentFolder.addChild(node);
+    handleToNodeId.set(handle, node.id);
+    notifyFileSystemChange(FileSystemEvent.FOLDER_CREATED, { node, parent: parentFolder });
+    return node;
+  } catch (err) {
+    console.error("创建文件夹失败：", err);
+    throw new Error(`无法创建文件夹 "${dirName}"：${err.message}`);
+  }
+}
+
+/**
+ * 从磁盘删除文件或空文件夹
+ * @param {FileNode|FolderNode} node
+ * @param {boolean} [recursive=false] 删除文件夹时是否递归删除全部内容
+ * @returns {Promise<boolean>}
+ */
+export async function deleteNode(node, recursive = false) {
+  const parent = getParent(node);
+  if (!parent) throw new Error("根节点不能删除");
+
+  // 若有标签页绑定到此文件，先关闭或解绑
+  if (node.type === "file") {
+    const boundTabs = getTabsBoundToFile(node.id);
+    for (const tabId of boundTabs) {
+      unbindTab(tabId);
+    }
+  }
+
+  try {
+    await parent.handle.removeEntry(node.name, { recursive });
+    const nodeId = node.id;
+    const nodeName = node.name;
+    const nodeType = node.type;
+    parent.removeChild(node.id);
+    // 如果是文件夹，递归从 nodeMap 清除其所有后代
+    if (node.type === "dir") {
+      await recursivelyRemoveFromMap(node);
+    }
+    notifyFileSystemChange(FileSystemEvent.DELETED, {
+      nodeId, nodeName, nodeType, parent,
+    });
+    return true;
+  } catch (err) {
+    console.error("删除失败：", err);
+    throw new Error(`无法删除 "${node.name}"：${err.message}`);
+  }
+}
+
+/**
+ * 递归从 nodeMap 移除节点及其所有后代
+ * @param {FolderNode} folderNode
+ */
+async function recursivelyRemoveFromMap(folderNode) {
+  for (const child of folderNode.children.values()) {
+    if (child.type === "dir") {
+      await recursivelyRemoveFromMap(child);
+    }
+    nodeMap.delete(child.id);
+  }
+}
+
+/**
+ * 重命名文件或文件夹
+ * @param {FileNode|FolderNode} node
+ * @param {string} newName
+ * @returns {Promise<boolean>}
+ */
+export async function renameNode(node, newName) {
+  if (node === currentFileSystem) throw new Error("不能重命名根目录");
+  if (!node.handle) throw new Error("节点没有底层句柄，无法重命名");
+
+  const parent = getParent(node);
+  if (!parent) throw new Error("根节点不能重命名");
+
+  // FileSystemAccessAPI 不支持直接重命名，采用「创建新条目 + 复制内容 + 删除旧条目」策略
+  const oldName = node.name;
+  try {
+    if (node.type === "file") {
+      await renameFileNode(node, newName, parent);
+    } else {
+      await renameDirNode(node, newName, parent);
+    }
+    notifyFileSystemChange(FileSystemEvent.RENAMED, {
+      node, parent, oldName, newName,
+    });
+    return true;
+  } catch (err) {
+    console.error("重命名失败：", err);
+    throw new Error(`无法重命名 "${node.name}" 为 "${newName}"：${err.message}`);
+  }
+}
+
+/**
+ * 重命名文件的具体实现
+ * @param {FileNode} node
+ * @param {string} newName
+ * @param {FolderNode} parent
+ */
+async function renameFileNode(node, newName, parent) {
+  // 创建新文件句柄
+  const newHandle = await parent.handle.getFileHandle(newName, { create: true });
+  // 读取旧内容
+  const content = await node.read();
+  // 写入新文件
+  const writable = await newHandle.createWritable();
+  await writable.write(content);
+  await writable.close();
+  // 删除旧文件
+  await parent.handle.removeEntry(node.name);
+
+  // 更新内存中节点
+  const oldId = node.id;
+  node.name = newName;
+  node.handle = newHandle;
+  handleToNodeId.set(newHandle, oldId);
+  // 刷新时间戳
+  const file = await newHandle.getFile();
+  node.lastSavedTimestamp = file.lastModified;
+  node.dirty = false;
+}
+
+/**
+ * 重命名文件夹的具体实现（递归复制）
+ * @param {FolderNode} node
+ * @param {string} newName
+ * @param {FolderNode} parent
+ */
+async function renameDirNode(node, newName, parent) {
+  // 创建新文件夹
+  const newHandle = await parent.handle.getDirectoryHandle(newName, { create: true });
+  // 递归复制内容
+  await copyDirContent(node, newHandle);
+  // 删除旧文件夹（递归）
+  await parent.handle.removeEntry(node.name, { recursive: true });
+
+  // 更新内存
+  node.name = newName;
+  node.handle = newHandle;
+  handleToNodeId.set(newHandle, node.id);
+}
+
+/**
+ * 递归复制文件夹内容（内部工具）
+ * @param {FolderNode} source
+ * @param {FileSystemDirectoryHandle} destHandle
+ */
+async function copyDirContent(source, destHandle) {
+  for (const child of source.children.values()) {
+    if (child.type === "file") {
+      const content = await child.read();
+      const newHandle = await destHandle.getFileHandle(child.name, { create: true });
+      const writable = await newHandle.createWritable();
+      await writable.write(content);
+      await writable.close();
+      child.handle = newHandle;
+      handleToNodeId.set(newHandle, child.id);
+    } else {
+      const subHandle = await destHandle.getDirectoryHandle(child.name, { create: true });
+      child.handle = subHandle;
+      handleToNodeId.set(subHandle, child.id);
+      await copyDirContent(child, subHandle);
+    }
+  }
+}
+
+/**
+ * 移动文件或文件夹到目标文件夹
+ * @param {FileNode|FolderNode} node
+ * @param {FolderNode} targetFolder
+ * @returns {Promise<boolean>}
+ */
+export async function moveNode(node, targetFolder) {
+  if (node === currentFileSystem) throw new Error("不能移动根目录");
+  if (targetFolder.type !== "dir") throw new Error("目标不是文件夹");
+  if (node.parentId === targetFolder.id) {
+    // 已在目标文件夹中
+    return true;
+  }
+  // 检查是否把文件夹移入自身或后代
+  if (node.type === "dir") {
+    let ancestor = targetFolder;
+    while (ancestor) {
+      if (ancestor.id === node.id) {
+        throw new Error("不能将文件夹移入自身或其子文件夹");
+      }
+      ancestor = ancestor.parentId ? nodeMap.get(ancestor.parentId) : null;
+    }
+  }
+
+  const oldParent = getParent(node);
+  if (!oldParent) throw new Error("根节点不能移动");
+
+  try {
+    // 读取内容
+    let content = null;
+    if (node.type === "file") {
+      content = await node.read();
+    }
+
+    // 在目标创建新条目
+    if (node.type === "file") {
+      const newHandle = await targetFolder.handle.getFileHandle(node.name, { create: true });
+      const writable = await newHandle.createWritable();
+      await writable.write(content);
+      await writable.close();
+      node.handle = newHandle;
+      handleToNodeId.set(newHandle, node.id);
+    } else {
+      const newHandle = await targetFolder.handle.getDirectoryHandle(node.name, { create: true });
+      await copyDirContent(node, newHandle);
+      node.handle = newHandle;
+      handleToNodeId.set(newHandle, node.id);
+    }
+
+    // 从原位置删除
+    await oldParent.handle.removeEntry(node.name, { recursive: node.type === "dir" });
+
+    // 更新内存树
+    const movedNodeId = node.id;
+    const movedNodeName = node.name;
+    oldParent.removeChild(node.id);
+    targetFolder.addChild(node);
+
+    notifyFileSystemChange(FileSystemEvent.MOVED, {
+      node, oldParent, newParent: targetFolder,
+      nodeName: movedNodeName,
+    });
+    return true;
+  } catch (err) {
+    console.error("移动失败：", err);
+    throw new Error(`无法移动 "${node.name}"：${err.message}`);
+  }
+}
+
+/**
+ * 复制文件或文件夹到目标文件夹
+ * @param {FileNode|FolderNode} node
+ * @param {FolderNode} targetFolder
+ * @param {string} [copyName] 可选的新名称，默认在原名称后加 "（副本）"
+ * @returns {Promise<FileNode|FolderNode|null>}
+ */
+export async function copyNode(node, targetFolder, copyName = null) {
+  if (targetFolder.type !== "dir") throw new Error("目标不是文件夹");
+
+  const destName = copyName || generateCopyName(node.name, targetFolder);
+
+  try {
+    if (node.type === "file") {
+      const content = await node.read();
+      const newHandle = await targetFolder.handle.getFileHandle(destName, { create: true });
+      const writable = await newHandle.createWritable();
+      await writable.write(content);
+      await writable.close();
+      const newNode = new FileNode(destName, newHandle, targetFolder.id);
+      const file = await newHandle.getFile();
+      newNode.lastSavedTimestamp = file.lastModified;
+      targetFolder.addChild(newNode);
+      handleToNodeId.set(newHandle, newNode.id);
+      notifyFileSystemChange(FileSystemEvent.COPIED, {
+        node: newNode, source: node, parent: targetFolder,
+      });
+      return newNode;
+    } else {
+      const newHandle = await targetFolder.handle.getDirectoryHandle(destName, { create: true });
+      const newNode = new FolderNode(destName, newHandle, targetFolder.id);
+      targetFolder.addChild(newNode);
+      handleToNodeId.set(newHandle, newNode.id);
+      // 递归复制子内容
+      await node.loadChildren(); // 确保源文件夹已加载
+      for (const child of node.children.values()) {
+        await copyNode(child, newNode);
+      }
+      notifyFileSystemChange(FileSystemEvent.COPIED, {
+        node: newNode, source: node, parent: targetFolder,
+      });
+      return newNode;
+    }
+  } catch (err) {
+    console.error("复制失败：", err);
+    throw new Error(`无法复制 "${node.name}"：${err.message}`);
+  }
+}
+
+/**
+ * 生成不冲突的副本名称
+ * @param {string} originalName
+ * @param {FolderNode} targetFolder
+ * @returns {string}
+ */
+function generateCopyName(originalName, targetFolder) {
+  const dotIndex = originalName.lastIndexOf(".");
+  let baseName, ext;
+  if (dotIndex > 0) {
+    baseName = originalName.substring(0, dotIndex);
+    ext = originalName.substring(dotIndex);
+  } else {
+    baseName = originalName;
+    ext = "";
+  }
+  let counter = 1;
+  let newName;
+  do {
+    newName = `${baseName}（副本${counter}）${ext}`;
+    counter++;
+  } while (targetFolder.resolve(newName));
+  return newName;
+}
+
+// ==================== 与标签页的协作 ====================
+
+/**
+ * 存储标签页 UUID → FileNode 的映射关系。
+ * 用于在保存时快速找到对应文件。
+ * @type {Map<string, FileNode>}
+ */
+export const tab2File = new Map();
+
+/**
+ * 将标签页绑定到文件节点
+ * @param {string} tabId 标签页 UUID
+ * @param {FileNode} fileNode
+ */
+export function bindTabToFile(tabId, fileNode) {
+  if (fileNode.type !== "file") throw new Error("只能将标签页绑定到文件节点");
+  tab2File.set(tabId, fileNode);
+}
+
+/**
+ * 获取标签页绑定的文件节点
+ * @param {string} tabId
+ * @returns {FileNode|undefined}
+ */
+export function getFileForTab(tabId) {
+  return tab2File.get(tabId);
+}
+
+/**
+ * 解除标签页与文件的绑定
+ * @param {string} tabId
+ */
+export function unbindTab(tabId) {
+  tab2File.delete(tabId);
+}
+
+/**
+ * 查找所有绑定到指定文件的标签页 ID
+ * @param {string} fileNodeId
+ * @returns {string[]}
+ */
+export function getTabsBoundToFile(fileNodeId) {
+  const result = [];
+  for (const [tabId, fileNode] of tab2File) {
+    if (fileNode.id === fileNodeId) {
+      result.push(tabId);
+    }
+  }
+  return result;
+}
+
+/**
+ * 将文件节点作为数据源打开到编辑器标签页中
+ * @param {FileNode} fileNode
+ * @param {string} [editorId] 可选的编辑器标识符
+ * @returns {Promise<string>} 新标签页的 UUID
+ */
+export async function openFileInTab(fileNode, editorId = undefined) {
+  const content = await fileNode.read();
+  const tabId = await commands.executeCommand("editor.open", content, editorId, fileNode.name);
+  // 建立绑定
+  bindTabToFile(tabId, fileNode);
+  return tabId;
+}
+
+/**
+ * 保存标签页内容到绑定的文件
+ * @param {string|number} tabId 标签页 UUID 或索引
+ */
+export async function saveToFile(tabId = tabs.getCurrentTabId()) {
+  let tab;
+  try {
+    tab = tabs.getTab(tabId);
+  } catch (e) {
+    throw new Error("无法保存数据：找不到标签页 #" + tabId);
+  }
+
+  const fileNode = tab2File.get(tab.id);
+  if (!fileNode) {
+    // 未绑定文件 → 提示用户另存为新文件
+    throw new Error(i18n.parseSafe("msg.files.not_bound", { name: tab.name }));
+  }
+
+  const data = tab.instance.getData();
+  if (data === undefined || data === null) {
+    throw new Error("编辑器没有返回有效数据");
+  }
+
+  await fileNode.save(typeof data === "string" ? data : JSON.stringify(data, null, 2));
+  // 更新标签页标题（去除脏标记）
+  if (fileNode.dirty === false) {
+    // 部分编辑器可能在标题上加 * 表示未保存
+  }
+}
+
+/**
+ * 将当前标签页内容另存为新文件
+ * @param {string} fileName
+ * @param {FolderNode} [targetFolder] 目标文件夹，默认根目录
+ * @param {string|number} [tabId] 标签页
+ * @returns {Promise<FileNode>}
+ */
+export async function saveAsToFile(fileName, targetFolder = null, tabId = tabs.getCurrentTabId()) {
+  const tab = tabs.getTab(tabId);
+  const folder = targetFolder || currentFileSystem;
+  if (!folder) throw new Error("没有可用的文件系统目标");
+
+  const fileNode = await createFile(folder, fileName);
+  const data = tab.instance.getData();
+  await fileNode.save(typeof data === "string" ? data : JSON.stringify(data, null, 2));
+  bindTabToFile(tab.id, fileNode);
+  return fileNode;
+}
+
+// ==================== 与自动保存的协作 ====================
+
+const AUTOSAVE_FS_KEY = "autosave.filesystem";
+const AUTOSAVE_TAB_BIND_KEY = "autosave.tab_bindings";
+
+/**
+ * 保存当前文件系统树结构到 localStorage。
+ * 注意：FileSystemDirectoryHandle 无法序列化，
+ * 因此实际恢复时需要使用 IndexedDB 中的句柄映射。
+ * 此处仅保存树的结构元数据供参考和重建。
+ */
+export async function saveFileSystemState() {
+  if (!currentFileSystem) return;
+
+  try {
+    // 保存目录树结构元数据（名称、父子关系）
+    const treeData = currentFileSystem.toJSON();
+
+    // 保存标签页-文件绑定关系
+    const bindings = {};
+    for (const [tabId, fileNode] of tab2File) {
+      bindings[tabId] = fileNode.id;
+    }
+
+    // 持久化到 localStorage
+    localStorage.setItem(AUTOSAVE_FS_KEY, JSON.stringify({
+      rootName: currentFileSystem.name,
+      tree: treeData,
+      timestamp: Date.now(),
+    }));
+    localStorage.setItem(AUTOSAVE_TAB_BIND_KEY, JSON.stringify(bindings));
+  } catch (err) {
+    console.warn("保存文件系统状态失败：", err);
+  }
+}
+
+/**
+ * 尝试从 localStorage 恢复文件系统状态元数据
+ * @returns {{ rootName: string, tree: Object, bindings: Object }|null}
+ */
+export function loadFileSystemState() {
+  try {
+    const fsState = JSON.parse(localStorage.getItem(AUTOSAVE_FS_KEY) || "null");
+    const bindings = JSON.parse(localStorage.getItem(AUTOSAVE_TAB_BIND_KEY) || "{}");
+    if (!fsState) return null;
+    return {
+      rootName: fsState.rootName,
+      tree: fsState.tree,
+      bindings,
+    };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * 刷新当前文件系统的目录树（从磁盘重新同步）
+ * @param {FolderNode} [folderNode] 要刷新的节点，默认为根
+ */
+export async function refreshFileSystem(folderNode = null) {
+  const target = folderNode || currentFileSystem;
+  if (!target || target.type !== "dir") return;
+
+  // 广度优先刷新
+  const queue = [target];
+  while (queue.length > 0) {
+    const current = queue.shift();
+    await refreshFolder(current);
+    for (const child of current.children.values()) {
+      if (child.type === "dir") {
+        queue.push(child);
+      }
+    }
+  }
+  notifyFileSystemChange(FileSystemEvent.STRUCTURE_CHANGED, { node: target });
+}
+
+/**
+ * 刷新某个文件夹节点（重新读取目录内容，同步 children）
+ * @param {FolderNode} folderNode
+ */
+export async function refreshFolder(folderNode) {
+  if (folderNode.type !== "dir") return;
+
+  // 记录现有子节点名称映射（name → node）
+  const existing = new Map();
+  for (const child of folderNode.children.values()) {
+    existing.set(child.name, child);
+  }
+
+  // 遍历实际目录
+  const newChildren = new Map();
+  for await (const entry of folderNode.handle.values()) {
+    let child = existing.get(entry.name);
+    if (child) {
+      existing.delete(entry.name);
+      newChildren.set(child.id, child);
+    } else {
+      let newNode;
+      if (entry.kind === "file") {
+        newNode = new FileNode(entry.name, entry, folderNode.id);
+      } else {
+        newNode = new FolderNode(entry.name, entry, folderNode.id);
+      }
+      nodeMap.set(newNode.id, newNode);
+      handleToNodeId.set(entry, newNode.id);
+      newChildren.set(newNode.id, newNode);
+    }
+  }
+
+  // 删除已不存在的节点
+  for (const [, obsoleteNode] of existing) {
+    // 若有标签页绑定到此文件，需解绑
+    if (obsoleteNode.type === "file") {
+      const boundTabs = getTabsBoundToFile(obsoleteNode.id);
+      for (const tabId of boundTabs) {
+        unbindTab(tabId);
+      }
+    }
+    folderNode.children.delete(obsoleteNode.id);
+    nodeMap.delete(obsoleteNode.id);
+  }
+
+  folderNode.children = newChildren;
+  folderNode.loaded = true;
+  notifyFileSystemChange(FileSystemEvent.REFRESHED, { node: folderNode });
+}
+
+/**
+ * 创建一个软链接（仅内存，不写磁盘）
  * @param {FileNode} fileNode
  * @param {FolderNode} targetFolder
  */
@@ -206,64 +1087,92 @@ export function getNodeById(id) {
   return nodeMap.get(id);
 }
 
-/**
- * 刷新某个文件夹节点（重新读取目录内容，同步 children）
- * @param {FolderNode} folderNode
- */
-export async function refreshFolder(folderNode) {
-  if (folderNode.type !== "dir") return;
-  // 记录现有子节点名称映射（name -> node）
-  const existing = new Map();
-  for (const child of folderNode.children.values()) {
-    existing.set(child.name, child);
-  }
-  // 遍历实际目录
-  const newChildren = new Map();
-  for await (const entry of folderNode.handle.values()) {
-    let child = existing.get(entry.name);
-    if (child) {
-      // 已存在，移除原有标记
-      existing.delete(entry.name);
-      // 如果类型变了（例如文件变文件夹？极少见，忽略）
-      newChildren.set(child.id, child);
-    } else {
-      // 新增节点
-      let newNode;
-      if (entry.kind === "file") {
-        newNode = new FileNode(entry.name, entry, folderNode.id);
-      } else {
-        newNode = new FolderNode(entry.name, entry, folderNode.id);
-        // 不自动加载深层子节点，保留懒加载能力
-      }
-      nodeMap.set(newNode.id, newNode);
-      newChildren.set(newNode.id, newNode);
-    }
-  }
-  // 删除已不存在的节点
-  for (const [name, obsoleteNode] of existing) {
-    folderNode.children.delete(obsoleteNode.id);
-    nodeMap.delete(obsoleteNode.id);
-    // 不处理深层
-  }
-  folderNode.children = newChildren;
-  // 更新 loaded 标志（已经加载过）
-  folderNode.loaded = true;
-}
+// ==================== 命令注册 ====================
 
-// ------------------ 与标签页的协作
-/** 存储标签页到文件对象的映射 */
-export const tab2File = new Map();
+/* 文件基础操作 */
+commands.regisiterCommandWithHotkey("files.open", () => openFile(), "ctrl+o");
+commands.regisiterCommand("files.openFolder", () => openFolder());
+commands.regisiterCommand("files.close", () => closeFileSystem());
 
-/**
- * 保存标签页的数据到文件
- * @param {number} tab 第几个标签页，不存在抛出错误
- */
-export function saveToFile(tab = tabs.getCurrentTabId()) {
-  if (tabs < 0 || tabs >= tabs.tabs.length) {
-    throw new Error("无法保存数据：找不到标签页 #" + tab);
+commands.regisiterCommand("files.save", (tabId) => saveToFile(tabId));
+commands.regisiterCommand("files.saveAs", (fileName, folder) => saveAsToFile(fileName, folder));
+commands.regisiterCommandWithHotkey("files.saveCurrent", () => {
+  try {
+    saveToFile();
+    msg(i18n.parseSafe("msg.files.saved"), null, "success", 2000);
+  } catch (e) {
+    msg(e.message, i18n.parseSafe("msg.done"), "error");
   }
-}
+}, "ctrl+s");
 
-// ------------------ 与自动保存的协作
+commands.regisiterCommand("files.createFile", (parent, name) => createFile(parent, name));
+commands.regisiterCommand("files.createFolder", (parent, name) => createFolder(parent, name));
+commands.regisiterCommand("files.delete", (node, recursive) => deleteNode(node, recursive));
+commands.regisiterCommand("files.rename", (node, newName) => renameNode(node, newName));
+commands.regisiterCommand("files.move", (node, target) => moveNode(node, target));
+commands.regisiterCommand("files.copy", (node, target, copyName) => copyNode(node, target, copyName));
 
-// TODO: autosave.js会记录当前的目录树，并新增标签页和文件的绑定关系。
+commands.regisiterCommand("files.refresh", (folder) => refreshFileSystem(folder));
+commands.regisiterCommand("files.resolve", (path, base) => resolvePath(path, base));
+commands.regisiterCommand("files.getPath", (node) => getNodePath(node));
+
+/* 自动保存钩子——在 autosave.backup 时同步持久化文件系统状态 */
+commands.regisiterCommand("files.saveState", () => saveFileSystemState());
+
+export default {
+  // 核心
+  currentFileSystem,
+  nodeMap,
+  handleToNodeId,
+  tab2File,
+
+  // 节点类
+  FileNode,
+  FolderNode,
+
+  // 路径工具
+  resolvePath,
+  getNodePath,
+  getParent,
+  getAncestors,
+
+  // 文件系统生命周期
+  openFile,
+  openFolder,
+  closeFileSystem,
+
+  // CRUD
+  createFile,
+  createFolder,
+  deleteNode,
+  renameNode,
+  moveNode,
+  copyNode,
+
+  // 刷新
+  refreshFolder,
+  refreshFileSystem,
+
+  // 软链接
+  softlink,
+  getNodeById,
+
+  // 标签页协作
+  bindTabToFile,
+  getFileForTab,
+  unbindTab,
+  getTabsBoundToFile,
+  openFileInTab,
+  saveToFile,
+  saveAsToFile,
+
+  // 持久化
+  saveFileSystemState,
+  loadFileSystemState,
+
+  // 观察者模式
+  FileSystemEvent,
+  onFileSystemChange,
+  offFileSystemChange,
+  notifyFileSystemChange,
+};
