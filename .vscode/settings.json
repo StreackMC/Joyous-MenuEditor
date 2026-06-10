@@ -1,1 +1,4 @@
-{"liveServer.settings.AdvanceCustomBrowserCmdLine": "/usr/bin/chromium --ignore-gpu-blacklist --no-sandbox --remote-debugging-port=9222"}
+{
+  "liveServer.settings.host": "127.0.0.1",
+  "liveServer.settings.AdvanceCustomBrowserCmdLine": "/usr/bin/chromium --ignore-gpu-blacklist --no-sandbox --remote-debugging-port=9222"
+}
