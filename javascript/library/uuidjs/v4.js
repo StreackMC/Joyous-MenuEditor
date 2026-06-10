@@ -8,7 +8,7 @@ import stringify from './stringify.js';
  * @param {*} offset 
  * @returns {String} 获取一个 UUIDv4
  */
-function v4(options, buf, offset) {
+export function v4(options, buf, offset) {
   options = options || {};
   var rnds = options.random || (options.rng || rng)(); // Per 4.4, set bits for version and `clock_seq_hi_and_reserved`
 

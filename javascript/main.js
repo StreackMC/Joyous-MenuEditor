@@ -9,6 +9,8 @@ import { regEditorsClazz } from "./backend/editorManager.js";
 import autosave from "./backend/autosave.js";
 import mcText from "./ui/panels/mctext.js";
 import mcGradient from './ui/panels/mcgradient.js';
+import fileServer from "./backend/fileServer.js";
+import fileSidebar from "./ui/fileSidebar.js";
 
 // 加载 versions.json
 const response = await fetch('./version.json');
@@ -146,6 +148,7 @@ export function getVersionInfo() {
       "editorManager.regisiteredEditors= " + [...regEditorsClazz.keys()],
       "tabs.currentTabs= " + getCurrentTabId(),
       "tabs.Tabs.bindmap= " + [...tabsMap.keys()],
+      "files.currentFileSystem= " + JSON.stringify(fileServer.currentFileSystem, null, 2),
     ].join("\n"));
   };
 
