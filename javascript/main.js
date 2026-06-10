@@ -141,11 +141,10 @@ export function getVersionInfo() {
     outputs.push([
       "system.time.timestamp= (UTC+0)" + new Date().getTime(),
       "system.time.offest= " + new Date().getTimezoneOffset(),
-      "i18n.CurrentTranslation= " + i18n.getCurrentTranslations(),
+      "i18n.CurrentTranslation= " + JSON.stringify(i18n.getCurrentTranslations()),
       "commands.regisiteredCommands= " + [...regisiteredCommands.keys()],
       "editorManager.regisiteredEditors= " + [...regEditorsClazz.keys()],
       "tabs.currentTabs= " + getCurrentTabId(),
-      "tabs.Tabs.active= " + tabs,
       "tabs.Tabs.bindmap= " + [...tabsMap.keys()],
     ].join("\n"));
   };
