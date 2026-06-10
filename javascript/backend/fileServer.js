@@ -3,6 +3,7 @@ import tabs from "../ui/tabs.js";
 import { msg } from "../ui/utils.js";
 import i18n from "../i18n.js";
 import { v4 as uuidv4 } from "../library/uuidjs/v4.js";
+import { IndexedDB } from "./webstorage.js";
 
 // ==================== 核心数据结构 ====================
 
@@ -11,6 +12,11 @@ import { v4 as uuidv4 } from "../library/uuidjs/v4.js";
  * @type {FolderNode|null}
  */
 export let currentFileSystem = null;
+
+/**
+ * 当前应用存储的文件系统节点索引（id → 节点对象）
+ */
+export const database = new IndexedDB({ dbName: "JoyousME-FileSystem", storeName: "fileNodes" });
 
 // ==================== 路径工具 ====================
 
@@ -443,13 +449,36 @@ export async function openFile() {
 }
 
 /**
- * 打开文件夹，构建目录树
+ * 打开文件夹，构建目录树。
+ *
+ * 流程说明（重置文件服务器状态）：
+ * 1. 检测并询问用户是否保存未保存的编辑器更改
+ * 2. 用户取消 → 中止操作，返回 null
+ * 3. 保存脏标签页（若用户选择"保存全部"）
+ * 4. 关闭全部标签页
+ * 5. 重置文件服务器状态（清空 nodeMap、currentFileSystem、tab2File）
+ * 6. 请求用户选择文件夹
+ * 7. 成功打开后：清除旧 IndexedDB 数据 → 持久化新句柄 → 完成
+ *
  * @returns {Promise<FolderNode|null>}
  */
 export async function openFolder() {
   if (!window.showDirectoryPicker) {
     throw new Error("无法打开文件夹：不支持的 API 。");
   }
+
+  // ---- 第 1 步：关闭全部标签页 ----
+  if (tabs.getTabsLength() > 0) {
+    tabs.closeAllTabs();
+  }
+
+  // ---- 第 2 步：重置文件服务器状态 ----
+  nodeMap.clear();
+  currentFileSystem = null;
+  tab2File.clear();
+  eventListeners.clear();
+
+  // ---- 第 3 步：请求用户选择文件夹 ----
   try {
     const handle = await window.showDirectoryPicker();
     const rootNode = new FolderNode(handle.name, handle);
@@ -457,9 +486,18 @@ export async function openFolder() {
     handleToNodeId.set(handle, rootNode.id);
     await rootNode.loadChildren();
     currentFileSystem = rootNode;
+
+    // ---- 第 4 步：清除旧数据 → 持久化新句柄 ----
+    await clearAllStoredHandles();
+    await persistAllHandles(rootNode);
+
     notifyFileSystemChange(FileSystemEvent.OPENED, { node: rootNode });
     return rootNode;
   } catch (err) {
+    // 文件夹选择失败或用户取消 → 确保 tabs 仍有内容可显示
+    if (tabs.getTabsLength() === 0) {
+      try { commands.executeCommandSlient("editor.switch", 0); } catch (e) { /* 无可用编辑器，忽略 */ }
+    }
     if (err.name !== "AbortError") {
       throw new Error("无法打开文件夹：" + err.message);
     }
@@ -476,6 +514,64 @@ export function closeFileSystem() {
   // 同时清理标签页绑定
   tab2File.clear();
   notifyFileSystemChange(FileSystemEvent.CLOSED);
+}
+
+// ==================== IndexedDB 句柄持久化 ====================
+
+/**
+ * 将单个节点的 FileSystemHandle 递归保存到 IndexedDB。
+ * FileSystemHandle 是结构化克隆兼容的，可直接存入 IndexedDB。
+ * @param {FileNode|FolderNode} node
+ */
+async function saveNodeHandleToDB(node) {
+  if (!node.handle) return;
+  await database.set(node.id, node.handle);
+}
+
+/**
+ * 递归持久化整个文件系统的所有句柄到 IndexedDB。
+ * 在打开文件夹成功后调用，以便后续恢复。
+ * @param {FileNode|FolderNode} [node] 起始节点，默认为根
+ */
+export async function persistAllHandles(node = null) {
+  const start = node || currentFileSystem;
+  if (!start) return;
+
+  const queue = [start];
+  while (queue.length > 0) {
+    const current = queue.shift();
+    await saveNodeHandleToDB(current);
+    if (current.type === "dir") {
+      for (const child of current.children.values()) {
+        queue.push(child);
+      }
+    }
+  }
+}
+
+/**
+ * 从 IndexedDB 清除所有文件句柄数据（打开新文件夹前清理旧数据）。
+ */
+export async function clearAllStoredHandles() {
+  await database.reset_dangerous();
+}
+
+/**
+ * 从 IndexedDB 加载指定节点的文件句柄。
+ * 返回的 handle 可直接赋值给 `node.handle`。
+ * @param {string} nodeId
+ * @returns {Promise<FileSystemFileHandle|FileSystemDirectoryHandle|undefined>}
+ */
+export async function loadHandleFromDB(nodeId) {
+  return await database.get(nodeId);
+}
+
+/**
+ * 从 IndexedDB 加载所有已存储的句柄。
+ * @returns {Promise<Object<string, FileSystemHandle>>} id → handle 的映射
+ */
+export async function loadAllHandlesFromDB() {
+  return await database.getAll();
 }
 
 // ==================== 文件系统操作（增删改查） ====================
@@ -946,10 +1042,7 @@ const AUTOSAVE_FS_KEY = "autosave.filesystem";
 const AUTOSAVE_TAB_BIND_KEY = "autosave.tab_bindings";
 
 /**
- * 保存当前文件系统树结构到 localStorage。
- * 注意：FileSystemDirectoryHandle 无法序列化，
- * 因此实际恢复时需要使用 IndexedDB 中的句柄映射。
- * 此处仅保存树的结构元数据供参考和重建。
+ * 保存当前文件系统树结构到 localStorage 和 IndexedDB 。
  */
 export async function saveFileSystemState() {
   if (!currentFileSystem) return;

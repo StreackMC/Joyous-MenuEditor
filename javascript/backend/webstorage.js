@@ -155,6 +155,168 @@ export const Session = {
   }
 };
 
+export class IndexedDB {
+  /**
+   * 创建一个 IndexedDB 实例。
+   * @param {Object} options 配置项
+   * @param {string} [options.dbName='JoyousME-DefaultTable'] 数据库名称
+   * @param {string} [options.storeName='defaultStore'] 对象仓库名称
+   * @param {number} [options.version=1] 数据库版本
+   * @param {string} [options.atomic='parallel'] 原子化方案：'serial'（串行，等待上个操作完成） 或 'parallel'（并行，效率优先）
+   */
+  constructor({ dbName = 'JoyousME-DefaultTable', storeName = 'defaultStore', version = 1, atomic = 'parallel' } = {}) {
+    this.dbName = dbName;
+    this.storeName = storeName;
+    this.version = version;
+    this.atomic = atomic === 'serial' ? 'serial' : 'parallel';
+
+    this._db = null;          // 数据库连接
+    this._ready = null;       // 初始化 Promise
+    this._queue = Promise.resolve(); // 串行队列
+    this._init();
+  }
+
+  /** 初始化数据库连接（内部使用） */
+  _init() {
+    this._ready = new Promise((resolve, reject) => {
+      const request = indexedDB.open(this.dbName, this.version);
+      request.onerror = () => reject(request.error);
+      request.onsuccess = () => {
+        this._db = request.result;
+        resolve();
+      };
+      request.onupgradeneeded = (event) => {
+        const db = event.target.result;
+        if (!db.objectStoreNames.contains(this.storeName)) {
+          db.createObjectStore(this.storeName);
+        }
+      };
+    });
+  }
+
+  /** 确保数据库已就绪（内部使用） */
+  async _ensureReady() {
+    if (!this._ready) this._init();
+    await this._ready;
+  }
+
+  /** 执行一个数据库操作，根据 atomic 决定是否串行排队 */
+  _exec(operation) {
+    if (this.atomic === 'serial') {
+      this._queue = this._queue.then(async () => {
+        await this._ensureReady();
+        return operation(this._db);
+      });
+      return this._queue;
+    } else {
+      return (async () => {
+        await this._ensureReady();
+        return operation(this._db);
+      })();
+    }
+  }
+
+  /**
+   * 设置存储项。
+   * @param {string} key 键名
+   * @param {*} value 值（支持结构化克隆的数据）
+   * @returns {Promise<void>}
+   */
+  set(key, value) {
+    return this._exec((db) => {
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction([this.storeName], 'readwrite');
+        const store = tx.objectStore(this.storeName);
+        const request = store.put(value, key);
+        request.onerror = () => reject(request.error);
+        request.onsuccess = () => resolve();
+      });
+    });
+  }
+
+  /**
+   * 获取存储项。
+   * @param {string} key 键名
+   * @returns {Promise<*>} 存储的值，若不存在则为 undefined
+   */
+  get(key) {
+    return this._exec((db) => {
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction([this.storeName], 'readonly');
+        const store = tx.objectStore(this.storeName);
+        const request = store.get(key);
+        request.onerror = () => reject(request.error);
+        request.onsuccess = () => resolve(request.result);
+      });
+    });
+  }
+
+  /**
+   * 删除存储项。
+   * @param {string} key 键名
+   * @returns {Promise<void>}
+   */
+  remove(key) {
+    return this._exec((db) => {
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction([this.storeName], 'readwrite');
+        const store = tx.objectStore(this.storeName);
+        const request = store.delete(key);
+        request.onerror = () => reject(request.error);
+        request.onsuccess = () => resolve();
+      });
+    });
+  }
+
+  /**
+   * 获取所有存储项。
+   * @returns {Promise<Object>} 键值对对象
+   */
+  getAll() {
+    return this._exec((db) => {
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction([this.storeName], 'readonly');
+        const store = tx.objectStore(this.storeName);
+        const request = store.getAll();
+        const keysRequest = store.getAllKeys();
+        Promise.all([
+          new Promise((res, rej) => {
+            request.onerror = rej;
+            request.onsuccess = () => res(request.result);
+          }),
+          new Promise((res, rej) => {
+            keysRequest.onerror = rej;
+            keysRequest.onsuccess = () => res(keysRequest.result);
+          })
+        ]).then(([values, keys]) => {
+          const result = {};
+          for (let i = 0; i < keys.length; i++) {
+            result[keys[i]] = values[i];
+          }
+          resolve(result);
+        }).catch(reject);
+      });
+    });
+  }
+
+  /**
+   * 清空所有存储项（危险操作）。
+   * @returns {Promise<void>}
+   */
+  reset_dangerous() {
+    return this._exec((db) => {
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction([this.storeName], 'readwrite');
+        const store = tx.objectStore(this.storeName);
+        const request = store.clear();
+        request.onerror = () => reject(request.error);
+        request.onsuccess = () => resolve();
+      });
+    });
+  }
+}
+
 export default {
+  // 默认不导出 IndexedDB ，因为这是异步API并且还需要 new 一下
   Session, Local, Cookies
 };
