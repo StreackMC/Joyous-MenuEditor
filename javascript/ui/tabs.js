@@ -5,6 +5,82 @@ import v4 from "../library/uuidjs/v4.js";
 import editorManager from "../backend/editorManager.js";
 const uuidv4 = v4;
 
+/*
+## 编辑生命周期全流程 （AI生成）
+虽然这里不是用来放文档的，但是测试版你先忍忍，正式版再迁移。
+
+### 1. 请求打开编辑器
+调用 `commands.executeCommand("editor.open", data, editorId?, filename?)` 或直接 `editorManager.openEditor(data, editorId, fname)`。
+
+- `fname` 默认 `Untitled-N`，用于回退标题。
+- 若指定 `editorId` → 强制使用对应注册类；若验证失败则回退 `fname` 作为标题。
+- 否则遍历所有已注册编辑器的 `verifyFn(data, fname)`，**第一个返回非空字符串**的编辑器胜出，返回值作为标签标题。
+- 无匹配 → 降级使用 `ace` 编辑器（未注册则抛错）。
+
+> 打开编辑器就是「打开数据」，这个过程中包含打开标签页
+> 也就是说这个过程自动分配标签页
+
+> 如果不使用 files.open ，就不会绑定有效文件，也就会提示“要保存文件吗”
+
+### 2. 创建标签页与编辑器实例
+`tabs.openTab(new EditorClass(data, fname), title)`：
+
+- 生成 UUID，构建 `Tab` 对象：
+  - `switcher`（标签按钮 + 关闭按钮）
+  - `frame`（容器，初始 `dataset.hidden = "true"`）
+  - 将 `editorInstance.getElement()` 挂载到 `frame` 中
+- 将 `switcher.root` 追加到 `#editor-tabs`，`frame` 追加到 `#editor-views`
+- 调用 `i18n.refresh` 和 `commands.hook` 做声明式绑定
+- 调用 `switchTab(uuid)` **显示该标签页**（隐藏当前，显示新 frame）
+- 调用 `editorInstance.init()` → 编辑器执行真正的初始化（事件绑定、加载内容等）
+
+> ✅ 此时编辑器已可见且可交互。
+
+### 3. 编辑与保存
+- 用户编辑操作由具体编辑器内部处理。
+- 保存由外部触发（如快捷键、菜单），调用 `commands.executeCommand("editor.save")`，编辑器需实现 `getData()` 返回当前数据。
+- 自动备份通过 `autosave.backup` 命令在打开标签页后触发。
+
+### 4. 关闭标签页（资源清理）
+`commands.executeCommand("editor.close", indexOrId)` → `tabs.closeTab`：
+
+1. 切换到目标标签页（临时显示）。
+2. 调用 `commands.executeCommand("editor.save")`（可弹出保存确认，目前 todo）。
+3. 执行 UI 动画（更新 `<s-tabs>` 的 `value`）。
+4. 调用 `targetTab.instance.destroy()` → **编辑器清理自己的定时器、事件监听、DOM 引用等**。
+5. 移除 `switcher.root` 和 `frame` 的 DOM 节点。
+6. 从 `tabs` 数组和 `tabsMap` 中删除该标签页。
+7. 切换回合适的剩余标签页（如原活动页或最后一个）。
+
+### 5. 全局关闭
+`closeAllTabs` 遍历所有标签页依次执行上述关闭流程。
+
+## 数据结构
+
+### editorManager.js
+
+* `Map<String,class> regEditorsClazz` 存储编辑器ID和编辑器构造器的映射
+* `Map<String,function> regEditorsVarify` 存储编辑器ID和数据验证函数的映射
+
+这两个被 `openEditor` 使用，并用于打开编辑器。接下来会分配标签页
+
+### tabs.js
+
+* `string[] tabs` 当前第几个标签页的标识符
+* `number currentTab` 现在是第几个标签页？（配合 tabs 使用）
+* `Map<string,Tab> tabsMap` 存储标识符到Tab实例的映射
+
+#### Tab
+
+* id: "uuid-1" 标识符（反向绑定）
+* name: "index.html" （标题）
+* instance: 绑定到一个Editor实例
+* switcher.root: <s-tab-item>  ──► 显示在 #editor-tabs，标签页按钮
+* frame: <div class="editor-frame"> ──► 挂在 #editor-views
+  * instance.getElement() 返回的 DOM 插入到此 frame 
+
+*/
+
 function newEditorWelcome(...arg) {
   const clazz = editorManager.regEditorsClazz.get("welcome");
   return new clazz(...arg);
