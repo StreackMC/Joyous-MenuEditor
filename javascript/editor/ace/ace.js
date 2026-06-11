@@ -117,6 +117,8 @@ export class EditorAce extends Editor {
   revert(step = 1) { UnsupportedMethodException(); };
 
   redo(step = 1) { UnsupportedMethodException(); };
+
+  requireFlush = true;
 }
 
 // 注册编辑器

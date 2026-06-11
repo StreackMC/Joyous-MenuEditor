@@ -17,6 +17,7 @@ export class EditorJmenu extends Editor {
   revert(step = 1) { UnsupportedMethodException(); };
   redo(step = 1) { UnsupportedMethodException(); };
   destroy() { UnsupportedMethodException(); };
+  requireFlush = true;
 };
 editorManager.regisiterEditor(EditorId, (data, filename) => {
   return "";

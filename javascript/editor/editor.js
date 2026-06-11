@@ -51,6 +51,10 @@ export class Editor {
    * 通知清理编辑器数据，准备销毁
    */
   destroy() { UnsupportedMethodException(); };
+  /**
+   * 是否需要存盘。例如没有编辑功能的可以不修改本项，这样关闭时不会检查是否要操作磁盘。
+   */
+  requireFlush = false;
 };
 
 // 返回你的编辑器能否编辑 data ， data 可为任意类型

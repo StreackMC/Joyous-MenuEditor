@@ -237,7 +237,12 @@ export async function closeTab(index = currentTab) {
   switchTab(target);
 
   // 保存数据
-  const fileNodeOfTheTab = tab2File.get(target);
+  let fileNodeOfTheTab;
+  if (targetTab.instance.requireFlush) {
+    fileNodeOfTheTab = tab2File.get(target);
+  } else {
+    fileNodeOfTheTab = null;
+  }
   if (fileNodeOfTheTab && targetTab.instance.getData() != await window.joyous.filesGetData(fileNodeOfTheTab)) {
     // 数据不一样，需要询问是否保存
     const userRsp = await UI.dialog(i18n.parseSafe("msg.unsaved.title"), i18n.parseSafe("msg.unsaved.tip", { target: window.joyous.filesGetName(fileNodeOfTheTab) }), true, [i18n.parseSafe("tooltip.nosave"), i18n.parseSafe("tooltip.save")]);
