@@ -7,6 +7,9 @@
       "name": "Attach Chrome",
       "port": 9222,
       "urlFilter": "*127.0.0.1*",
+      "skipFiles": [
+        "chrome-extension://*"
+      ]
     }
   ]
 }

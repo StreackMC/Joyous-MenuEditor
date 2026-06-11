@@ -362,6 +362,8 @@ export const FileSystemEvent = {
   REFRESHED: "refreshed",
   /** 文件系统整体结构变化（复合操作后的全量通知） */
   STRUCTURE_CHANGED: "structure_changed",
+  /** 用户撤销了文件系统权限（浏览器设置中撤销） */
+  PERMISSION_REVOKED: "permission_revoked",
 };
 
 /** @type {Map<string, Set<Function>>} 事件类型 → 回调函数集合 */
@@ -531,6 +533,88 @@ export function closeFileSystem() {
   // 同时清理标签页绑定
   tab2File.clear();
   notifyFileSystemChange(FileSystemEvent.CLOSED);
+}
+
+/**
+ * 彻底重置文件服务器——关闭所有标签页 + 清除内存 + 清除持久化数据。
+ * 在权限撤销、工作区恢复失败等场景下使用，比 closeFileSystem 更彻底。
+ */
+export async function resetFileSystem() {
+  // 关闭所有标签页
+  if (tabs.getTabsLength() > 0) {
+    tabs.closeAllTabs();
+  }
+
+  // 清空内存
+  nodeMap.clear();
+  currentFileSystem = null;
+  tab2File.clear();
+
+  // 清空持久化数据（localStorage 中的元数据 + IndexedDB 中的句柄）
+  try {
+    localStorage.removeItem(AUTOSAVE_FS_KEY);
+    localStorage.removeItem(AUTOSAVE_TAB_BIND_KEY);
+    await clearAllStoredHandles();
+  } catch (e) {
+    console.warn("清理持久化数据失败：", e);
+  }
+
+  notifyFileSystemChange(FileSystemEvent.CLOSED);
+}
+
+// ==================== 文件系统权限管理 ====================
+
+/**
+ * 检查当前文件系统根句柄的读写权限。
+ * @returns {Promise<"granted"|"denied"|"prompt">}
+ */
+export async function checkFileSystemPermission() {
+  if (!currentFileSystem || !currentFileSystem.handle) return "granted";
+  try {
+    return await currentFileSystem.handle.queryPermission({ mode: "readwrite" });
+  } catch (e) {
+    console.warn("权限查询失败：", e);
+    return "denied";
+  }
+}
+
+/** 权限监控是否已初始化的标志 */
+let permissionMonitorInitialized = false;
+
+/**
+ * 初始化文件系统权限监控。
+ * 监听页面 focus 和 visibilitychange，在用户返回页面时主动检查权限是否被撤销。
+ * 仅初始化一次，多次调用安全。
+ */
+export function initPermissionMonitor() {
+  if (permissionMonitorInitialized) return;
+  permissionMonitorInitialized = true;
+
+  const check = async () => {
+    if (!currentFileSystem) return; // 没有打开的文件系统，无需检查
+    const perm = await checkFileSystemPermission();
+    if (perm === "denied") {
+      console.warn("检测到文件系统权限已被撤销，正在重置文件服务器……");
+      notifyFileSystemChange(FileSystemEvent.PERMISSION_REVOKED, {
+        previousState: "granted",
+        newState: "denied",
+      });
+      await resetFileSystem();
+      msg(
+        i18n.parseSafe("msg.permission_revoked"),
+        i18n.parseSafe("msg.ok"),
+        "error",
+        -1
+      );
+    }
+  };
+
+  // 页面获得焦点时检查（用户可能在其他标签页/设置中撤销了授权）
+  window.addEventListener("focus", check);
+  // 页面从隐藏变为可见时检查
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") check();
+  });
 }
 
 // ==================== IndexedDB 句柄持久化 ====================
@@ -1206,6 +1290,177 @@ export function loadFileSystemState() {
 }
 
 /**
+ * 从 JSON 元数据 + IndexedDB 句柄重建节点树（递归）。
+ * 重建时会保留原始 node.id，保证与已持久化的标签页绑定关系兼容。
+ * @param {Object} jsonNode toJSON() 输出的节点数据
+ * @param {Object<string, FileSystemHandle>} handles id → handle 的映射
+ * @param {string|null} parentId 父节点 id
+ * @returns {FileNode|FolderNode|null} 重建后的节点，句柄缺失时返回 null
+ */
+function reconstructNodeFromJSON(jsonNode, handles, parentId = null) {
+  const handle = handles[jsonNode.id];
+  if (!handle) {
+    console.warn(`重建节点时找不到句柄：${jsonNode.name}（${jsonNode.id}），跳过`);
+    return null;
+  }
+
+  if (jsonNode.type === "file") {
+    const node = new FileNode(jsonNode.name, handle, parentId);
+    node.id = jsonNode.id; // 保留原始 ID，使标签页绑定关系仍然有效
+    node.dirty = false;
+    node.lastSavedTimestamp = jsonNode.lastSavedTimestamp || null;
+    return node;
+  }
+
+  if (jsonNode.type === "dir") {
+    const node = new FolderNode(jsonNode.name, handle, parentId);
+    node.id = jsonNode.id;
+    node.loaded = false; // 标记未加载——首次访问时会从磁盘同步最新子节点
+
+    // 递归重建子节点
+    if (jsonNode.children && Array.isArray(jsonNode.children)) {
+      for (const childJson of jsonNode.children) {
+        const child = reconstructNodeFromJSON(childJson, handles, node.id);
+        if (child) {
+          node.children.set(child.id, child);
+          nodeMap.set(child.id, child);
+          if (child.handle) {
+            handleToNodeId.set(child.handle, child.id);
+          }
+        }
+      }
+    }
+
+    return node;
+  }
+
+  console.warn("未知的节点类型：", jsonNode.type);
+  return null;
+}
+
+/**
+ * 尝试从持久化存储中恢复上一次的工作区状态。
+ *
+ * 恢复流程：
+ * 1. 从 localStorage 读取目录树元数据 + 标签页绑定关系
+ * 2. 从 IndexedDB 加载所有 FileSystemHandle
+ * 3. 检查根句柄权限，必要时请求授权
+ * 4. 重建内存中的文件树（FolderNode / FileNode）
+ * 5. 重新打开之前打开的标签页
+ * 6. 通知前端重绘文件树
+ *
+ * @returns {Promise<boolean>} 恢复成功返回 true，否则 false
+ */
+export async function restoreFileSystem() {
+  // ---- 第 1 步：加载持久化的状态元数据 ----
+  const state = loadFileSystemState();
+  if (!state) {
+    console.log("没有可恢复的文件系统状态");
+    return false;
+  }
+
+  // ---- 第 2 步：从 IndexedDB 加载句柄 ----
+  const handles = await loadAllHandlesFromDB();
+  if (Object.keys(handles).length === 0) {
+    console.log("IndexedDB 中没有文件句柄，无法恢复");
+    return false;
+  }
+
+  // ---- 第 3 步：检查根句柄权限 ----
+  const rootHandle = handles[state.tree.id];
+  if (!rootHandle) {
+    console.warn("找不到根目录句柄，无法恢复");
+    return false;
+  }
+
+  try {
+    let perm = await rootHandle.queryPermission({ mode: "readwrite" });
+    if (perm === "denied") {
+      console.warn("文件系统权限已被撤销，无法自动恢复工作区");
+      msg(
+        i18n.parseSafe("msg.permission_denied_restore"),
+        i18n.parseSafe("msg.ok"),
+        "warning",
+        -1
+      );
+      return false;
+    }
+    if (perm === "prompt") {
+      // 尝试主动请求权限（浏览器会弹出授权提示）
+      perm = await rootHandle.requestPermission({ mode: "readwrite" });
+      if (perm !== "granted") {
+        console.warn("用户未授权文件系统权限，工作区恢复中止");
+        return false;
+      }
+    }
+  } catch (e) {
+    console.warn("恢复时权限检查失败：", e);
+    msg(
+      i18n.parseSafe("msg.permission_denied_restore"),
+      i18n.parseSafe("msg.ok"),
+      "warning",
+      -1
+    );
+    return false;
+  }
+
+  // ---- 第 4 步：执行重置，然后重建树 ----
+  // 先关闭现有的一切
+  if (tabs.getTabsLength() > 0) {
+    tabs.closeAllTabs();
+  }
+  nodeMap.clear();
+  currentFileSystem = null;
+  tab2File.clear();
+
+  // 重建根节点
+  const rootNode = reconstructNodeFromJSON(state.tree, handles, null);
+  if (!rootNode || !(rootNode instanceof FolderNode)) {
+    console.error("重建文件树失败");
+    return false;
+  }
+
+  nodeMap.set(rootNode.id, rootNode);
+  handleToNodeId.set(rootNode.handle, rootNode.id);
+  currentFileSystem = rootNode;
+  console.log(`工作区恢复成功：${state.rootName}（${rootNode.children.size} 个子节点）`);
+
+  // ---- 第 5 步：恢复标签页 ----
+  const { bindings } = state;
+  let restoredTabs = 0;
+  for (const [oldTabId, fileNodeId] of Object.entries(bindings)) {
+    const fileNode = nodeMap.get(fileNodeId);
+    if (fileNode && fileNode.type === "file") {
+      try {
+        const content = await fileNode.read();
+        const newTabId = await commands.executeCommand(
+          "editor.open",
+          content,
+          undefined,
+          fileNode.name
+        );
+        bindTabToFile(newTabId, fileNode);
+        restoredTabs++;
+      } catch (e) {
+        console.warn(`无法恢复标签页 "${fileNode.name}"：`, e);
+      }
+    }
+  }
+  if (restoredTabs > 0) {
+    console.log(`已恢复 ${restoredTabs} 个标签页`);
+  }
+
+  // ---- 第 6 步：通知前端 ----
+  notifyFileSystemChange(FileSystemEvent.OPENED, {
+    node: rootNode,
+    restored: true,
+    tabCount: restoredTabs,
+  });
+
+  return true;
+}
+
+/**
  * 刷新当前文件系统的目录树（从磁盘重新同步）
  * @param {FolderNode} [folderNode] 要刷新的节点，默认为根
  */
@@ -1331,6 +1586,27 @@ commands.regisiterCommand("files.saveState", () => saveFileSystemState());
 
 commands.regisiterCommand("files.tablink.close", (tabId) => unbindTab(tabId));
 
+/* 文件系统恢复与权限管理 */
+commands.regisiterCommand("files.restore", () => restoreFileSystem());
+commands.regisiterCommand("files.reset", () => resetFileSystem());
+commands.regisiterCommand("files.checkPermission", () => checkFileSystemPermission());
+
+// ==================== 模块初始化 ====================
+
+/** 页面加载时尝试恢复工作区并启动权限监控 */
+(async function initFileServer() {
+  // 先初始化权限监控（即使没有工作区也要挂载监听）
+  initPermissionMonitor();
+
+  // 尝试恢复上一次的工作区
+  const restored = await restoreFileSystem();
+  if (restored) {
+    console.log("工作区已自动恢复");
+  } else {
+    console.log("无工作区可恢复，等待用户操作");
+  }
+})();
+
 export default {
   // 核心
   currentFileSystem,
@@ -1352,6 +1628,11 @@ export default {
   openFile,
   openFolder,
   closeFileSystem,
+  resetFileSystem,
+  restoreFileSystem,
+  checkFileSystemPermission,
+  initPermissionMonitor,
+  reconstructNodeFromJSON,
 
   // CRUD
   createFile,
