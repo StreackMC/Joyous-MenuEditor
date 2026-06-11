@@ -1078,6 +1078,13 @@ export function getTabsBoundToFile(fileNodeId) {
 export async function openFileInTab(fileNode, editorId = undefined) {
   const resolved = ensureNode(fileNode, "fileNode");
   if (resolved.type !== "file") throw new Error("只能打开文件节点");
+
+  // 查找重复绑定，避免数据竞态
+  const result = getTabsBoundToFile(fileNode.id);
+  if (result.length != 0) {
+    tabs.switchTab(result.pop());
+  }
+
   const content = await resolved.read();
   const tabId = await commands.executeCommand("editor.open", content, editorId, resolved.name);
   // 建立绑定
