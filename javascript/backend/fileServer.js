@@ -214,7 +214,7 @@ export class FolderNode {
 
   /**
    * 加载目录下的所有直接子节点（懒加载）
-   * @returns {Promise<void>}
+   * @returns {Promise<void>} 记得用 await
    */
   async loadChildren() {
     if (this.loaded) return;

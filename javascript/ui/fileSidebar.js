@@ -2,6 +2,7 @@ import commands from "../backend/commandServer.js";
 import fileServer, {FileNode, FileSystemEvent, FolderNode} from "../backend/fileServer.js";
 import i18n from "../i18n.js";
 import commandServer from "../backend/commandServer.js";
+import { msg } from "./utils.js";
 
 export const rootEle = document.getElementById("explorer");
 
@@ -19,12 +20,13 @@ fileServer.onFileSystemChange(FileSystemEvent.OPENED, (eventType, detail) => {
  * @param {HTMLElement} parentElement 父元素
  * @param {boolean} reset 是否重置父元素的内容
  */
-function node2html(node, parentElement = rootEle, reset = false) {
+async function node2html(node, parentElement = rootEle, reset = false) {
   if (reset) parentElement.innerHTML = "";
   if (node instanceof FolderNode) {
     // 是文件夹需要展开其子节点，所以先分类
     const child_folders = [];
     const child_files = [];
+    await node.loadChildren();
     node.children.forEach((v, k) => {
       if (v instanceof FileNode) {
         child_files.push(v);
@@ -46,12 +48,15 @@ function node2html(node, parentElement = rootEle, reset = false) {
 
       // 创建子菜单并绑定惰性加载
       const submenu = document.createElement("s-menu");
+      submenu.slot = "menu";
+      submenu.style.marginLeft = `.5em`;
+      submenu.style.marginRight = `2px`;
       basebtn.appendChild(submenu);
       basebtn.addEventListener("click", (event) => {
         try {
           node2html(fileServer.nodeMap.get(basebtn.dataset.nodeid), submenu, true);
         } catch (error) {
-          msg(i18n.parseSafe("msg.unable_to_open", { target: basebtn.dataset.nodeid, reason: error.message }));
+          msg(i18n.parseSafe("msg.unable_to_open", { target: basebtn.dataset.nodeid, reason: error.message }), i18n.parseSafe("msg.ok"), "error");
           console.error("无法打开文件夹", basebtn.dataset.nodeid, " : ", error);
         } finally {
           event.stopImmediatePropagation();
@@ -72,7 +77,7 @@ function node2html(node, parentElement = rootEle, reset = false) {
         try {
           fileServer.openFileInTab(fileServer.nodeMap.get(basebtn.dataset.nodeid));
         } catch (error) {
-          msg(i18n.parseSafe("msg.unable_to_open", { target: basebtn.dataset.nodeid, reason: error.message }));
+          msg(i18n.parseSafe("msg.unable_to_open", { target: basebtn.dataset.nodeid, reason: error.message }), i18n.parseSafe("msg.ok"), "error");
           console.error("无法打开文件", basebtn.dataset.nodeid, " : ", error);
         } finally {
           event.stopImmediatePropagation();
