@@ -12,6 +12,7 @@ export class Editor {
    */
   constructor(data, filename) {
     if (new.target === Editor) { UnsupportedMethodException(); };
+    // 如果你打开到一半不想打开了可以直接抛出错误，但是这个错误会被忽略
   };
   /**
    * 获取编辑器的标识符

@@ -22,7 +22,8 @@
     "command_panel": "命令面板",
     "about": "关于",
     "confirm": "确定",
-    "cancel": "取消"
+    "cancel": "取消",
+    "tip": "提示"
   },
   "about": {
     "title": "关于 Joyous 菜单编辑器",
@@ -137,6 +138,8 @@
     "unsaved": {
       "title": "未保存的更改",
       "tip": "文件 %target% 看起来还没有保存。要怎么做？"
-    }
+    },
+    "too_large_file": "要打开的 %file% 太大了（%size%KB），继续操作可能会导致卡顿。\n要继续吗？",
+    "binary_file_sus": "%file% 可能是一个二进制文件，继续使用文本编辑器打开可能会导致卡顿。\n目前没有可用的已注册的对应格式处理编辑器。\n要继续吗？"
   }
 }

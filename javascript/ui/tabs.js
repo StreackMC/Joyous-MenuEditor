@@ -183,6 +183,10 @@ eTabs.addEventListener("dblclick", (e) => {
  */
 export function openTab(editorInstance = newEditorWelcome(), name = i18n.parseSafe("editor.welcome.headline"), uuid = uuidv4()) {
   if (tabsMap.has(uuid)) { throw new Error("无法新建标签页，发现重复的UUID: ", uuid); };
+  if (!editorInstance || !(editorInstance instanceof Editor)) {
+    // 发现无效实例，不新建
+    return;
+  }
   tabsMap.set(uuid, new Tab(editorInstance, name, uuid));
   tabs.push(uuid);
 

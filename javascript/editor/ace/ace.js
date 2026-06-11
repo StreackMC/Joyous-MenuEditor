@@ -13,8 +13,8 @@ export class EditorAce extends Editor {
    * @param {string} fileName - 文件名（用于检测语言和显示标题）
    */
   constructor(content, fileName) {
-    super(content); // 调用父类构造函数（父类可能只接收一个参数，这里传内容）
-    this.content = content || '';
+    super(content);
+    this.content = editorManager.ensureText(content) || '';
     this.fileName = fileName || 'untitled';
     this.container = null;
     this.editorInstance = null;
@@ -44,11 +44,11 @@ export class EditorAce extends Editor {
     return this.container;
   }
 
-  setData(content) {
+  async setData(content) {
     // 仅更新内容，文件名不变
-    this.content = content;
+    this.content = editorManager.ensureText(content);
     if (this.editorInstance) {
-      this.editorInstance.setValue(content || '', -1);
+      this.editorInstance.setValue(editorManager.ensureText(content) || '', -1);
     }
   }
 

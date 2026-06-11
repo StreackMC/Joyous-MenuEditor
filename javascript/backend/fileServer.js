@@ -126,14 +126,25 @@ export function getAncestors(node) {
 
 /** 一个文件对象 */
 export class FileNode {
+  /** 对象ID @type {string} */
+  id = uuidv4();
+  /** 文件名 @type {string} */
+  name;
+  /** 类型 ["file","dir"] 。目前应为 "file" @type {string} */
+  type = "file";
+  /** 父节点ID，或者说属于哪个文件夹 @type {string|null} */
+  parentId;
+  /** @type {FileSystemFileHandle} */
+  handle;
+  /** 未保存修改标记 @type {boolean} */
+  dirty = false;
+  /** 上次修改时的保存时间 @type {number|null} */
+  lastSavedTimestamp = null;
+
   constructor(name, handle, parentId = null) {
-    this.id = uuidv4();
-    this.name = name;           // 文件名
-    this.type = "file";
-    this.parentId = parentId;   // 父文件夹节点 id
-    this.handle = handle;       // FileSystemFileHandle
-    this.dirty = false;         // 未保存修改标记
-    this.lastSavedTimestamp = null; // 上次保存时文件的修改时间
+    this.name = name;
+    this.parentId = parentId;
+    this.handle = handle;
   }
 
   /**
@@ -143,6 +154,35 @@ export class FileNode {
   async read() {
     const file = await this.handle.getFile();
     return await file.text();
+  }
+
+  /**
+   * 采样验证文件是否可能是二进制不可读文件。
+   * 
+   * 具体为片段采样，当阳性或者存在空子节即判定为不可读。
+   * 
+   * @param {number} [sampleSize=4096] 采样精度：单位 B ，越大越准确但是越卡
+   * @param {number} [sampleRate=0.05] 采样阳性指标：当命中不可打印字符比例不小于这个值时判定为不可读
+   */
+  async isBinaryHeuristic(sampleSize = 4096, sampleRate = 0.05) {
+    const file = await this.handle.getFile();
+    const buffer = await file.slice(0, sampleSize).arrayBuffer();
+    const bytes = new Uint8Array(buffer);
+    let nullCount = 0;
+    let nonPrintableCount = 0;
+
+    for (let i = 0; i < bytes.length; i++) {
+      const b = bytes[i];
+      if (b === 0) nullCount++;
+      // 非 ASCII 可打印字符（小于 32 且不是 9、10、13）或大于 126
+      if ((b < 32 && b !== 9 && b !== 10 && b !== 13) || b > 126) {
+        nonPrintableCount++;
+      }
+    }
+
+    // 规则：空字节 > 0 或非打印字符比例 >= 输入值 视为二进制
+    const ratio = nonPrintableCount / bytes.length;
+    return nullCount > 0 || ratio >= sampleRate;
   }
 
   /**
@@ -219,19 +259,35 @@ window.joyous.filesGetName = function (node) {
 
 /** 一个文件夹对象 */
 export class FolderNode {
+  /** 对象ID @type {string} */
+  id = uuidv4();
+  /** 文件名 @type {string} */
+  name;
+  /** 类型 ["file","dir"] 。目前应为 "dir" @type {string} */
+  type = "dir";
+  /** 父节点ID，或者说属于哪个文件夹 @type {string|null} */
+  parentId;
+  /** @type {FileSystemFileHandle} */
+  handle;
+  /** 下属有哪些对象 @type {Map<String,FileNode|FolderNode>} */
+  children = new Map();
+  /**
+   * 是否已加载子节点的内容。没有加载时 {@link children} 为空。
+   * @type {boolean}
+   * @see {@link loadChildren()} 使用这个加载子节点
+   */
+  loaded = false;
+
   constructor(name, handle, parentId = null) {
-    this.id = uuidv4();
     this.name = name;
-    this.type = "dir";
     this.parentId = parentId;
-    this.handle = handle;           // FileSystemDirectoryHandle
-    this.children = new Map();      // key: 子节点 id, value: FileNode | FolderNode
-    this.loaded = false;            // 是否已加载子节点内容
+    this.handle = handle;
   }
 
   /**
    * 加载目录下的所有直接子节点（懒加载）
    * @returns {Promise<void>} 记得用 await
+   * @see {@link loaded} 如果你需要重新加载，那么需要把这个标志设置为 false
    */
   async loadChildren() {
     if (this.loaded) return;
@@ -1167,7 +1223,7 @@ export function getTabsBoundToFile(fileNodeId) {
  * 将文件节点作为数据源打开到编辑器标签页中
  * @param {FileNode} fileNode
  * @param {string} [editorId] 可选的编辑器标识符
- * @returns {Promise<string>} 新标签页的 UUID
+ * @returns {Promise<string>|Promise<null} 新标签页的 UUID
  */
 export async function openFileInTab(fileNode, editorId = undefined) {
   const resolved = ensureNode(fileNode, "fileNode");
@@ -1180,10 +1236,11 @@ export async function openFileInTab(fileNode, editorId = undefined) {
     return;
   }
 
-  const content = await resolved.read();
-  const tabId = await commands.executeCommand("editor.open", content, editorId, resolved.name);
+  const tabId = await commands.executeCommand("editor.open", resolved, editorId, resolved.name);
   // 建立绑定
-  bindTabToFile(tabId, resolved);
+  if (tabId) {
+    bindTabToFile(tabId, resolved);
+  }
   return tabId;
 }
 

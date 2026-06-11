@@ -2,6 +2,8 @@ import { Editor } from "../editor/editor.js";
 import i18n from "../i18n.js";
 import tabs from "../ui/tabs.js";
 import commands from "./commandServer.js";
+import { FileNode, FolderNode } from "./fileServer.js";
+import UI from "../ui/utils.js";
 
 export let untitledCounts = 1;
 /**
@@ -37,12 +39,13 @@ export function regisiterEditor(id, varify, clazz) {
 
 /**
  * 打开一个编辑器，智能识别打开方式
- * @param {*} data 数据
+ * @returns {Promise<string|null>} 打开失败使用 null
+ * @param {string|FileNode} data 数据
  * @param {string} editorId 打开方式
  * @param {string} fname 编辑器标题，建议传入文件名，最终由实际的编辑器依据此参数决定；指定了打开方式时且目标编辑器没有返回有效标题时则改为使用此参数。
  * @throws 找不到目标编辑器，若没有指定编辑器抛出此错误时表示默认的 ACE 编辑器都不可用
  */
-export function openEditor(data = "", editorId = undefined, fname = null) {
+export async function openEditor(data = "", editorId = undefined, fname = null) {
   fname = (fname) ? fname : `Untitled-${getUntitledId()}`;
 
   // 如果指定了打开方式则直接打开
@@ -72,7 +75,12 @@ export function openEditor(data = "", editorId = undefined, fname = null) {
       const title = regEditorsVarify.get(key).apply(this, [data, fname]);
       if (title) {
         const clazz = regEditorsClazz.get(key);
-        tabId = tabs.openTab(new clazz(data, fname), title);
+        try {
+          tabId = tabs.openTab(new clazz(data, fname), title);
+        } catch (error) {
+          console.warn(`编辑器 ${key} 验证了文件类型，但无法打开：`, error)
+          continue;
+        }
         break;
       } else {
         continue;
@@ -89,13 +97,52 @@ export function openEditor(data = "", editorId = undefined, fname = null) {
   if (!aceClazz) {
     throw new Error(i18n.parseSafe("editor.ACE.err"));
   }
-  return tabs.openTab(new aceClazz(data, fname), fname);
+  try {
+    if (data instanceof FileNode) {
+      const size = await data.getSize();
+      if (size >= 1048576/* Byte */) {
+        const usrRsp_size = await UI.ask(i18n.parseSafe("tooltip.tip"), i18n.parse("msg.too_large_file", { file: data.name, size: (size / 1024).toFixed(2) }));
+        if (!usrRsp_size) throw new Error("Aborted by user [too_large_size]");
+      }
+      if (await data.isBinaryHeuristic()) {
+        const usrRsp_bin = await UI.ask(i18n.parseSafe("tooltip.tip"), i18n.parse("msg.binary_file_sus", { file: data.name }));
+        if (!usrRsp_bin) throw new Error("Aborted by user [binary_file_sus]");
+      }
+    }
+    const dataTexted = await ensureText(data);
+    return tabs.openTab(new aceClazz(dataTexted, fname), fname);
+  } catch (error) {
+    return null;
+  }
 }
 
 commands.regisiterCommand("editor.open", openEditor);
 
+/**
+ * 确保数据是一串文本
+ * @param {string|FileNode|Object} data 原数据
+ * @return {string|Promise<String>} 封装为一个文本
+ */
+export async function ensureText(data) {
+  if (typeof data === "string") {
+    return data;
+  } else if (data instanceof String) {
+    return data;
+  } else if (data instanceof FileNode) {
+    return await data.read();
+  } else {
+    try {
+      // 尝试调用可能实现的 toString() 方法
+      return data.toString();
+    } catch (error) {
+      return new String(data);
+    }
+  }
+}
+
 export default {
   regisiterEditor, openEditor,
   regEditorsClazz, regEditorsVarify,
-  getUntitledId, untitledCounts
+  getUntitledId, untitledCounts,
+  ensureText
 };

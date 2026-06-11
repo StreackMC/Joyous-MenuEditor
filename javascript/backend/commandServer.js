@@ -26,7 +26,7 @@ export function isCommand(cmd) {
  * 执行一个注册的命令
  * @param {String} cmd 命令，忽略大小写和空白字符
  * @param  {...any} arg 命令参数
- * @returns 该命令的返回值；
+ * @returns {*|Promise<*>} 该命令的返回值；
  * @throws 命令不存在或者执行出错，会自动通知前端
  */
 export function executeCommand(cmd, ...arg) {
@@ -37,6 +37,27 @@ export function executeCommand(cmd, ...arg) {
     return v.apply(this, arg);
   } catch (e) {
     window.joyous.msg(i18n.parse("msg.command_failure", { msg: e.message }), i18n.parse("msg.done"), "error");
+    console.error(`无法执行命令 ${cmd} [${arg.join("|")}] ：`, e);
+    throw e;
+  }
+}
+
+/**
+ * 执行一个注册的异步命令
+ * @param {String} cmd 命令，忽略大小写和空白字符
+ * @param  {...any} arg 命令参数
+ * @param {boolean} [notify=true] 是否要通知前端
+ * @returns {不可能是Promise} 该命令的返回值；
+ * @throws 命令不存在或者执行出错
+ */
+export async function executeCommandAsync(cmd, notify = true, ...arg) {
+  try {
+    const cmdLowerCase = cmd.toLocaleLowerCase().replace(/\s+/g, "");
+    if (!isCommand(cmdLowerCase)) { throw new Error(i18n.parseSafe("panel.command.notFound", { cmd: cmd })); };
+    const v = regisiteredCommands.get(cmdLowerCase);
+    return await v.apply(this, arg);
+  } catch (e) {
+    if (notify) window.joyous.msg(i18n.parse("msg.command_failure", { msg: e.message }), i18n.parse("msg.done"), "error");
     console.error(`无法执行命令 ${cmd} [${arg.join("|")}] ：`, e);
     throw e;
   }
