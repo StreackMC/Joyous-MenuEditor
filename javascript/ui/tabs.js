@@ -243,6 +243,7 @@ export function closeTab(index = currentTab) {
   tabs.splice(tabs.indexOf(target), 1);
   targetTab.frame.remove();
   tabsMap.delete(target);
+  commands.executeCommand(/* 解绑这个标签页与file的关系 */"files.tablink.close", target);
 
   // 切换回来
   if (target != origin) {

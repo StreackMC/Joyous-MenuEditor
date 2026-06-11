@@ -1083,6 +1083,7 @@ export async function openFileInTab(fileNode, editorId = undefined) {
   const result = getTabsBoundToFile(fileNode.id);
   if (result.length != 0) {
     tabs.switchTab(result.pop());
+    return;
   }
 
   const content = await resolved.read();
@@ -1317,6 +1318,8 @@ commands.regisiterCommand("files.getPath", (node) => getNodePath(node));
 
 /* 自动保存钩子——在 autosave.backup 时同步持久化文件系统状态 */
 commands.regisiterCommand("files.saveState", () => saveFileSystemState());
+
+commands.regisiterCommand("files.tablink.close", (tabId) => unbindTab(tabId));
 
 export default {
   // 核心
