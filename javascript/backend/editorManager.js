@@ -119,6 +119,35 @@ export async function openEditor(data = "", editorId = undefined, fname = null) 
 commands.regisiterCommand("editor.open", openEditor);
 
 /**
+ * 获取当前活动编辑器的实例
+ * @returns {Editor|null}
+ */
+export function getCurrentEditor() {
+  try {
+    const tab = tabs.getTab(tabs.getCurrentTabId());
+    return tab.instance || null;
+  } catch {
+    return null;
+  }
+}
+
+/** 撤销当前编辑器操作 */
+commands.regisiterCommand("editor.revert", (step = 1) => {
+  const editor = getCurrentEditor();
+  if (editor && typeof editor.revert === "function") {
+    editor.revert(step);
+  }
+});
+
+/** 重做当前编辑器操作 */
+commands.regisiterCommand("editor.redo", (step = 1) => {
+  const editor = getCurrentEditor();
+  if (editor && typeof editor.redo === "function") {
+    editor.redo(step);
+  }
+});
+
+/**
  * 确保数据是一串文本
  * @param {string|FileNode|Object} data 原数据
  * @return {string|Promise<String>} 封装为一个文本
@@ -144,5 +173,6 @@ export default {
   regisiterEditor, openEditor,
   regEditorsClazz, regEditorsVarify,
   getUntitledId, untitledCounts,
-  ensureText
+  ensureText,
+  getCurrentEditor,
 };

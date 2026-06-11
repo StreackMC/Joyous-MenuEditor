@@ -158,7 +158,12 @@ export class FileNode {
 
   /**
    * 采样验证文件是否可能是二进制不可读文件。
-   * 
+   *
+   * 策略（按优先级）：
+   * 1. 发现空字节（0x00）→ 判定为二进制（几乎所有文本格式都会避开 NUL）
+   * 2. 尝试解码为 UTF-8 → 若解码成功且无空字节，判定为文本（兼容全部 Unicode 字符）
+   * 3. 回退：统计控制字符占比（排除制表符 0x09、换行 0x0A、回车 0x0D）
+   *
    * @param {number} [sampleSize=4096] 采样精度：单位 B ，越大越准确但是越卡
    * @param {number} [sampleRate=0.05] 采样阳性指标：当命中不可打印字符比例不小于这个值时判定为不可读
    */
@@ -166,19 +171,34 @@ export class FileNode {
     const file = await this.handle.getFile();
     const buffer = await file.slice(0, sampleSize).arrayBuffer();
     const bytes = new Uint8Array(buffer);
-    let nonPrintableCount = 0;
 
+    if (bytes.length === 0) return false;
+
+    // 1. 空字节检测——NUL 在文本文件中几乎从不出现
+    for (let i = 0; i < bytes.length; i++) {
+      if (bytes[i] === 0x00) return true;
+    }
+
+    // 2. UTF-8 解码验证——能完整解码说明是有效的 Unicode 文本
+    try {
+      const decoder = new TextDecoder('utf-8', { fatal: true });
+      decoder.decode(buffer);
+      return false; // 有效的 UTF-8 文本，不是二进制
+    } catch (_) {
+      // 存在无效的 UTF-8 序列，回退到启发式检测
+    }
+
+    // 3. 回退：统计控制字符占比（排除文本常见空白符）
+    let suspiciousCount = 0;
     for (let i = 0; i < bytes.length; i++) {
       const b = bytes[i];
-      // 非 ASCII 可打印字符（小于 32 且不是 9、10、13）或大于 126
-      if ((b < 32 && b !== 9 && b !== 10 && b !== 13) || b > 126) {
-        nonPrintableCount++;
+      // 控制字符范围（排除 TAB/换行/回车）以及 DEL
+      if ((b < 0x09) || (b > 0x0D && b < 0x20) || b === 0x7F) {
+        suspiciousCount++;
       }
     }
 
-    // 规则：空字节 > 0 或非打印字符比例 >= 输入值 视为二进制
-    const ratio = nonPrintableCount / bytes.length;
-    return ratio >= sampleRate;
+    return (suspiciousCount / bytes.length) >= sampleRate;
   }
 
   /**
@@ -1628,6 +1648,30 @@ commands.regisiterCommand("files.copy", (node, target, copyName) => copyNode(nod
 commands.regisiterCommand("files.refresh", (folder) => refreshFileSystem(folder));
 commands.regisiterCommand("files.resolve", (path, base) => resolvePath(path, base));
 commands.regisiterCommand("files.getPath", (node) => getNodePath(node));
+
+/* 编辑器操作命令——供 data-click 声明式绑定使用 */
+commands.regisiterCommand("editor.save", () => {
+  try {
+    saveToFile();
+    msg(i18n.parseSafe("msg.saved"), null, "success", 2000);
+  } catch (e) {
+    msg(e.message, i18n.parseSafe("msg.done"), "error");
+  }
+});
+commands.regisiterCommand("editor.saveAs", async () => {
+  if (!currentFileSystem) {
+    msg("没有打开的工作区，无法另存为。", i18n.parseSafe("msg.done"), "error");
+    return;
+  }
+  const fileName = window.prompt(i18n.parseSafe("tooltip.saveAs"), "untitled.txt");
+  if (!fileName) return;
+  try {
+    await saveAsToFile(fileName);
+    msg(i18n.parseSafe("msg.savedTo", { path: fileName }), null, "success", 2000);
+  } catch (e) {
+    msg(e.message, i18n.parseSafe("msg.done"), "error");
+  }
+});
 
 /* 自动保存钩子——在 autosave.backup 时同步持久化文件系统状态 */
 commands.regisiterCommand("files.saveState", () => saveFileSystemState());
