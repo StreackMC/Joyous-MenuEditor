@@ -51,25 +51,28 @@ function randomFullChar() {
 }
 
 // 注册乱码字符
-let obfTimer = null, obfStyleEle = document.createElement("style");
+let obfStyleEle = document.createElement("style");
+let /* RAF用 */doRenderInterval = -1, lastRendering = new Date().getTime();
 obfStyleEle.dataset.comment = "Inserted by MCColors.js";
 document.head.appendChild(obfStyleEle);
-function startObfuscateInterval(intervalMs = 50) {
-  if (obfTimer) return;
-  obfTimer = setInterval(() => {
+function startObfuscateInterval(intervalMs = 20) {
+  doRenderInterval = Math.abs(Math.floor(intervalMs));
+  requestAnimationFrame(renderRightNow);
+}
+function stopObfuscateInterval() {
+  doRenderInterval = -1;
+}
+function renderRightNow(timestamp = new Date().getTime()) {
+  if (Math.abs(timestamp - lastRendering) >= doRenderInterval) {
+    // 符合间隔，开始更新
     let styles = ["--mc-obf-renderer-frame-at:" + new Date().getTime()];
     for (let index = 0; index <= 10; index++) {
       styles.push('--mc-obf-char-h-' + index + `:"${randomHalfChar()}"`);
       styles.push('--mc-obf-char-f-' + index + `:"${randomFullChar()}"`);
     }
     obfStyleEle.innerHTML = `.mc-obf-char{` + styles.join(";") + `}`;
-  }, intervalMs);
-}
-function stopObfuscateInterval() {
-  if (obfTimer) {
-    clearInterval(obfTimer);
-    obfTimer = null;
-  }
+  };
+  if (doRenderInterval >= 0) requestAnimationFrame(renderRightNow);
 }
 
 /**
