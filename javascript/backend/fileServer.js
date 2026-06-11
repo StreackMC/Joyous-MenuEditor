@@ -574,25 +574,96 @@ export async function loadAllHandlesFromDB() {
   return await database.getAll();
 }
 
+// ==================== 路径参数解析辅助 ====================
+
+/**
+ * 将输入解析为节点（接受节点对象或路径字符串）。
+ * 路径以 `/` 开头 → 绝对路径；否则相对于当前文件系统根。
+ * @param {FileNode|FolderNode|string} input
+ * @param {FileNode|FolderNode} [relativeTo] 当 input 是相对路径时的参考节点
+ * @returns {FileNode|FolderNode|null}
+ */
+function resolveNodeInput(input, relativeTo = undefined) {
+  if (!input) return null;
+  if (typeof input === "string") {
+    // 路径字符串 → 用 resolvePath
+    if (input.startsWith("/")) {
+      return resolvePath(input);
+    }
+    // 相对路径：如果有参考节点，基于参考节点的父目录解析
+    if (relativeTo) {
+      const parentPath = getNodePath(getParent(relativeTo) || relativeTo);
+      return resolvePath(input, parentPath);
+    }
+    return resolvePath(input);
+  }
+  // 已经是节点对象
+  if (input instanceof FileNode || input instanceof FolderNode) return input;
+  return null;
+}
+
+/**
+ * 将输入解析为文件夹节点（接受节点对象或路径字符串）。
+ * 支持 `.`（当前目录）、`..`（父目录）导航。
+ * @param {FolderNode|string} input
+ * @param {FileNode|FolderNode} [relativeTo] 相对路径的参考节点
+ * @returns {FolderNode|null}
+ */
+function resolveFolderInput(input, relativeTo = undefined) {
+  const node = resolveNodeInput(input, relativeTo);
+  if (!node || node.type !== "dir") return null;
+  return node;
+}
+
+/**
+ * 确保参数是节点对象（如果是路径则自动解析并替换原参数）。
+ * 用于包裹函数的第一参数——源节点。
+ * @param {FileNode|FolderNode|string} nodeInput
+ * @param {string} paramName 参数名（用于错误信息）
+ * @returns {FileNode|FolderNode}
+ */
+function ensureNode(nodeInput, paramName = "node") {
+  const node = resolveNodeInput(nodeInput);
+  if (!node) throw new Error(`无效的 ${paramName}：无法解析为节点`);
+  return node;
+}
+
+/**
+ * 确保参数是文件夹节点（支持路径解析）。
+ * 用于包裹函数的目标文件夹参数。
+ * @param {FolderNode|string} folderInput
+ * @param {FileNode|FolderNode} [relativeTo] 相对路径参考
+ * @param {string} [paramName="targetFolder"]
+ * @returns {FolderNode}
+ */
+function ensureFolder(folderInput, relativeTo = undefined, paramName = "targetFolder") {
+  const folder = resolveFolderInput(folderInput, relativeTo);
+  if (!folder) throw new Error(`无效的 ${paramName}：无法解析为文件夹`);
+  return folder;
+}
+
 // ==================== 文件系统操作（增删改查） ====================
 
 /**
- * 在指定文件夹下创建新文件
- * @param {FolderNode} parentFolder
+ * 在指定文件夹下创建新文件。
+ *
+ * `parentFolder` 支持路径字符串（如 `/foo/bar`），也支持 `.` `..` 导航。
+ *
+ * @param {FolderNode|string} parentFolder 文件夹节点或路径
  * @param {string} fileName 文件名（含扩展名）
  * @returns {Promise<FileNode|null>}
  */
 export async function createFile(parentFolder, fileName) {
-  if (parentFolder.type !== "dir") throw new Error("目标不是文件夹");
-  if (!parentFolder.handle.getFileHandle) {
+  const resolved = ensureFolder(parentFolder, undefined, "parentFolder");
+  if (!resolved.handle.getFileHandle) {
     throw new Error("文件夹句柄不支持创建文件（可能尚未加载）");
   }
   try {
-    const handle = await parentFolder.handle.getFileHandle(fileName, { create: true });
-    const node = new FileNode(fileName, handle, parentFolder.id);
-    parentFolder.addChild(node);
+    const handle = await resolved.handle.getFileHandle(fileName, { create: true });
+    const node = new FileNode(fileName, handle, resolved.id);
+    resolved.addChild(node);
     handleToNodeId.set(handle, node.id);
-    notifyFileSystemChange(FileSystemEvent.FILE_CREATED, { node, parent: parentFolder });
+    notifyFileSystemChange(FileSystemEvent.FILE_CREATED, { node, parent: resolved });
     return node;
   } catch (err) {
     console.error("创建文件失败：", err);
@@ -601,22 +672,25 @@ export async function createFile(parentFolder, fileName) {
 }
 
 /**
- * 在指定文件夹下创建新文件夹
- * @param {FolderNode} parentFolder
+ * 在指定文件夹下创建新文件夹。
+ *
+ * `parentFolder` 支持路径字符串（如 `/foo`），也支持 `.` `..` 导航。
+ *
+ * @param {FolderNode|string} parentFolder 文件夹节点或路径
  * @param {string} dirName
  * @returns {Promise<FolderNode|null>}
  */
 export async function createFolder(parentFolder, dirName) {
-  if (parentFolder.type !== "dir") throw new Error("目标不是文件夹");
-  if (!parentFolder.handle.getDirectoryHandle) {
+  const resolved = ensureFolder(parentFolder, undefined, "parentFolder");
+  if (!resolved.handle.getDirectoryHandle) {
     throw new Error("文件夹句柄不支持创建文件夹");
   }
   try {
-    const handle = await parentFolder.handle.getDirectoryHandle(dirName, { create: true });
-    const node = new FolderNode(dirName, handle, parentFolder.id);
-    parentFolder.addChild(node);
+    const handle = await resolved.handle.getDirectoryHandle(dirName, { create: true });
+    const node = new FolderNode(dirName, handle, resolved.id);
+    resolved.addChild(node);
     handleToNodeId.set(handle, node.id);
-    notifyFileSystemChange(FileSystemEvent.FOLDER_CREATED, { node, parent: parentFolder });
+    notifyFileSystemChange(FileSystemEvent.FOLDER_CREATED, { node, parent: resolved });
     return node;
   } catch (err) {
     console.error("创建文件夹失败：", err);
@@ -625,32 +699,36 @@ export async function createFolder(parentFolder, dirName) {
 }
 
 /**
- * 从磁盘删除文件或空文件夹
- * @param {FileNode|FolderNode} node
+ * 从磁盘删除文件或文件夹。
+ *
+ * `node` 支持路径字符串（如 `/foo/bar.txt`）。
+ *
+ * @param {FileNode|FolderNode|string} node
  * @param {boolean} [recursive=false] 删除文件夹时是否递归删除全部内容
  * @returns {Promise<boolean>}
  */
 export async function deleteNode(node, recursive = false) {
-  const parent = getParent(node);
+  const resolvedNode = ensureNode(node, "node");
+  const parent = getParent(resolvedNode);
   if (!parent) throw new Error("根节点不能删除");
 
   // 若有标签页绑定到此文件，先关闭或解绑
-  if (node.type === "file") {
-    const boundTabs = getTabsBoundToFile(node.id);
+  if (resolvedNode.type === "file") {
+    const boundTabs = getTabsBoundToFile(resolvedNode.id);
     for (const tabId of boundTabs) {
       unbindTab(tabId);
     }
   }
 
   try {
-    await parent.handle.removeEntry(node.name, { recursive });
-    const nodeId = node.id;
-    const nodeName = node.name;
-    const nodeType = node.type;
-    parent.removeChild(node.id);
+    await parent.handle.removeEntry(resolvedNode.name, { recursive });
+    const nodeId = resolvedNode.id;
+    const nodeName = resolvedNode.name;
+    const nodeType = resolvedNode.type;
+    parent.removeChild(resolvedNode.id);
     // 如果是文件夹，递归从 nodeMap 清除其所有后代
-    if (node.type === "dir") {
-      await recursivelyRemoveFromMap(node);
+    if (resolvedNode.type === "dir") {
+      await recursivelyRemoveFromMap(resolvedNode);
     }
     notifyFileSystemChange(FileSystemEvent.DELETED, {
       nodeId, nodeName, nodeType, parent,
@@ -658,7 +736,7 @@ export async function deleteNode(node, recursive = false) {
     return true;
   } catch (err) {
     console.error("删除失败：", err);
-    throw new Error(`无法删除 "${node.name}"：${err.message}`);
+    throw new Error(`无法删除 "${resolvedNode.name}"：${err.message}`);
   }
 }
 
@@ -676,33 +754,37 @@ async function recursivelyRemoveFromMap(folderNode) {
 }
 
 /**
- * 重命名文件或文件夹
- * @param {FileNode|FolderNode} node
+ * 重命名文件或文件夹。
+ *
+ * `node` 支持路径字符串（如 `/foo/bar.txt`）。
+ *
+ * @param {FileNode|FolderNode|string} node
  * @param {string} newName
  * @returns {Promise<boolean>}
  */
 export async function renameNode(node, newName) {
-  if (node === currentFileSystem) throw new Error("不能重命名根目录");
-  if (!node.handle) throw new Error("节点没有底层句柄，无法重命名");
+  const resolvedNode = ensureNode(node, "node");
+  if (resolvedNode === currentFileSystem) throw new Error("不能重命名根目录");
+  if (!resolvedNode.handle) throw new Error("节点没有底层句柄，无法重命名");
 
-  const parent = getParent(node);
+  const parent = getParent(resolvedNode);
   if (!parent) throw new Error("根节点不能重命名");
 
   // FileSystemAccessAPI 不支持直接重命名，采用「创建新条目 + 复制内容 + 删除旧条目」策略
-  const oldName = node.name;
+  const oldName = resolvedNode.name;
   try {
-    if (node.type === "file") {
-      await renameFileNode(node, newName, parent);
+    if (resolvedNode.type === "file") {
+      await renameFileNode(resolvedNode, newName, parent);
     } else {
-      await renameDirNode(node, newName, parent);
+      await renameDirNode(resolvedNode, newName, parent);
     }
     notifyFileSystemChange(FileSystemEvent.RENAMED, {
-      node, parent, oldName, newName,
+      node: resolvedNode, parent, oldName, newName,
     });
     return true;
   } catch (err) {
     console.error("重命名失败：", err);
-    throw new Error(`无法重命名 "${node.name}" 为 "${newName}"：${err.message}`);
+    throw new Error(`无法重命名 "${resolvedNode.name}" 为 "${newName}"：${err.message}`);
   }
 }
 
@@ -780,120 +862,134 @@ async function copyDirContent(source, destHandle) {
 }
 
 /**
- * 移动文件或文件夹到目标文件夹
- * @param {FileNode|FolderNode} node
- * @param {FolderNode} targetFolder
+ * 移动文件或文件夹到目标文件夹。
+ *
+ * 两个参数都支持路径导航：
+ *  - `node` 接受节点对象或路径字符串（`/foo/bar.txt`）
+ *  - `targetFolder` 接受文件夹节点或路径字符串，
+ *    相对路径基于 `node` 的父目录解析（支持 `.` `..`）
+ *
+ * @param {FileNode|FolderNode|string} node
+ * @param {FolderNode|string} targetFolder
  * @returns {Promise<boolean>}
  */
 export async function moveNode(node, targetFolder) {
-  if (node === currentFileSystem) throw new Error("不能移动根目录");
-  if (targetFolder.type !== "dir") throw new Error("目标不是文件夹");
-  if (node.parentId === targetFolder.id) {
-    // 已在目标文件夹中
-    return true;
+  // ---- 路径解析 ----
+  const resolvedNode = ensureNode(node, "node");
+  if (resolvedNode === currentFileSystem) throw new Error("不能移动根目录");
+  const resolvedTarget = ensureFolder(targetFolder, resolvedNode, "targetFolder");
+  if (resolvedNode.parentId === resolvedTarget.id) {
+    return true; // 已在目标文件夹中
   }
   // 检查是否把文件夹移入自身或后代
-  if (node.type === "dir") {
-    let ancestor = targetFolder;
+  if (resolvedNode.type === "dir") {
+    let ancestor = resolvedTarget;
     while (ancestor) {
-      if (ancestor.id === node.id) {
+      if (ancestor.id === resolvedNode.id) {
         throw new Error("不能将文件夹移入自身或其子文件夹");
       }
       ancestor = ancestor.parentId ? nodeMap.get(ancestor.parentId) : null;
     }
   }
 
-  const oldParent = getParent(node);
+  const oldParent = getParent(resolvedNode);
   if (!oldParent) throw new Error("根节点不能移动");
 
   try {
     // 读取内容
     let content = null;
-    if (node.type === "file") {
-      content = await node.read();
+    if (resolvedNode.type === "file") {
+      content = await resolvedNode.read();
     }
 
     // 在目标创建新条目
-    if (node.type === "file") {
-      const newHandle = await targetFolder.handle.getFileHandle(node.name, { create: true });
+    if (resolvedNode.type === "file") {
+      const newHandle = await resolvedTarget.handle.getFileHandle(resolvedNode.name, { create: true });
       const writable = await newHandle.createWritable();
       await writable.write(content);
       await writable.close();
-      node.handle = newHandle;
-      handleToNodeId.set(newHandle, node.id);
+      resolvedNode.handle = newHandle;
+      handleToNodeId.set(newHandle, resolvedNode.id);
     } else {
-      const newHandle = await targetFolder.handle.getDirectoryHandle(node.name, { create: true });
-      await copyDirContent(node, newHandle);
-      node.handle = newHandle;
-      handleToNodeId.set(newHandle, node.id);
+      const newHandle = await resolvedTarget.handle.getDirectoryHandle(resolvedNode.name, { create: true });
+      await copyDirContent(resolvedNode, newHandle);
+      resolvedNode.handle = newHandle;
+      handleToNodeId.set(newHandle, resolvedNode.id);
     }
 
     // 从原位置删除
-    await oldParent.handle.removeEntry(node.name, { recursive: node.type === "dir" });
+    await oldParent.handle.removeEntry(resolvedNode.name, { recursive: resolvedNode.type === "dir" });
 
     // 更新内存树
-    const movedNodeId = node.id;
-    const movedNodeName = node.name;
-    oldParent.removeChild(node.id);
-    targetFolder.addChild(node);
+    const movedNodeId = resolvedNode.id;
+    const movedNodeName = resolvedNode.name;
+    oldParent.removeChild(resolvedNode.id);
+    resolvedTarget.addChild(resolvedNode);
 
     notifyFileSystemChange(FileSystemEvent.MOVED, {
-      node, oldParent, newParent: targetFolder,
+      node: resolvedNode, oldParent, newParent: resolvedTarget,
       nodeName: movedNodeName,
     });
     return true;
   } catch (err) {
     console.error("移动失败：", err);
-    throw new Error(`无法移动 "${node.name}"：${err.message}`);
+    throw new Error(`无法移动 "${resolvedNode.name}"：${err.message}`);
   }
 }
 
 /**
- * 复制文件或文件夹到目标文件夹
- * @param {FileNode|FolderNode} node
- * @param {FolderNode} targetFolder
+ * 复制文件或文件夹到目标文件夹。
+ *
+ * 前两个参数都支持路径导航：
+ *  - `node` 接受节点对象或路径字符串
+ *  - `targetFolder` 接受文件夹节点或路径字符串，
+ *    相对路径基于 `node` 的父目录解析（支持 `.` `..`）
+ *
+ * @param {FileNode|FolderNode|string} node
+ * @param {FolderNode|string} targetFolder
  * @param {string} [copyName] 可选的新名称，默认在原名称后加 "（副本）"
  * @returns {Promise<FileNode|FolderNode|null>}
  */
 export async function copyNode(node, targetFolder, copyName = null) {
-  if (targetFolder.type !== "dir") throw new Error("目标不是文件夹");
+  const resolvedNode = ensureNode(node, "node");
+  const resolvedTarget = ensureFolder(targetFolder, resolvedNode, "targetFolder");
 
-  const destName = copyName || generateCopyName(node.name, targetFolder);
+  const destName = copyName || generateCopyName(resolvedNode.name, resolvedTarget);
 
   try {
-    if (node.type === "file") {
-      const content = await node.read();
-      const newHandle = await targetFolder.handle.getFileHandle(destName, { create: true });
+    if (resolvedNode.type === "file") {
+      const content = await resolvedNode.read();
+      const newHandle = await resolvedTarget.handle.getFileHandle(destName, { create: true });
       const writable = await newHandle.createWritable();
       await writable.write(content);
       await writable.close();
-      const newNode = new FileNode(destName, newHandle, targetFolder.id);
+      const newNode = new FileNode(destName, newHandle, resolvedTarget.id);
       const file = await newHandle.getFile();
       newNode.lastSavedTimestamp = file.lastModified;
-      targetFolder.addChild(newNode);
+      resolvedTarget.addChild(newNode);
       handleToNodeId.set(newHandle, newNode.id);
       notifyFileSystemChange(FileSystemEvent.COPIED, {
-        node: newNode, source: node, parent: targetFolder,
+        node: newNode, source: resolvedNode, parent: resolvedTarget,
       });
       return newNode;
     } else {
-      const newHandle = await targetFolder.handle.getDirectoryHandle(destName, { create: true });
-      const newNode = new FolderNode(destName, newHandle, targetFolder.id);
-      targetFolder.addChild(newNode);
+      const newHandle = await resolvedTarget.handle.getDirectoryHandle(destName, { create: true });
+      const newNode = new FolderNode(destName, newHandle, resolvedTarget.id);
+      resolvedTarget.addChild(newNode);
       handleToNodeId.set(newHandle, newNode.id);
       // 递归复制子内容
-      await node.loadChildren(); // 确保源文件夹已加载
-      for (const child of node.children.values()) {
+      await resolvedNode.loadChildren();
+      for (const child of resolvedNode.children.values()) {
         await copyNode(child, newNode);
       }
       notifyFileSystemChange(FileSystemEvent.COPIED, {
-        node: newNode, source: node, parent: targetFolder,
+        node: newNode, source: resolvedNode, parent: resolvedTarget,
       });
       return newNode;
     }
   } catch (err) {
     console.error("复制失败：", err);
-    throw new Error(`无法复制 "${node.name}"：${err.message}`);
+    throw new Error(`无法复制 "${resolvedNode.name}"：${err.message}`);
   }
 }
 
@@ -980,10 +1076,12 @@ export function getTabsBoundToFile(fileNodeId) {
  * @returns {Promise<string>} 新标签页的 UUID
  */
 export async function openFileInTab(fileNode, editorId = undefined) {
-  const content = await fileNode.read();
-  const tabId = await commands.executeCommand("editor.open", content, editorId, fileNode.name);
+  const resolved = ensureNode(fileNode, "fileNode");
+  if (resolved.type !== "file") throw new Error("只能打开文件节点");
+  const content = await resolved.read();
+  const tabId = await commands.executeCommand("editor.open", content, editorId, resolved.name);
   // 建立绑定
-  bindTabToFile(tabId, fileNode);
+  bindTabToFile(tabId, resolved);
   return tabId;
 }
 
@@ -1020,14 +1118,15 @@ export async function saveToFile(tabId = tabs.getCurrentTabId()) {
 /**
  * 将当前标签页内容另存为新文件
  * @param {string} fileName
- * @param {FolderNode} [targetFolder] 目标文件夹，默认根目录
+ * @param {FolderNode|string} [targetFolder] 目标文件夹（节点或路径），默认根目录
  * @param {string|number} [tabId] 标签页
  * @returns {Promise<FileNode>}
  */
 export async function saveAsToFile(fileName, targetFolder = null, tabId = tabs.getCurrentTabId()) {
   const tab = tabs.getTab(tabId);
-  const folder = targetFolder || currentFileSystem;
-  if (!folder) throw new Error("没有可用的文件系统目标");
+  const raw = targetFolder || currentFileSystem;
+  if (!raw) throw new Error("没有可用的文件系统目标");
+  const folder = ensureFolder(raw, undefined, "targetFolder");
 
   const fileNode = await createFile(folder, fileName);
   const data = tab.instance.getData();
