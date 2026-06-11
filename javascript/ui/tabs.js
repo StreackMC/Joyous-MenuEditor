@@ -3,6 +3,7 @@ import i18n from "../i18n.js";
 import { Editor } from "../editor/editor.js";
 import v4 from "../library/uuidjs/v4.js";
 import editorManager from "../backend/editorManager.js";
+import UI from "./utils.js";
 const uuidv4 = v4;
 
 /*
@@ -88,6 +89,12 @@ function newEditorWelcome(...arg) {
 
 const eTabs = document.getElementById("editor-tabs");
 const eView = document.getElementById("editor-views");
+/**
+ * 存储标签页 UUID → FileNode 的映射关系。
+ * 用于在保存时快速找到对应文件。
+ * @type {Map<string, FileNode>}
+ */
+export const tab2File = new Map();
 /**
  * 存储UUID到Tab的关系
  * @type {Map<string,Tab>}
@@ -198,17 +205,20 @@ export function openTab(editorInstance = newEditorWelcome(), name = i18n.parseSa
 }
 
 /**
- * 关闭全部标签页
+ * 关闭全部标签页。注意异步。
  */
-export function closeAllTabs() {
-  tabs.forEach((id) => { closeTab(id); });
+export async function closeAllTabs() {
+  for (const element of tabs) {
+    await closeTab(element);
+  }
 }
 
 /**
- * 关闭指定标签页
+ * 关闭指定标签页。注意异步。
  * @param {number|string} index 以 0 开始为索引；使用文本时自动视作UUID
+ * @throws
  */
-export function closeTab(index = currentTab) {
+export async function closeTab(index = currentTab) {
   let target, origin;
   // 解析并切换到目标标签页
   try {
@@ -223,11 +233,22 @@ export function closeTab(index = currentTab) {
   } catch (error) {
     throw new Error(i18n.parseSafe("msg.missing_tab", { index: index }));
   }
+  const targetTab = tabsMap.get(target);
   switchTab(target);
 
   // 保存数据
-  // todo: 需要能够弹出弹窗询问是否保存
-  try { commands.executeCommand("editor.save"); } catch (e) { };
+  const fileNodeOfTheTab = tab2File.get(target);
+  if (fileNodeOfTheTab && targetTab.instance.getData() != await window.joyous.filesGetData(fileNodeOfTheTab)) {
+    // 数据不一样，需要询问是否保存
+    const userRsp = await UI.dialog(i18n.parseSafe("msg.unsaved.title"), i18n.parseSafe("msg.unsaved.tip", { target: window.joyous.filesGetName(fileNodeOfTheTab) }), true, [i18n.parseSafe("tooltip.nosave"), i18n.parseSafe("tooltip.save")]);
+    // 如果取消，就会抛错，传递上层，否则处理：
+    if (userRsp == 1) {
+      // 保存
+      commands.executeCommand("files.save");
+    }
+  } else {
+    console.warn("无法为标签页", targetTab, "找到对应的文件绑定，试图寻找时返回了", fileNodeOfTheTab);
+  }
 
   // 先处理动画
   if (target != origin) {
@@ -237,13 +258,12 @@ export function closeTab(index = currentTab) {
   };
 
   // 销毁标签页
-  const targetTab = tabsMap.get(target);
   targetTab.instance.destroy();
   targetTab.switcher.root.remove();
   tabs.splice(tabs.indexOf(target), 1);
   targetTab.frame.remove();
   tabsMap.delete(target);
-  commands.executeCommand(/* 解绑这个标签页与file的关系 */"files.tablink.close", target);
+  tab2File.delete(target);
 
   // 切换回来
   if (target != origin) {

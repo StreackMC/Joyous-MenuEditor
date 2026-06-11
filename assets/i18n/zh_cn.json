@@ -10,6 +10,8 @@
   "tooltip": {
     "explorerSwitcher": "切换侧栏",
     "appbarToolsFolded": "工具箱",
+    "save": "保存",
+    "nosave": "不保存",
     "saveTo": "保存文件",
     "saveAs": "另存为",
     "open": "打开",
@@ -20,8 +22,7 @@
     "command_panel": "命令面板",
     "about": "关于",
     "confirm": "确定",
-    "cancel": "取消",
-    "save": "保存"
+    "cancel": "取消"
   },
   "about": {
     "title": "关于 Joyous 菜单编辑器",
@@ -128,6 +129,10 @@
     "savedWith": "已保存 %target%",
     "savedTo": "已保存到 %path%",
     "savedWithTo": "已保存 %target% 到 %path%",
-    "unable_to_open": "无法打开 %target% ： %reason%"
+    "unable_to_open": "无法打开 %target% ： %reason%",
+    "unsaved": {
+      "title": "未保存的更改",
+      "tip": "文件 %target% 看起来还没有保存。要怎么做？"
+    }
   }
 }

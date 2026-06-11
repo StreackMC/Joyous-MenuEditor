@@ -45,6 +45,13 @@ s-dialog::part(scrim)::before {
   opacity: .35;
 }
 
+s-dialog[disable-forced-size]::part(container), s-bottom-sheet[disable-forced-size]::part(container) {
+  width: var(--w, fit-content);
+  height: var(--h, fit-content);
+  min-width: fit-content;
+  min-height: fit-content;
+}
+
 /* command panel */
 #command-panel {
   --panel-width: 70%;

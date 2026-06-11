@@ -1,9 +1,11 @@
 import commands from "./commandServer.js";
-import tabs from "../ui/tabs.js";
+import tabs, { tab2File } from "../ui/tabs.js";
 import { msg } from "../ui/utils.js";
 import i18n from "../i18n.js";
 import { v4 as uuidv4 } from "../library/uuidjs/v4.js";
 import { IndexedDB } from "./webstorage.js";
+
+if (!window.joyous) window.joyous = {};
 
 // ==================== 核心数据结构 ====================
 
@@ -197,6 +199,21 @@ export class FileNode {
       dirty: this.dirty,
       lastSavedTimestamp: this.lastSavedTimestamp,
     };
+  }
+}
+// 给 tabs.js 用的，获取数据
+window.joyous.filesGetData = async function (node) {
+  if (node instanceof FileNode) {
+    return await node.read();
+  } else {
+    return undefined;
+  }
+}
+window.joyous.filesGetName = function (node) {
+  if (node instanceof FileNode || node instanceof FolderNode) {
+    return node.name;
+  } else {
+    return undefined;
   }
 }
 
@@ -1019,13 +1036,6 @@ function generateCopyName(originalName, targetFolder) {
 }
 
 // ==================== 与标签页的协作 ====================
-
-/**
- * 存储标签页 UUID → FileNode 的映射关系。
- * 用于在保存时快速找到对应文件。
- * @type {Map<string, FileNode>}
- */
-export const tab2File = new Map();
 
 /**
  * 将标签页绑定到文件节点
