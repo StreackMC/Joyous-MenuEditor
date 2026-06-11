@@ -127,6 +127,7 @@
     "saved": "已保存",
     "savedWith": "已保存 %target%",
     "savedTo": "已保存到 %path%",
-    "savedWithTo": "已保存 %target% 到 %path%"
+    "savedWithTo": "已保存 %target% 到 %path%",
+    "unable_to_open": "无法打开 %target% ： %reason%"
   }
 }

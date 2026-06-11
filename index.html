@@ -124,10 +124,10 @@
             $tooltip.open$
             <s-icon slot="end" name="arrow_drop_right"></s-icon>
           </s-popup-menu-item>
-          <s-popup-menu-item data-i18n data-click="editor.openFile">
+          <s-popup-menu-item data-i18n data-click="files.open">
             $tooltip.openFile$
           </s-popup-menu-item>
-          <s-popup-menu-item data-i18n data-click="editor.openFolder">
+          <s-popup-menu-item data-i18n data-click="files.openFolder">
             $tooltip.openFolder$
           </s-popup-menu-item>
         </s-popup-menu>
@@ -151,9 +151,11 @@
     <!-- 侧边栏与主面板 -->
     <s-drawer>
       <!-- 侧边栏 -->
-      <div id="explorer" slot="start"><s-scroll-view class="unselectable" style="height: 100%; padding-bottom: 1rem;">
-          <!--  -->
-        </s-scroll-view></div>
+      <div id="left-sidebar" slot="start"><s-scroll-view class="unselectable">
+        <s-menu id="explorer">
+
+        </s-menu>
+      </s-scroll-view></div>
 
       <!-- 编辑器 -->
       <div id="editor">

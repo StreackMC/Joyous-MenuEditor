@@ -16,8 +16,8 @@ const h = `
 </div>
 <s-button data-i18n type="outlined" slot="action" data-click="panel.mctext.open">$panel.mctext.astool$</s-button>
 <s-button data-i18n type="outlined" slot="action" data-click="panel.mcgradient.open">$panel.mcgradient.astool$</s-button>
-<s-button data-i18n slot="action" data-click="editor.openFile">$editor.actions.openFile$</s-button>
-<s-button data-i18n slot="action" data-click="editor.openFolder">$editor.actions.openFolder$</s-button>
+<s-button data-i18n slot="action" data-click="files.open">$editor.actions.openFile$</s-button>
+<s-button data-i18n slot="action" data-click="files.openFolder">$editor.actions.openFolder$</s-button>
 `;
 const EditorId = "welcome";
 

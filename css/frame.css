@@ -83,6 +83,10 @@ iframe {
   flex: 1;
 }
 
+s-menu {
+  border: solid 1px var(--s-color-outline-variant, #C0C8CC);
+}
+
 /* appbar */
 
 s-appbar {
@@ -100,9 +104,18 @@ s-drawer {
   align-items: stretch;
 }
 
-#explorer {
+#left-sidebar {
   display: flex;
   flex-direction: column;
+}
+
+#left-sidebar s-scroll-view, #left-sidebar > * > s-menu {
+  height: calc(100% - 8px);
+  background-color: transparent;
+}
+
+#explorer {
+  border: none;
 }
 
 /* editor frame */

@@ -476,7 +476,7 @@ export async function openFolder() {
   nodeMap.clear();
   currentFileSystem = null;
   tab2File.clear();
-  eventListeners.clear();
+  //eventListeners.clear();
 
   // ---- 第 3 步：请求用户选择文件夹 ----
   try {
