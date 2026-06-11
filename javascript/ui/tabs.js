@@ -247,15 +247,24 @@ export async function closeTab(index = currentTab) {
   } else {
     fileNodeOfTheTab = null;
   }
-  if (fileNodeOfTheTab && targetTab.instance.getData() != await window.joyous.filesGetData(fileNodeOfTheTab)) {
-    // 数据不一样，需要询问是否保存
-    const userRsp = await UI.dialog(i18n.parseSafe("msg.unsaved.title"), i18n.parseSafe("msg.unsaved.tip", { target: window.joyous.filesGetName(fileNodeOfTheTab) }), true, [i18n.parseSafe("tooltip.nosave"), i18n.parseSafe("tooltip.save")]);
-    // 如果取消，就会抛错，传递上层，否则处理：
-    if (userRsp == 1) {
-      // 保存
-      commands.executeCommand("files.save");
+  if (fileNodeOfTheTab) {
+    // 对比当前编辑器数据和磁盘文件是否一致
+    const currentData = targetTab.instance.getData();
+    const diskData = await window.joyous.filesGetData(fileNodeOfTheTab);
+    if (currentData !== diskData) {
+      // 数据不一样，需要询问是否保存
+      const userRsp = await UI.dialog(
+        i18n.parseSafe("msg.unsaved.title"),
+        i18n.parseSafe("msg.unsaved.tip", { target: window.joyous.filesGetName(fileNodeOfTheTab) }),
+        true,
+        [i18n.parseSafe("tooltip.nosave"), i18n.parseSafe("tooltip.save")]
+      );
+      if (userRsp == 1) {
+        await commands.executeCommand("files.save");
+      }
     }
-  } else {
+  } else if (targetTab.instance.requireFlush) {
+    // requireFlush 为 true 却找不到文件绑定 → 预期外情况，给出警告
     console.warn("无法为标签页", targetTab, "找到对应的文件绑定，试图寻找时返回了", fileNodeOfTheTab);
   }
 

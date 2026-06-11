@@ -9,12 +9,13 @@ div.ace-editor-joyous { height:100%; }
 
 export class EditorAce extends Editor {
   /**
-   * @param {string} content - 文件内容
+   * @param {string} content - 文件内容（已由 editorManager.ensureText 处理为字符串）
    * @param {string} fileName - 文件名（用于检测语言和显示标题）
    */
   constructor(content, fileName) {
     super(content);
-    this.content = editorManager.ensureText(content) || '';
+    // 注意：content 由调用方（editorManager.openEditor）通过 await ensureText() 处理后传入，保证为字符串
+    this.content = (typeof content === 'string') ? content : String(content ?? '');
     this.fileName = fileName || 'untitled';
     this.container = null;
     this.editorInstance = null;
@@ -46,9 +47,9 @@ export class EditorAce extends Editor {
 
   async setData(content) {
     // 仅更新内容，文件名不变
-    this.content = editorManager.ensureText(content);
+    this.content = (typeof content === 'string') ? content : String(content ?? '');
     if (this.editorInstance) {
-      this.editorInstance.setValue(editorManager.ensureText(content) || '', -1);
+      this.editorInstance.setValue(this.content, -1);
     }
   }
 

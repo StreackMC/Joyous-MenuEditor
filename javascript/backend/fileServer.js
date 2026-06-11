@@ -159,8 +159,6 @@ export class FileNode {
   /**
    * 采样验证文件是否可能是二进制不可读文件。
    * 
-   * 具体为片段采样，当阳性或者存在空子节即判定为不可读。
-   * 
    * @param {number} [sampleSize=4096] 采样精度：单位 B ，越大越准确但是越卡
    * @param {number} [sampleRate=0.05] 采样阳性指标：当命中不可打印字符比例不小于这个值时判定为不可读
    */
@@ -168,12 +166,10 @@ export class FileNode {
     const file = await this.handle.getFile();
     const buffer = await file.slice(0, sampleSize).arrayBuffer();
     const bytes = new Uint8Array(buffer);
-    let nullCount = 0;
     let nonPrintableCount = 0;
 
     for (let i = 0; i < bytes.length; i++) {
       const b = bytes[i];
-      if (b === 0) nullCount++;
       // 非 ASCII 可打印字符（小于 32 且不是 9、10、13）或大于 126
       if ((b < 32 && b !== 9 && b !== 10 && b !== 13) || b > 126) {
         nonPrintableCount++;
@@ -182,7 +178,7 @@ export class FileNode {
 
     // 规则：空字节 > 0 或非打印字符比例 >= 输入值 视为二进制
     const ratio = nonPrintableCount / bytes.length;
-    return nullCount > 0 || ratio >= sampleRate;
+    return ratio >= sampleRate;
   }
 
   /**
@@ -1232,8 +1228,9 @@ export async function openFileInTab(fileNode, editorId = undefined) {
   // 查找重复绑定，避免数据竞态
   const result = getTabsBoundToFile(fileNode.id);
   if (result.length != 0) {
-    tabs.switchTab(result.pop());
-    return;
+    const existingTabId = result.pop();
+    tabs.switchTab(existingTabId);
+    return existingTabId; // 返回已有标签页的 UUID，保持返回值语义一致
   }
 
   const tabId = await commands.executeCommand("editor.open", resolved, editorId, resolved.name);
@@ -1483,21 +1480,15 @@ export async function restoreFileSystem() {
   console.log(`工作区恢复成功：${state.rootName}（${rootNode.children.size} 个子节点）`);
 
   // ---- 第 5 步：恢复标签页 ----
+  // 复用 openFileInTab 逻辑（传递 FileNode 而非文本，以便触发大小/二进制检测）
   const { bindings } = state;
   let restoredTabs = 0;
   for (const [oldTabId, fileNodeId] of Object.entries(bindings)) {
     const fileNode = nodeMap.get(fileNodeId);
     if (fileNode && fileNode.type === "file") {
       try {
-        const content = await fileNode.read();
-        const newTabId = await commands.executeCommand(
-          "editor.open",
-          content,
-          undefined,
-          fileNode.name
-        );
-        bindTabToFile(newTabId, fileNode);
-        restoredTabs++;
+        const newTabId = await openFileInTab(fileNode);
+        if (newTabId) restoredTabs++;
       } catch (e) {
         console.warn(`无法恢复标签页 "${fileNode.name}"：`, e);
       }
@@ -1649,6 +1640,21 @@ commands.regisiterCommand("files.reset", () => resetFileSystem());
 commands.regisiterCommand("files.checkPermission", () => checkFileSystemPermission());
 
 // ==================== 模块初始化 ====================
+
+/**
+ * 清除 autosave 遗留数据。
+ * 文件系统恢复成功后会通过 openFileInTab 打开标签页并绑定文件，
+ * 而 autosave.recover 如果发现数据也会尝试打开标签页，导致重复。
+ * 故在模块加载时（早于 main.js 调用 autosave.recover）同步清除。
+ */
+function clearAutosaveData() {
+  try {
+    localStorage.removeItem("autosave.data");
+    localStorage.removeItem("autosave.which");
+    localStorage.removeItem("autosave.untitledCount");
+  } catch (_) { /* 静默忽略 */ }
+}
+clearAutosaveData();
 
 /** 页面加载时尝试恢复工作区并启动权限监控 */
 (async function initFileServer() {
