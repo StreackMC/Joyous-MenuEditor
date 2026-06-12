@@ -46,7 +46,9 @@ commands.regisiterCommand("about", versionDialogPopup);
 commands.regisiterCommand("ver", versionDialogPopup);
 
 // 打开默认标签页并恢复工作区
-commands.executeCommand("autosave.recover");
+document.addEventListener("load", () => {
+  commands.executeCommand("autosave.recover");
+})
 
 // 注册自动保存
 let autoSaveInterval = setInterval(() => {

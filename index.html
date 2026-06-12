@@ -423,28 +423,35 @@
       </svg>
     </s-icon>
     <p>正在加载 Joyous Menu Editor</p>
-    <script>
+    <script id="loading-script">
       window.joyous = {};
-      const ele = document.getElementById("loading");
-      const p = document.querySelector("div#loading p");
-      function putErrorStatusOnLoading(msg) {
-        if (!ele) { return; };
-        ele.dataset.status = "error";
-        p.innerHTML = msg;
-      };
-      window.addEventListener('load', () => {
-        if (ele.dataset.status == "loading") {
-          setTimeout(() => {
-            ele.style = "opacity:0;pointer-events:none;";
-            ele.addEventListener('transitionend', () => {
-              ele.remove();
-            }, { once: true });
-          }, 1000);
+      (function () {
+        // 独立作用域防止污染环境
+        const ele = document.getElementById("loading");
+        const script = document.getElementById("loading-script");
+        const p = document.querySelector("div#loading p");
+        const timeouts = [];
+        function putErrorStatusOnLoading(msg) {
+          if (!ele) { return; };
+          ele.dataset.status = "error";
+          p.innerHTML = msg;
         };
-      });
-      setTimeout(() => { if (ele && ele.dataset.status == "loading") { p.innerHTML = "仍在加载 Joyous Menu Editor"; }; }, 15e3);
-      setTimeout(() => { if (ele && ele.dataset.status == "loading") { p.innerHTML = "仍在加载 Joyous Menu Editor<br>似乎用了很长时间，请检查网络连接。"; }; }, 35e3);
-      setTimeout(() => { if (ele && ele.dataset.status == "loading") { p.innerHTML = "仍在加载 Joyous Menu Editor<br>似乎无法加载。清除缓存后再试，若仍失败请联系我们。"; }; }, 90e3);
+        timeouts.push((() => { if (ele && ele.dataset.status == "loading") { p.innerHTML = "仍在加载 Joyous Menu Editor"; }; }, 15e3));
+        timeouts.push((() => { if (ele && ele.dataset.status == "loading") { p.innerHTML = "仍在加载 Joyous Menu Editor<br>似乎用了很长时间，请检查网络连接。"; }; }, 35e3));
+        timeouts.push((() => { if (ele && ele.dataset.status == "loading") { p.innerHTML = "仍在加载 Joyous Menu Editor<br>似乎无法加载。清除缓存后再试，若仍失败请联系我们。"; }; }, 90e3));
+        window.addEventListener('load', () => {
+          if (ele.dataset.status == "loading") {
+            setTimeout(() => {
+              ele.style = "opacity:0;pointer-events:none;";
+              ele.addEventListener('transitionend', () => {
+                ele.remove();
+                script.remove();
+              }, { once: true });
+            }, 1000);
+          };
+          timeouts.forEach((v, i) => { clearTimeout(v); });
+        });
+      })();
     </script>
   </div>
   <script type="module" src="./javascript/editor/editorImport.js"></script>
