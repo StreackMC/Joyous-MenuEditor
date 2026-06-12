@@ -224,7 +224,10 @@ export function parseSafe(key, params = {}) {
 }
 
 let defaultLangResponse = await fetch(`./assets/i18n/zh_cn.json`);
+let defaultTranslations;
 if (!defaultLangResponse.ok) {
+  defaultTranslations = new JSON();
   putErrorStatusOnLoading("无法加载默认语言文件");
+} else {
+  defaultTranslations = await defaultLangResponse.json();
 };
-const defaultTranslations = await defaultLangResponse.json();

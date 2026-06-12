@@ -15,7 +15,7 @@ export class EditorBrowser extends Editor {
    */
   constructor(data, filename) {
     super();
-    this.url = data;
+    this.url = "./iframe_handle.html?url=" + data;
   };
   /**
    * 获取编辑器的标识符

@@ -109,6 +109,14 @@
       "headline": "欢迎",
       "text1": "您可以打开一个文件来开始编辑菜单。<br>在支持的浏览器上，也支持打开文件夹作为工作区以批量编辑菜单。",
       "text2": "或者：<a target='_blank' href='https://github.com/StreackMC/Joyous/releases'>获取Joyous插件</a>"
+    },
+    "browser": {
+      "title": {
+        "beforeload": "安全提示"
+      },
+      "text": {
+        "beforeload": "您正访问外部站点 <span title=\"%url%\">%target%</span> ：<br><ul><li>外部站点无法确保安全性，可能会干扰本应用的运行；</li><li>部分站点禁止在嵌套中运行，因此该页面可能不会正常展示。</li></ul>"
+      }
     }
   },
   "msg": {
