@@ -145,7 +145,7 @@ export class Tab {
     // 构建元素
     this.switcher.root.value = this.id;
     this.switcher.content.slot = "text";
-    this.switcher.content.innerHTML = this.name;
+    this.switcher.content.innerText = this.name;
     this.switcher.btn.innerHTML = '<s-icon name="close"></s-icon>';
     this.frame.classList.add("editor-frame");
     this.frame.dataset.hidden = "true";
@@ -165,6 +165,15 @@ export class Tab {
     this.switcher.content.appendChild(this.switcher.btn);
     this.switcher.root.appendChild(this.switcher.content);
   };
+
+  setTitle(text) {
+    if (!text) return;
+    this.switcher.content.innerText = text;
+  }
+
+  getTitle(text) {
+    return this.switcher.content.innerText;
+  }
 }
 
 // 双击标签页切换器的空白区域打开空编辑器

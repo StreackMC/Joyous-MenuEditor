@@ -1,5 +1,5 @@
 import commands from "./commandServer.js";
-import tabs, { tab2File } from "../ui/tabs.js";
+import tabs, { tab2File, Tab } from "../ui/tabs.js";
 import { msg, ask } from "../ui/utils.js";
 import i18n from "../i18n.js";
 import { v4 as uuidv4 } from "../library/uuidjs/v4.js";
