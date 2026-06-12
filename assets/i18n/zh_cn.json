@@ -130,6 +130,7 @@
     },
     "permission_revoked": "文件系统权限已被撤销，工作区已重置。可重新「打开工作区」以继续编辑。",
     "permission_denied_restore": "权限不足，无法自动恢复上一次的工作区。可通过「打开工作区」手动加载。",
+    "file_changed_external": "文件 %target% 已被外部程序修改。是否重新加载？",
     "saved": "已保存",
     "savedWith": "已保存 %target%",
     "savedTo": "已保存到 %path%",

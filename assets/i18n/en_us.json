@@ -10,6 +10,7 @@
   "msg": {
     "permission_revoked": "File system permission has been revoked. The workspace has been reset. Use \"Open Workspace\" to continue editing.",
     "permission_denied_restore": "Insufficient permission to restore the previous workspace. Use \"Open Workspace\" to load it manually.",
+    "file_changed_external": "File \"%target%\" has been modified externally. Reload?",
     "done": "OK"
   }
 }

@@ -1,6 +1,6 @@
 import commands from "./commandServer.js";
 import tabs, { tab2File } from "../ui/tabs.js";
-import { msg } from "../ui/utils.js";
+import { msg, ask } from "../ui/utils.js";
 import i18n from "../i18n.js";
 import { v4 as uuidv4 } from "../library/uuidjs/v4.js";
 import { IndexedDB } from "./webstorage.js";
@@ -614,6 +614,9 @@ export async function openFolder() {
     await clearAllStoredHandles();
     await persistAllHandles(rootNode);
 
+    // ---- 第 5 步：启动文件系统变更监视器 ----
+    startFileSystemWatcher();
+
     notifyFileSystemChange(FileSystemEvent.OPENED, { node: rootNode });
     return rootNode;
   } catch (err) {
@@ -632,6 +635,7 @@ export async function openFolder() {
  * 关闭当前文件系统（清空索引）
  */
 export function closeFileSystem() {
+  stopFileSystemWatcher();
   nodeMap.clear();
   currentFileSystem = null;
   // 同时清理标签页绑定
@@ -644,6 +648,9 @@ export function closeFileSystem() {
  * 在权限撤销、工作区恢复失败等场景下使用，比 closeFileSystem 更彻底。
  */
 export async function resetFileSystem() {
+  // 停止文件系统监视器
+  stopFileSystemWatcher();
+
   // 关闭所有标签页
   if (tabs.getTabsLength() > 0) {
     tabs.closeAllTabs();
@@ -1294,7 +1301,12 @@ export async function openFileInTab(fileNode, editorId = undefined) {
 }
 
 /**
- * 保存标签页内容到绑定的文件
+ * 保存标签页内容到绑定的文件。
+ *
+ * 若标签页未绑定文件（如从未保存过的新建标签页），则引导用户通过
+ * 浏览器保存对话框选择存储位置；若绑定文件已被外部删除/重命名，
+ * 则尝试在工作区中重建，重建失败时也回退到保存对话框。
+ *
  * @param {string|number} tabId 标签页 UUID 或索引
  */
 export async function saveToFile(tabId = tabs.getCurrentTabId()) {
@@ -1305,22 +1317,91 @@ export async function saveToFile(tabId = tabs.getCurrentTabId()) {
     throw new Error("无法保存数据：找不到标签页 #" + tabId);
   }
 
-  const fileNode = tab2File.get(tab.id);
-  if (!fileNode) {
-    // 未绑定文件 → 提示用户另存为新文件
-    throw new Error(i18n.parseSafe("msg.files.not_bound", { name: tab.name }));
-  }
-
   const data = tab.instance.getData();
   if (data === undefined || data === null) {
     throw new Error("编辑器没有返回有效数据");
   }
+  const serialized = typeof data === "string" ? data : JSON.stringify(data, null, 2);
 
-  await fileNode.save(typeof data === "string" ? data : JSON.stringify(data, null, 2));
-  // 更新标签页标题（去除脏标记）
-  if (fileNode.dirty === false) {
-    // 部分编辑器可能在标题上加 * 表示未保存
+  const fileNode = tab2File.get(tab.id);
+
+  // ── 情况 A：无 FileNode 绑定 → 引导用户选择保存位置 ──
+  if (!fileNode) {
+    await saveToNewFile(serialized, tab.id, tab.name);
+    return;
   }
+
+  // ── 情况 B：有绑定，尝试写入磁盘 ──
+  try {
+    await fileNode.save(serialized);
+  } catch (err) {
+    if (err.name === "NotFoundError") {
+      // 文件已被外部删除/重命名 → 尝试在工作区父目录中重建
+      const parent = getParent(fileNode);
+      if (parent && parent.handle) {
+        try {
+          const newHandle = await parent.handle.getFileHandle(fileNode.name, { create: true });
+          fileNode.handle = newHandle;
+          handleToNodeId.set(newHandle, fileNode.id);
+          await fileNode.save(serialized);
+          msg(
+            i18n.parseSafe("msg.savedWith", { target: fileNode.name }),
+            null, "success", 2000
+          );
+          return;
+        } catch (_) { /* 重建失败，降级到保存对话框 */ }
+      }
+      // 没有父目录或重建失败 → 回退到保存对话框
+      await saveToNewFile(serialized, tab.id, fileNode.name);
+      return;
+    }
+    throw err; // 其他错误正常抛出
+  }
+}
+
+/**
+ * 通过浏览器保存对话框将数据写入用户指定的新文件，
+ * 并自动建立标签页与文件的绑定关系。
+ * @param {string} data 序列化后的数据
+ * @param {string} tabId 标签页 UUID
+ * @param {string} suggestedName 建议的文件名
+ * @returns {Promise<FileNode>}
+ */
+async function saveToNewFile(data, tabId, suggestedName = "untitled.txt") {
+  if (!window.showSaveFilePicker) {
+    throw new Error("浏览器不支持保存文件。");
+  }
+  const handle = await window.showSaveFilePicker({
+    suggestedName,
+    types: [{
+      description: "文本/配置文件",
+      accept: {
+        "text/plain": [
+          ".txt", ".json", ".yaml", ".yml", ".cfg", ".conf",
+          ".ini", ".xml", ".md", ".js", ".ts", ".html", ".css",
+        ],
+      },
+    }],
+  });
+
+  const writable = await handle.createWritable();
+  await writable.write(data);
+  await writable.close();
+
+  // 创建 FileNode 并绑定到此标签页
+  const fileNode = new FileNode(handle.name, handle);
+  nodeMap.set(fileNode.id, fileNode);
+  handleToNodeId.set(handle, fileNode.id);
+  bindTabToFile(tabId, fileNode);
+
+  const file = await handle.getFile();
+  fileNode.lastSavedTimestamp = file.lastModified;
+
+  msg(
+    i18n.parseSafe("msg.savedTo", { path: fileNode.name }),
+    null, "success", 2000
+  );
+  return fileNode;
 }
 
 /**
@@ -1392,6 +1473,129 @@ export function loadFileSystemState() {
     };
   } catch {
     return null;
+  }
+}
+
+// ==================== 文件系统变更监视器（高性能轮询） ====================
+
+/** 监视器的定时器 ID，用于清理 */
+let _watcherTimer = null;
+
+/** 监视器的配置 */
+const WATCHER_INTERVAL_TREE = 5000;   // 目录结构检查间隔（ms）
+const WATCHER_INTERVAL_FILE = 10000;  // 已打开文件的外部修改检查间隔（ms）
+let _watcherFileTick = 0;
+
+/**
+ * 快速比对根目录的子节点列表是否发生变化（仅比较名称集合）。
+ * 不递归深层目录以保持高性能。
+ * @param {FolderNode} rootNode
+ * @returns {Promise<boolean>} 有变动返回 true
+ */
+async function hasTreeStructureChanged(rootNode) {
+  const diskNames = new Set();
+  try {
+    for await (const entry of rootNode.handle.values()) {
+      diskNames.add(entry.name);
+    }
+  } catch (_) {
+    return false; // 权限不足时忽略
+  }
+
+  const memoryNames = new Set();
+  for (const child of rootNode.children.values()) {
+    memoryNames.add(child.name);
+  }
+
+  if (diskNames.size !== memoryNames.size) return true;
+  for (const name of diskNames) {
+    if (!memoryNames.has(name)) return true;
+  }
+  return false;
+}
+
+/**
+ * 检查所有已打开（有标签页绑定）的文件是否被外部程序修改，
+ * 若有则询问用户是否重新加载。
+ */
+async function checkExternalFileModifications() {
+  for (const [tabId, fileNode] of tab2File) {
+    if (!fileNode.handle || fileNode.lastSavedTimestamp === null) continue;
+    try {
+      const file = await fileNode.handle.getFile();
+      if (file.lastModified !== fileNode.lastSavedTimestamp) {
+        const tab = tabs.getTab(tabId);
+        const userRsp = await ask(
+          i18n.parseSafe("tooltip.tip"),
+          i18n.parseSafe("msg.file_changed_external", { target: fileNode.name })
+        );
+        if (userRsp) {
+          // 用户确认重新加载
+          const content = await fileNode.read();
+          tab.instance.setData(content);
+          fileNode.lastSavedTimestamp = file.lastModified;
+        } else {
+          // 用户忽略本次变更，更新时间戳避免反复弹窗
+          fileNode.lastSavedTimestamp = file.lastModified;
+        }
+      }
+    } catch (_) {
+      // 文件可能已被删除，忽略
+    }
+  }
+}
+
+/**
+ * 文件系统变更监视器执行体。
+ * - 每 5s 检查根目录子节点名称集合是否变化 → 变化时触发刷新并推送前端
+ * - 每 10s 检查已打开文件的外部修改 → 变化时询问用户是否重新加载
+ */
+async function watcherTick() {
+  if (!currentFileSystem) return;
+
+  // 目录结构检测
+  try {
+    if (await hasTreeStructureChanged(currentFileSystem)) {
+      console.log("检测到文件系统结构变化，正在刷新……");
+      // 只刷新根节点级别的 children，深层目录由前端展开时自动同步
+      await refreshFolder(currentFileSystem);
+      // refreshFolder 已发出 REFRESHED 事件，前端会自动重绘
+    }
+  } catch (e) {
+    console.warn("文件系统结构检测失败：", e);
+  }
+
+  // 已打开文件的外部修改检测（降低频率）
+  _watcherFileTick++;
+  if (_watcherFileTick * WATCHER_INTERVAL_TREE >= WATCHER_INTERVAL_FILE) {
+    _watcherFileTick = 0;
+    try {
+      await checkExternalFileModifications();
+    } catch (e) {
+      console.warn("外部修改检测失败：", e);
+    }
+  }
+}
+
+/**
+ * 启动文件系统变更监视器。
+ * 在成功打开工作区后调用。
+ */
+function startFileSystemWatcher() {
+  stopFileSystemWatcher();
+  _watcherFileTick = 0;
+  _watcherTimer = setInterval(watcherTick, WATCHER_INTERVAL_TREE);
+  console.log(`文件系统监视器已启动（目录:${WATCHER_INTERVAL_TREE}ms, 文件:${WATCHER_INTERVAL_FILE}ms）`);
+}
+
+/**
+ * 停止文件系统变更监视器。
+ * 在关闭/重置文件系统时调用。
+ */
+function stopFileSystemWatcher() {
+  if (_watcherTimer !== null) {
+    clearInterval(_watcherTimer);
+    _watcherTimer = null;
   }
 }
 
@@ -1550,7 +1754,10 @@ export async function restoreFileSystem() {
     console.log(`已恢复 ${restoredTabs} 个标签页`);
   }
 
-  // ---- 第 6 步：通知前端 ----
+  // ---- 第 6 步：启动文件系统监视器 ----
+  startFileSystemWatcher();
+
+  // ---- 第 7 步：通知前端 ----
   notifyFileSystemChange(FileSystemEvent.OPENED, {
     node: rootNode,
     restored: true,
