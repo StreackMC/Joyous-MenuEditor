@@ -1712,6 +1712,11 @@ clearAutosaveData();
   } else {
     console.log("无工作区可恢复，等待用户操作");
   }
+
+  // 在加载完成后恢复Editor
+  document.addEventListener("load", () => {
+    commands.executeCommand("autosave.recover");
+  });
 })();
 
 export default {
