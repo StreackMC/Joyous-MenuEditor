@@ -1947,6 +1947,11 @@ clearAutosaveData();
 (async function initFileServer() {
   // 先初始化权限监控（即使没有工作区也要挂载监听）
   initPermissionMonitor();
+  
+    // 在加载完成后恢复Editor
+    window.addEventListener("load", () => {
+      commands.executeCommand("autosave.recover");
+    });
 
   // 尝试恢复上一次的工作区
   const restored = await restoreFileSystem();
@@ -1955,11 +1960,6 @@ clearAutosaveData();
   } else {
     console.log("无工作区可恢复，等待用户操作");
   }
-
-  // 在加载完成后恢复Editor
-  document.addEventListener("load", () => {
-    commands.executeCommand("autosave.recover");
-  });
 })();
 
 export default {
