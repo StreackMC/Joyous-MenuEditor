@@ -125,6 +125,10 @@ s-tab {
   height: 48px;
 }
 
+s-tab::part(container) {
+  padding-right: 44px;
+}
+
 #editor-tabs>s-tab-item s-icon-button {
   margin-left: .3rem;
   /* padding-left: 1rem; */

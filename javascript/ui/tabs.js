@@ -89,6 +89,7 @@ function newEditorWelcome(...arg) {
 
 const eTabs = document.getElementById("editor-tabs");
 const eView = document.getElementById("editor-views");
+//const eScroll = eTabs.ShadowRoot.querySelector("div.container");
 /**
  * 存储标签页 UUID → FileNode 的映射关系。
  * 用于在保存时快速找到对应文件。
@@ -182,6 +183,22 @@ eTabs.addEventListener("dblclick", (e) => {
   e.stopPropagation();
   commands.executeCommand("editor.open");
 });
+
+// 滚动转为水平
+// let rafId = null, pendingScroll = 0;
+// eTabs.addEventListener("wheel", (e) => {
+//   e.stopImmediatePropagation();
+//   e.preventDefault();
+//   pendingScroll += e.deltaY + e.deltaX;
+
+//   // 使用 requestAnimationFrame 合并更新，提升性能
+//   if (rafId) cancelAnimationFrame(rafId);
+//   rafId = requestAnimationFrame(() => {
+//     eScroll.scrollLeft += pendingScroll * /* 滚动系数 */0.5;
+//     pendingScroll = 0;
+//     rafId = null;
+//   });
+// });
 
 /**
  * 打开一个标签页，默认使用「欢迎」
