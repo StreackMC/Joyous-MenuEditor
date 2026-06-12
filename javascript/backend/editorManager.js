@@ -56,13 +56,14 @@ export async function openEditor(data = "", editorId = undefined, fname = null) 
       let title;
       try {
         title = func.apply(this, [data, fname]);
-        if (!title) { throw new Error("目标编辑器不支持打开此类文件"); };
+        if (!title) { title = "Untitled-" + getUntitledId(); };
       } catch (error) {
         console.warn(`强制使用编辑器 ${editorId} 时，无法获取编辑器标题：`, error, "\n 目标数据：", data);
         title = fname;
+      } finally {
+        const tabId = tabs.openTab(new clazz(data, fname), title);
+        return tabId;
       }
-      const tabId = tabs.openTab(new clazz(data, fname), title);
-      return tabId;
     };
   } catch (error) {
     throw new Error(i18n.parseSafe("msg.unknownEditor", { editor: editorId }));
