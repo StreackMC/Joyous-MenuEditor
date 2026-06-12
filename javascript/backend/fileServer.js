@@ -508,7 +508,31 @@ export function notifyFileSystemChange(eventType, detail = {}) {
 // ==================== 打开 / 关闭文件系统 ====================
 
 /**
- * 打开单个文件（通过浏览器文件选择器）
+ * 在 nodeMap 中查找与给定 FileSystemHandle 指向相同文件/目录的节点。
+ * 使用 FileSystemHandle.isSameEntry() 进行底层比对，而非句柄引用。
+ * @param {FileSystemHandle} handle
+ * @returns {Promise<FileNode|FolderNode|null>}
+ */
+async function findNodeByHandle(handle) {
+  for (const [, node] of nodeMap) {
+    if (!node.handle || typeof node.handle.isSameEntry !== 'function') continue;
+    try {
+      if (await node.handle.isSameEntry(handle)) {
+        return node;
+      }
+    } catch (_) {
+      // 权限不足或句柄失效，跳过此节点
+    }
+  }
+  return null;
+}
+
+/**
+ * 打开单个文件（通过浏览器文件选择器）。
+ *
+ * 如果选中的文件已存在于当前工作区文件树（或其句柄指向同一底层文件），
+ * 则直接返回已有的 FileNode，避免重复节点和编辑器。
+ *
  * @returns {Promise<FileNode|null>} 用户取消时返回 null
  */
 export async function openFile() {
@@ -526,6 +550,14 @@ export async function openFile() {
       excludeAcceptAllOption: false,
       multiple: false,
     });
+
+    // 检查是否已在现行文件系统中——避免同一个文件产生重复的 FileNode
+    const existing = await findNodeByHandle(handle);
+    if (existing) {
+      console.log(`文件 "${existing.name}" 已在文件系统中，返回已有节点`);
+      return existing;
+    }
+
     const file = await handle.getFile();
     const node = new FileNode(file.name, handle);
     nodeMap.set(node.id, node);
@@ -1623,7 +1655,11 @@ export function getNodeById(id) {
 // ==================== 命令注册 ====================
 
 /* 文件基础操作 */
-commands.regisiterCommandWithHotkey("files.open", () => openFile(), "ctrl+o");
+commands.regisiterCommandWithHotkey("files.open", async () => {
+  const fileNode = await openFile();
+  if (!fileNode) return;
+  openFileInTab(fileNode);
+}, "ctrl+o");
 commands.regisiterCommand("files.openFolder", () => openFolder());
 commands.regisiterCommand("files.close", () => closeFileSystem());
 
