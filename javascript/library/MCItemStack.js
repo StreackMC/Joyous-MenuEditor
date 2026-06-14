@@ -894,7 +894,7 @@ export class HTMLmcItemDisplay extends HTMLElement {
         this._tooltipTitleEl.innerHTML = MCColors.toHtml("§f" + value) || '';
         break;
       case 'lore':
-        this._tooltipDescEl.innerHTML = MCColors.toHtml(value.replace(/\n/g, `\n§o§5`)) || '';
+        this._tooltipDescEl.innerHTML = MCColors.toHtml((value || '').replace(/\n/g, `\n§o§5`)) || '';
         break;
       default:
         break;

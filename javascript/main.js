@@ -8,6 +8,7 @@ import command_panel from "./ui/panels/command.js";
 import { regEditorsClazz } from "./backend/editorManager.js";
 import autosave from "./backend/autosave.js";
 import mcText from "./ui/panels/mctext.js";
+import mcItem from "./ui/panels/mcitem.js";
 import mcGradient from './ui/panels/mcgradient.js';
 import fileServer from "./backend/fileServer.js";
 import fileSidebar from "./ui/fileSidebar.js";

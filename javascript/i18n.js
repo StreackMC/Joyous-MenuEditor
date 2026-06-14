@@ -8,6 +8,7 @@ export default {
   parse, parseSafe, load, refresh,
   getCurrentUrl,
   getCurrentTranslations: () => { return currentTranslations; },
+  getDefaultTranslations: () => { return defaultTranslations; },
 };
 
 /** 当前加载的翻译数据对象 */

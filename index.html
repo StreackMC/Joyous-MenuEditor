@@ -366,7 +366,68 @@
       <s-button slot="action" id="mctext-panel-btn-cancel" data-i18n type="text">$tooltip.cancel$</s-button>
       <s-button slot="action" id="mctext-panel-btn-confirm" data-i18n type="text">$tooltip.confirm$</s-button>
     </s-dialog>
+    
+    <!-- MC物品编辑面板 -->
+    <s-dialog disable-bg-close id="mcitem-panel">
+      <div slot="headline" data-i18n class="unselectable">$panel.mcitem.title$</div>
+      <div slot="text" class="unselectable">
+        <!-- 物品基本属性表单 -->
+        <div class="mcitem-form">
+          <div class="mcitem-form-row">
+            <div class="mcitem-form-field flex-3">
+              <s-text-field id="mcitem-id" data-i18n label="$panel.mcitem.fields.id$">
+                <s-icon-button id="mcitem-id-browse" slot="end">
+                  <s-icon name="search"></s-icon>
+                </s-icon-button>
+              </s-text-field>
+            </div>
+            <div class="mcitem-form-field flex-1">
+              <s-text-field id="mcitem-amount" data-i18n type="number" label="$panel.mcitem.fields.amount$" value="1"></s-text-field>
+            </div>
+          </div>
+          <div class="mcitem-form-row">
+            <div class="mcitem-form-field flex-3">
+              <s-text-field id="mcitem-model" data-i18n label="$panel.mcitem.fields.model$"></s-text-field>
+            </div>
+            <div class="mcitem-form-field glint-field flex-1">
+              <label data-i18n>$panel.mcitem.fields.glint$</label>
+              <s-switch id="mcitem-glint"></s-switch>
+            </div>
+          </div>
+        </div>
 
+        <!-- 文本编辑按钮组：委托给 mctext 面板 -->
+        <div class="mcitem-text-buttons">
+          <s-button id="mcitem-btn-edit-name" data-i18n type="outlined" class="mcitem-text-btn">
+            $panel.mcitem.btn_edit_name$
+          </s-button>
+          <s-button id="mcitem-btn-edit-lore" data-i18n type="outlined" class="mcitem-text-btn">
+            $panel.mcitem.btn_edit_lore$
+          </s-button>
+        </div>
+
+        <!-- 物品预览 -->
+        <div class="mcitem-preview-container">
+          <label data-i18n class="unselectable">$panel.mcitem.fields.preview$</label>
+          <div class="mcitem-preview-box" id="mcitem-preview-box">
+            <mc-item-display id="mcitem-preview-element"></mc-item-display>
+          </div>
+        </div>
+      </div>
+      <s-button slot="action" id="mcitem-panel-btn-cancel" data-i18n type="text">$tooltip.cancel$</s-button>
+      <s-button slot="action" id="mcitem-panel-btn-confirm" data-i18n type="text">$tooltip.confirm$</s-button>
+    </s-dialog>
+
+    <!-- MC物品浏览器 -->
+    <s-dialog id="mcitem-browser">
+      <div slot="headline" data-i18n class="unselectable">$panel.mcitem.browser.title$</div>
+      <div slot="text" class="unselectable">
+        <s-search id="mcitem-browser-search" data-i18n placeholder="$panel.mcitem.browser.search$"></s-search>
+        <s-scroll-view id="mcitem-browser-list" class="mcitem-browser-list"></s-scroll-view>
+      </div>
+      <s-button slot="action" id="mcitem-browser-btn-close" data-i18n type="text">$tooltip.close$</s-button>
+    </s-dialog>
+    
     <!-- 以下为动态插入元素 -->
   </s-page>
   <div id="loading" data-status="loading">

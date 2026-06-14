@@ -317,3 +317,169 @@ div#mctext-toolbar>s-scroll-view {
   padding-left: .4rem;
   padding-right: 1rem;
 }
+
+/* mcItem panel */
+#mcitem-panel>div[slot="text"] {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: auto;
+  overflow: scroll;
+  padding-top: 1em;
+}
+
+.mcitem-form {
+  display: flex;
+  flex-direction: column;
+  gap: .5rem;
+  margin-bottom: .75rem;
+}
+
+.mcitem-form-row {
+  display: flex;
+  gap: .75rem;
+  align-items: flex-end;
+  flex-wrap: wrap;
+}
+
+.mcitem-form-field {
+  display: flex;
+  flex-direction: column;
+  gap: .3rem;
+  min-width: 8rem;
+}
+
+.mcitem-form-field.glint-field {
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-end;
+  gap: .5rem;
+  white-space: nowrap;
+}
+
+.mcitem-form-field.glint-field label {
+  font-size: .9rem;
+  color: var(--s-color-on-surface-variant, #40484C);
+}
+
+/* 文本编辑按钮组 */
+.mcitem-text-buttons {
+  display: flex;
+  gap: .5rem;
+  margin-bottom: .75rem;
+  flex-wrap: wrap;
+}
+
+.mcitem-text-btn {
+  flex: 1;
+  min-width: 10rem;
+}
+
+/* 物品预览区 */
+.mcitem-preview-container {
+  display: flex;
+  flex-direction: column;
+  gap: .4rem;
+  padding-top: .5rem;
+  border-top: 1px solid var(--s-color-outline-variant, #C2C7C9);
+}
+
+.mcitem-preview-container>label {
+  font-size: .9rem;
+  color: var(--s-color-on-surface-variant, #40484C);
+}
+
+.mcitem-preview-box {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 1rem;
+  background: var(--s-color-surface-container-low, #F2F3F5);
+  border-radius: 12px;
+  min-height: 6rem;
+  border: 1px dashed var(--s-color-outline-variant, #C2C7C9);
+}
+
+.mcitem-preview-box mc-item-display {
+  --size: 5em;
+  width: 5em;
+  height: 5em;
+}
+
+/* 附魔光效：使用 CSS 动画模拟 Minecraft 物品附魔光泽 */
+mc-item-display[data-glint="true"]::part(image-area) {
+  position: relative;
+  overflow: hidden;
+}
+mc-item-display[data-glint="true"]::part(image-area)::after {
+  content: "";
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: conic-gradient(
+    rgba(255, 255, 255, 0) 0deg,
+    rgba(255, 255, 255, 0.05) 60deg,
+    rgba(255, 255, 255, 0.15) 120deg,
+    rgba(255, 255, 255, 0.05) 180deg,
+    rgba(255, 255, 255, 0) 240deg,
+    rgba(150, 80, 255, 0.06) 300deg,
+    rgba(255, 255, 255, 0) 360deg
+  );
+  animation: mc-enchantment-glint 4s linear infinite;
+  pointer-events: none;
+}
+@keyframes mc-enchantment-glint {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* 物品浏览器 */
+.mcitem-browser-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .35rem;
+  padding: .5rem 0;
+  max-height: 50vh;
+  align-content: flex-start;
+}
+
+.mcitem-browser-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: .2rem;
+  padding: .4rem .5rem;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background .15s;
+  width: 5.5rem;
+  text-align: center;
+  font-size: .75rem;
+  line-height: 1.1;
+  user-select: none;
+}
+
+.mcitem-browser-item:hover {
+  background: var(--s-color-surface-container-high, #E7E8EA);
+}
+
+.mcitem-browser-item:active {
+  background: var(--s-color-surface-container-highest, #DDDFE1);
+}
+
+.mcitem-browser-item mc-item-display {
+  --size: 2.5em;
+  width: 2.5em;
+  height: 2.5em;
+  pointer-events: none;
+}
+
+.mcitem-browser-item .mcitem-browser-item-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  width: 100%;
+  color: var(--s-color-on-surface, #191C1E);
+}
