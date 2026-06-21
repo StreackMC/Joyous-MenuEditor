@@ -1,18 +1,46 @@
 const EditorId = "example";
 
 /**
- * 仅作为一个Interface使用，需要自行 extends
- * @interface Editor 需要覆写全部方法并注册 Editor
+ * 编辑器基类 —— 所有编辑器须继承此类并覆写全部方法。
+ *
+ * ── 数据模型 ──
+ * 自 `editorManager.openEditor()` 入口起，所有 `data` 均被**归一化**为
+ * `FileNode | MemFileNode` 接口。编辑器**构造器**同步接收此节点并存储引用，
+ * 在 `init()` 中通过 `await this.fileNode.read()` 异步读取内容。
+ *
+ * - `FileNode`  ：来自磁盘文件系统（{@link fileServer.js}）
+ * - `MemFileNode`：来自内存（字符串、Blob 等），见 {@link editorManager.js}
+ *
+ * ── 生命周期 ──
+ * ```
+ * 1. editorManager.openEditor(rawData, editorId?, filename?)
+ *      ↓ 归一化：rawData → FileNode | MemFileNode
+ * 2. new MyEditor(fileNode, filename)     ← 同步，只存引用
+ *      ↓
+ * 3. tabs.openTab(instance, title)
+ *      ↓ 内部调用 instance.getElement()
+ *      ↓ 挂载到 DOM
+ *      ↓ 执行 i18n.refresh / commands.hook
+ *      ↓ 切换到标签页
+ * 4. instance.init()                      ← 可 async，在此读取数据
+ * ```
+ *
+ * @interface Editor
  */
 export class Editor {
   /**
-   * 初始化一个编辑器
-   * @param {*} data 
-   * @param {string} filename 文件名
+   * @param {import("../backend/editorManager.js").MemFileNode|import("../backend/fileServer.js").FileNode} fileNode - 归一化后的文件节点
+   * @param {string} filename - 文件名/标题
    */
-  constructor(data, filename) {
+  constructor(fileNode, filename) {
     if (new.target === Editor) { UnsupportedMethodException(); };
-    // 如果你打开到一半不想打开了可以直接抛出错误，但是这个错误会被忽略
+    /**
+     * 文件节点引用。在 `init()` 中通过 `await this.fileNode.read()` 读取内容。
+     * @type {import("../backend/editorManager.js").MemFileNode|import("../backend/fileServer.js").FileNode}
+     */
+    this.fileNode = fileNode;
+    /** @type {string} */
+    this.filename = filename;
   };
   /**
    * 获取编辑器的标识符
@@ -30,14 +58,22 @@ export class Editor {
    */
   getElement() { UnsupportedMethodException(); return new Element(); };
   /**
-   * 通知DOM树已插入，可进行初始化
+   * **后初始化** —— DOM 已挂载完成后调用。
+   *
+   * 可在此进行以下操作：
+   * - 通过 `await this.fileNode.read()` 异步读取文件内容
+   * - 绑定事件、创建 Ace / 富文本等第三方实例
+   * - 执行需要 DOM 的渲染逻辑
+   *
+   * 支持返回 `Promise`，但 `tabs.openTab()` 不会等待它完成，
+   * 编辑器需自行管理异步流程。
    */
-  init() { UnsupportedMethodException(); };
+  async init() { UnsupportedMethodException(); };
   /**
    * 设置编辑器数据
-   * @param {*} data 
+   * @param {*} data 理论上这里应该和构造器的那个一样，但是实际取决于调用方。
    */
-  setData(data) { UnsupportedMethodException(); };
+  async setData(data) { UnsupportedMethodException(); };
   /**
    * 撤销操作
    * @param {number} step 步数
@@ -53,37 +89,38 @@ export class Editor {
    */
   destroy() { UnsupportedMethodException(); };
   /**
-   * 是否需要存盘。例如没有编辑功能的可以不修改本项，这样关闭时不会检查是否要操作磁盘。
+   * 是否需要存盘。没有编辑功能的可以设为 `false`，关闭时不会触发保存检查。
+   * @type {boolean}
    */
   requireFlush = false;
 };
 
-// 返回你的编辑器能否编辑 data ， data 可为任意类型
-// 如果编辑器被以指定的形式打开则不会调用此验证函数就直接打开
-// 如果返回了非空字符串，那么就会以字符串为标题打开你的编辑器
+// ══════════════════════════════════════════════════════════
+//  注册示例（解除注释后可用）
+// ══════════════════════════════════════════════════════════
+//
+// 验证函数签名：async (fileNode, filename) => string | false
+//   - fileNode : FileNode | MemFileNode（已归一化）
+//   - filename : string
+//   - 返回非空字符串 = 接受此文件，该字符串用作标签页标题
+//   - 返回 "" 或 false = 拒绝
+//
+// 构造器签名：(fileNode, filename)
+//   - fileNode : FileNode | MemFileNode（与 verify 收到的同一个）
+//   - filename : string
+//   - 同步操作，异步读取请放在 init() 中
+//
 // import editorManager from "../backend/editorManager.js";
-// editorManager.regisiterEditor(EditorId, (data, filename) => {
-//   return "";
-// }, Editor);
-// 请解除注释！！
+// editorManager.regisiterEditor(EditorId,
+//   async (fileNode, filename) => {
+//     const text = await fileNode.read();
+//     if (text.startsWith("magic")) return filename || "Magic File";
+//     return "";
+//   },
+//   Editor
+// );
 
-/* 文档
-文档上面的部分需要全部覆写，并保留API；文档下面的可以是 Editor 自己的内部代码。
-新建一个 Editor 需要修改上面的 EditorId 用作编辑器标识符以及替换所有的 Unsupported... 为你自己的逻辑。
-顺带要被加载，需要在 editorImport.js 里面手动加一下引入。
-
-说明下生命周期：
-
-创建：
-1. 任何时候都应使用 commands.executeCommand("editor.open", new Editor(), "New Tab") 来打开一个编辑器
-    注：也可使用 tabs.js 里面的 openEditor() ，下文同理
-2. 此时自动交由 tabs.js 处理，流程如下：
-3. 自动维护标签页周期，并向 Editor 调用 getElement() 获取编辑器元素
-4. 将元素提交前端渲染，编辑器插入完成
-5. 将编辑器下的翻译和声明式命令事件进行绑定
-6. 之后调用 Editor 的 init() 函数允许后初始化
-7. 自调用切换到指定标签页，完成显示
-
+/* 后生命周期
 销毁：
 1. 使用 commands.executeCommand("editor.close", index) 来关闭编辑器
 2. 此时 tabs.js 自动维护标签页周期，流程略

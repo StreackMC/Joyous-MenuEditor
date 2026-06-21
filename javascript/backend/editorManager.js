@@ -4,11 +4,13 @@ import tabs from "../ui/tabs.js";
 import commands from "./commandServer.js";
 import { FileNode, FolderNode } from "./fileServer.js";
 import UI from "../ui/utils.js";
+import { v4 as uuidv4 } from "../library/uuidjs/v4.js";
 
 export let untitledCounts = 1;
+
 /**
- * 获取一个 Untitled- 后面接的id,自动自增
- * @returns 
+ * 获取自增的 Untitled-N 编号
+ * @returns {number}
  */
 export function getUntitledId() {
   untitledCounts += 1;
@@ -16,102 +18,255 @@ export function getUntitledId() {
 }
 
 /**
- * 已注册的 Editor 和 标识符
- * @type {Map<string,Editor>}
+ * 已注册的 Editor 类集合
+ * @type {Map<string, typeof Editor>}
  */
 export let regEditorsClazz = new Map();
+
 /**
- * 已注册的 Editor 和 验证函数
- * @type {Map<string,Function>}
+ * 已注册的 Editor 验证函数集合
+ * @type {Map<string, Function>}
  */
 export let regEditorsVarify = new Map();
 
+// ══════════════════════════════════════════════════════════
+//  MemFileNode — 内存数据源统一接口
+// ══════════════════════════════════════════════════════════
+
 /**
- * 
- * @param {string} id Editor 标识符
- * @param {Function} varify 验证函数
- * @param {Class} clazz 类
+ * 轻量级内存文件节点。
+ *
+ * 实现与 `FileNode` 相同的异步读取接口（`read` / `file` / `getSize` 等），
+ * 但数据完全来自内存而非磁盘。用于将字符串、Blob 等原始数据**归一化**为
+ * 统一的 `FileNode` 接口，使编辑器验证函数和构造器无需关心数据来源。
+ *
+ * **设计意图：**
+ * - `openEditor()` 入口处将所有 `data` 统一为 `FileNode | MemFileNode`
+ * - 编辑器**构造器**同步接收此节点，惰性存储引用
+ * - 编辑器**`init()`** 中通过 `await this.fileNode.read()` 异步读取内容
+ *
+ * @implements {FileNode} 部分接口（仅文件相关方法）
+ */
+export class MemFileNode {
+  /** @type {string} */ id;
+  /** @type {string} */ name;
+  /** @type {"file"} */ type = "file";
+  /** @type {null} */ parentId = null;
+  /** @type {null} */ handle = null;
+  /** @type {*} */ #source;
+  /** @type {string|undefined} */ #readCache;
+
+  /**
+   * @param {string|Blob|ArrayBuffer|*} source 数据源
+   * @param {string} [name="untitled"] 文件名
+   */
+  constructor(source, name = "untitled") {
+    this.id = uuidv4();
+    this.name = name;
+    this.#source = source;
+  }
+
+  /**
+   * 读取文件内容为文本。
+   * 结果会在首次读取后缓存，多次调用安全。
+   * @returns {Promise<string>}
+   */
+  async read() {
+    if (this.#readCache !== undefined) return this.#readCache;
+    if (typeof this.#source === "string" || this.#source instanceof String) {
+      this.#readCache = String(this.#source);
+    } else if (this.#source instanceof Blob) {
+      this.#readCache = await this.#source.text();
+    } else if (this.#source instanceof ArrayBuffer) {
+      this.#readCache = new TextDecoder().decode(this.#source);
+    } else {
+      this.#readCache = String(this.#source);
+    }
+    return this.#readCache;
+  }
+
+  /**
+   * 获取文件对象
+   * @returns {Promise<File>}
+   */
+  async file() {
+    return new File([await this.read()], this.name);
+  }
+
+  /**
+   * 获取文件大小（字节）
+   * @returns {Promise<number>}
+   */
+  async getSize() {
+    if (this.#source instanceof Blob) return this.#source.size;
+    if (this.#source instanceof ArrayBuffer) return this.#source.byteLength;
+    const text = await this.read();
+    return text.length;
+  }
+
+  /**
+   * 启发式判断是否为二进制文件。
+   * 内存数据默认视为安全文本（显式传入 ArrayBuffer 的编辑器应自行判断）。
+   * @returns {Promise<boolean>}
+   */
+  async isBinaryHeuristic() {
+    return false;
+  }
+
+  /**
+   * 获取最后修改时间
+   * @returns {Promise<number>}
+   */
+  async getLastModified() {
+    return Date.now();
+  }
+}
+
+/**
+ * 将任意原始数据归一化为 `FileNode | MemFileNode`。
+ *
+ * 归一化规则：
+ * | 输入类型            | 输出                        |
+ * |---------------------|-----------------------------|
+ * | `FileNode`          | 原样返回                     |
+ * | `MemFileNode`       | 原样返回                     |
+ * | `string` / `String` | `new MemFileNode(str, name)` |
+ * | `Blob` / `ArrayBuffer` | `new MemFileNode(src, name)` |
+ * | 其他 `Object`       | `new MemFileNode(String(obj))` |
+ * | `null` / `undefined` | `new MemFileNode("")`        |
+ *
+ * @param {*} raw - 原始数据
+ * @param {string} [name="untitled"] - 建议的文件名
+ * @returns {FileNode|MemFileNode}
+ */
+export function normalizeToFileNode(raw, name = "untitled") {
+  if (raw instanceof FileNode || raw instanceof MemFileNode) return raw;
+  if (raw === null || raw === undefined) {
+    return new MemFileNode("", name);
+  }
+  if (typeof raw === "string" || raw instanceof String) {
+    return new MemFileNode(String(raw), name);
+  }
+  // Blob / ArrayBuffer / 其他
+  return new MemFileNode(raw, name);
+}
+
+// ══════════════════════════════════════════════════════════
+//  编辑器注册
+// ══════════════════════════════════════════════════════════
+
+/**
+ * 注册一个编辑器类型。
+ *
+ * @param {string} id - 编辑器唯一标识符（如 `"ace"`, `"jmenu"`）
+ * @param {Function} varify - 验证函数，签名 `async (data: FileNode|MemFileNode, filename: string) => string|false`
+ *    接收归一化后的文件节点。返回**非空字符串**表示接受此文件，该字符串用作标签页标题；
+ *    返回 `""` 或 `false` 表示拒绝。
+ * @param {typeof Editor} clazz - 编辑器类，构造器签名 `(fileNode: FileNode|MemFileNode, filename: string)`
  */
 export function regisiterEditor(id, varify, clazz) {
   regEditorsClazz.set(id, clazz);
   regEditorsVarify.set(id, varify);
 }
 
+// ══════════════════════════════════════════════════════════
+//  打开编辑器
+// ══════════════════════════════════════════════════════════
+
 /**
- * 打开一个编辑器，智能识别打开方式
- * @returns {Promise<string|null>} 打开失败使用 null
- * @param {string|FileNode} data 数据
- * @param {string} editorId 打开方式
- * @param {string} fname 编辑器标题，建议传入文件名，最终由实际的编辑器依据此参数决定；指定了打开方式时且目标编辑器没有返回有效标题时则改为使用此参数。
- * @throws 找不到目标编辑器，若没有指定编辑器抛出此错误时表示默认的 ACE 编辑器都不可用
+ * 打开一个编辑器，智能识别或强制指定打开方式。
+ *
+ * **数据归一化：**
+ * 入口处将 `data` 统一为 `FileNode | MemFileNode`，之后所有路径（verify /
+ * constructor / init）看到的都是同一接口。编辑器在构造器中**惰性存储**
+ * 文件节点引用，在 `init()` 中通过 `await this.fileNode.read()` 异步读取。
+ *
+ * **匹配逻辑：**
+ * 1. 若指定 `editorId` → 强制使用对应编辑器，验证失败时回退 `fname` 作标题
+ * 2. 否则遍历所有注册的 `varify(data, fname)`，**首个返回非空字符串**的胜出
+ * 3. 无匹配 → 降级使用 `ace` 编辑器（预读文本后传入构造器）
+ *
+ * @param {string|FileNode|MemFileNode|*} [data=""] - 原始数据，内部自动归一化
+ * @param {string} [editorId] - 强制使用的编辑器 ID
+ * @param {string} [fname] - 建议文件名/标题
+ * @returns {Promise<string|null>} 新标签页的 UUID，失败返回 null
+ * @throws 若指定 `editorId` 且找不到对应注册类
  */
 export async function openEditor(data = "", editorId = undefined, fname = null) {
-  fname = (fname) ? fname : `Untitled-${getUntitledId()}`;
+  // ── 归一化 ──
+  const normalized = normalizeToFileNode(data, fname || undefined);
+  fname = fname || normalized.name || `Untitled-${getUntitledId()}`;
 
-  // 如果指定了打开方式则直接打开
-  try {
-    if (editorId) {
+  // ── 强制指定编辑器 ──
+  if (editorId) {
+    try {
       const clazz = regEditorsClazz.get(editorId);
       const func = regEditorsVarify.get(editorId);
+      if (!clazz) throw new Error(`未注册的编辑器：${editorId}`);
+
       let title;
       try {
-        title = func.apply(this, [data, fname]);
-        if (!title) { title = "Untitled-" + getUntitledId(); };
+        title = await func.call(null, normalized, fname);
+        if (!title) title = `Untitled-${getUntitledId()}`;
       } catch (error) {
-        console.warn(`强制使用编辑器 ${editorId} 时，无法获取编辑器标题：`, error, "\n 目标数据：", data);
+        console.warn(`强制使用编辑器 ${editorId} 时验证失败：`, error, "\n 数据：", normalized);
         title = fname;
-      } finally {
-        const tabId = tabs.openTab(new clazz(data, fname), title);
-        return tabId;
       }
-    };
-  } catch (error) {
-    throw new Error(i18n.parseSafe("msg.unknownEditor", { editor: editorId }));
+      return tabs.openTab(new clazz(normalized, fname), title);
+    } catch (error) {
+      throw new Error(i18n.parseSafe("msg.unknownEditor", { editor: editorId }));
+    }
   }
 
-  // 判断打开方式
-  let tabId = null;
+  // ── 自动匹配 ──
   for (const key of regEditorsVarify.keys()) {
     try {
-      const title = regEditorsVarify.get(key).apply(this, [data, fname]);
+      const title = await regEditorsVarify.get(key).call(null, normalized, fname);
       if (title) {
         const clazz = regEditorsClazz.get(key);
+        if (!clazz) continue;
         try {
-          tabId = tabs.openTab(new clazz(data, fname), title);
+          return tabs.openTab(new clazz(normalized, fname), title);
         } catch (error) {
-          console.warn(`编辑器 ${key} 验证了文件类型，但无法打开：`, error)
+          console.warn(`编辑器 ${key} 验证通过但打开失败：`, error);
           continue;
         }
-        break;
-      } else {
-        continue;
-      };
+      }
     } catch (error) {
-      console.log(`编辑器 ${key} 无法验证文件类型：`, error);
+      console.log(`编辑器 ${key} 验证异常：`, error);
       continue;
-    };
-  };
-  if (tabId) { return tabId; };
+    }
+  }
 
-  // 没有打开方式，尝试默认编辑器 ACE
+  // ── ACE 兜底 ──
   const aceClazz = regEditorsClazz.get("ace");
   if (!aceClazz) {
     throw new Error(i18n.parseSafe("editor.ACE.err"));
   }
   try {
-    if (data instanceof FileNode) {
-      const size = await data.getSize();
-      if (size >= 1048576/* Byte */) {
-        const usrRsp_size = await UI.ask(i18n.parseSafe("tooltip.tip"), i18n.parse("msg.too_large_file", { file: data.name, size: (size / 1024).toFixed(2) }));
-        if (!usrRsp_size) throw new Error("Aborted by user [too_large_size]");
-      }
-      if (await data.isBinaryHeuristic()) {
-        const usrRsp_bin = await UI.ask(i18n.parseSafe("tooltip.tip"), i18n.parse("msg.binary_file_sus", { file: data.name }));
-        if (!usrRsp_bin) throw new Error("Aborted by user [binary_file_sus]");
-      }
+    // 大文件 / 二进制检查
+    const size = await normalized.getSize();
+    if (size >= 1_048_576) {
+      const ok = await UI.ask(
+        i18n.parseSafe("tooltip.tip"),
+        i18n.parse("msg.too_large_file", {
+          file: normalized.name,
+          size: (size / 1024).toFixed(2),
+        })
+      );
+      if (!ok) return null;
     }
-    const dataTexted = await ensureText(data);
-    return tabs.openTab(new aceClazz(dataTexted, fname), fname);
+    if (await normalized.isBinaryHeuristic()) {
+      const ok = await UI.ask(
+        i18n.parseSafe("tooltip.tip"),
+        i18n.parse("msg.binary_file_sus", { file: normalized.name })
+      );
+      if (!ok) return null;
+    }
+
+    // ACE 期望构造器直接拿到字符串，故预读后传入
+    const textContent = await normalized.read();
+    return tabs.openTab(new aceClazz(textContent, fname), fname);
   } catch (error) {
     return null;
   }
@@ -149,31 +304,37 @@ commands.regisiterCommand("editor.redo", (step = 1) => {
 });
 
 /**
- * 确保数据是一串文本
- * @param {string|FileNode|Object} data 原数据
- * @return {string|Promise<String>} 封装为一个文本
+ * 确保数据是一串文本。
+ *
+ * 与 `normalizeToFileNode` 不同，此函数**直接提取文本内容**而非包装节点。
+ * 适用于 ACE 等需要纯文本的兜底场景。
+ *
+ * @param {string|FileNode|MemFileNode|Object} data - 任意数据
+ * @returns {Promise<string>} 文本内容
  */
 export async function ensureText(data) {
-  if (typeof data === "string") {
-    return data;
-  } else if (data instanceof String) {
-    return data;
-  } else if (data instanceof FileNode) {
+  if (data instanceof FileNode || data instanceof MemFileNode) {
     return await data.read();
-  } else {
-    try {
-      // 尝试调用可能实现的 toString() 方法
-      return data.toString();
-    } catch (error) {
-      return new String(data);
-    }
+  }
+  if (typeof data === "string" || data instanceof String) {
+    return String(data);
+  }
+  try {
+    return String(data);
+  } catch {
+    return "";
   }
 }
 
 export default {
-  regisiterEditor, openEditor,
-  regEditorsClazz, regEditorsVarify,
-  getUntitledId, untitledCounts,
+  regisiterEditor,
+  openEditor,
+  regEditorsClazz,
+  regEditorsVarify,
+  getUntitledId,
+  untitledCounts,
   ensureText,
   getCurrentEditor,
+  normalizeToFileNode,
+  MemFileNode,
 };

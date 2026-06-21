@@ -1,74 +1,56 @@
 const EditorId = "browser";
 
 /**
- * 仅作为一个Interface使用，需要自行 extends
- * @interface Editor 需要覆写全部方法并注册 Editor
+ * 内嵌浏览器编辑器 —— 将 URL 内容展示在 iframe 中。
+ * data 已由 openEditor 归一化为 FileNode | MemFileNode，
+ * 构造器不直接读取，通过 **init()** 或构造器中的异步微任务获取 URL。
  */
 export class EditorBrowser extends Editor {
   url = "https://mc.kdxiaoyi.top/Streack/";
-  div = document.createElement("div");
   iframe = document.createElement("iframe");
   /**
-   * 初始化一个编辑器
-   * @param {*} data 
-   * @param {string} filename 文件名
+   * @param {import("../../backend/editorManager.js").MemFileNode|import("../../backend/fileServer.js").FileNode} fileNode
+   * @param {string} filename
    */
-  constructor(data, filename) {
-    super();
-    this.url = "./iframe_handle.html?url=" + data;
+  constructor(fileNode, filename) {
+    super(fileNode, filename);
+    // 构造器不能 await，但可以启动异步读取
+    // 同时保存引用以便 init() 中再次确认
+    this.url = "./iframe_handle.html?url=";
+    this._pendingUrl = fileNode.read().then(text => {
+      this.url = "./iframe_handle.html?url=" + encodeURIComponent(text);
+      // 如果 iframe 已经挂载且 init 已过，直接设置
+      if (this.iframe && !this.iframe.src) {
+        this.iframe.src = this.url;
+      }
+    });
   };
-  /**
-   * 获取编辑器的标识符
-   * @returns {String}
-   */
   getRegId() { return EditorId; };
-  /**
-   * 获取编辑器当前数据
-   * @returns {*}
-   */
   getData() { return this.url; };
-  /**
-   * 获取编辑器要插入的元素
-   * @returns {Element}
-   */
   getElement() { return this.iframe; };
-  /**
-   * 通知DOM树已插入，可进行初始化
-   */
-  init() { this.iframe.src = this.url; };
-  /**
-   * 设置编辑器数据
-   * @param {*} data 
-   */
+  async init() {
+    // 等待 URL 解析完成再设置 iframe 地址
+    await this._pendingUrl;
+    this.iframe.src = this.url;
+  };
   setData(data) {
     this.iframe.src = new URL(data,this.url).href;
     this.url = this.iframe.src;
   };
-  /**
-   * 撤销操作
-   * @param {number} step 步数
-   */
   revert(step = 1) {
     try {
-      for (i = 1; i <= step; i++) {
+      for (let i = 1; i <= step; i++) {
         this.iframe.contentWindow.history.back();
       }
-    } catch (ignore/* 同源策略限制无法进行导航 */) { }
+    } catch (ignore) { }
   };
-  /**
-   * 重做操作
-   * @param {number} step 步数
-   */
   redo(step = 1) {
     try {
-      for (i = 1; i <= step; i++) {
+      for (let i = 1; i <= step; i++) {
         this.iframe.contentWindow.history.forward();
       }
-    } catch (ignore/* 同源策略限制无法进行导航 */) { }
+    } catch (ignore) { }
   };
-  /**
-   * 通知清理编辑器数据，准备销毁
-   */
   destroy() {
     this.iframe.src = "about:blank";
   };
@@ -76,10 +58,16 @@ export class EditorBrowser extends Editor {
 
 import editorManager from "../../backend/editorManager.js";
 import { Editor } from "../editor.js";
-editorManager.regisiterEditor(EditorId, (data, filename) => {
+
+/**
+ * verify 函数 —— data 已归一化为 FileNode | MemFileNode，
+ * 通过 `await data.read()` 获取 URL 文本。
+ */
+editorManager.regisiterEditor(EditorId, async (fileNode, filename) => {
   try {
-    if (data.length > 2000/* 一般URL长度不超过2000字符 */) { throw new Error("too long data"); };
-    const uri = new URL(data);
+    const text = (await fileNode.read()).trim();
+    if (text.length > 2000) throw new Error("too long data");
+    const uri = new URL(text);
     return uri.hostname;
   } catch (ignore) {
     return "";

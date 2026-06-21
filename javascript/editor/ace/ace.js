@@ -9,12 +9,15 @@ div.ace-editor-joyous { height:100%; }
 
 export class EditorAce extends Editor {
   /**
-   * @param {string} content - 文件内容（已由 editorManager.ensureText 处理为字符串）
-   * @param {string} fileName - 文件名（用于检测语言和显示标题）
+   * ACE 编辑器是兜底方案，`openEditor()` 在调用此构造器前**已预读文本**，
+   * 故 `content` 始终为 `string`，而非 `FileNode | MemFileNode`。
+   *
+   * @param {string} content - 已预读的文件文本内容
+   * @param {string} fileName - 文件名（用于检测语法高亮和显示标题）
    */
   constructor(content, fileName) {
-    super(content);
-    // 注意：content 由调用方（editorManager.openEditor）通过 await ensureText() 处理后传入，保证为字符串
+    // ACE 不走父类的 fileNode 存储逻辑，自行管理 content
+    super(null, fileName || "untitled");
     this.content = (typeof content === 'string') ? content : String(content ?? '');
     this.fileName = fileName || 'untitled';
     this.container = null;

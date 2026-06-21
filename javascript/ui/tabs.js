@@ -7,24 +7,26 @@ import UI from "./utils.js";
 const uuidv4 = v4;
 
 /*
-## 编辑生命周期全流程 （AI生成）
-虽然这里不是用来放文档的，但是测试版你先忍忍，正式版再迁移。
+╔══════════════════════════════════════════════════════════╗
+║              编辑生命周期全流程                          ║
+╚══════════════════════════════════════════════════════════╝
 
 ### 1. 请求打开编辑器
-调用 `commands.executeCommand("editor.open", data, editorId?, filename?)` 或直接 `editorManager.openEditor(data, editorId, fname)`。
+调用 `commands.executeCommand("editor.open", data, editorId?, filename?)`
+或直接 `editorManager.openEditor(data, editorId, fname)`。
+
+**数据归一化：**
+`openEditor` 入口处将所有 `data` 统一转为 `FileNode | MemFileNode`，
+之后所有路径（verify / constructor / init）看到的都是统一接口。
 
 - `fname` 默认 `Untitled-N`，用于回退标题。
 - 若指定 `editorId` → 强制使用对应注册类；若验证失败则回退 `fname` 作为标题。
-- 否则遍历所有已注册编辑器的 `verifyFn(data, fname)`，**第一个返回非空字符串**的编辑器胜出，返回值作为标签标题。
-- 无匹配 → 降级使用 `ace` 编辑器（未注册则抛错）。
-
-> 打开编辑器就是「打开数据」，这个过程中包含打开标签页
-> 也就是说这个过程自动分配标签页
-
-> 如果不使用 files.open ，就不会绑定有效文件，也就会提示“要保存文件吗”
+- 否则遍历所有已注册编辑器的 `verifyFn(fileNode, fname)`，
+  **首个返回非空字符串**的编辑器胜出，返回值作为标签标题。
+- 无匹配 → 降级使用 `ace` 编辑器（预读文本后传入构造器；未注册则抛错）。
 
 ### 2. 创建标签页与编辑器实例
-`tabs.openTab(new EditorClass(data, fname), title)`：
+`tabs.openTab(new EditorClass(fileNode, fname), title)`：
 
 - 生成 UUID，构建 `Tab` 对象：
   - `switcher`（标签按钮 + 关闭按钮）
@@ -33,14 +35,16 @@ const uuidv4 = v4;
 - 将 `switcher.root` 追加到 `#editor-tabs`，`frame` 追加到 `#editor-views`
 - 调用 `i18n.refresh` 和 `commands.hook` 做声明式绑定
 - 调用 `switchTab(uuid)` **显示该标签页**（隐藏当前，显示新 frame）
-- 调用 `editorInstance.init()` → 编辑器执行真正的初始化（事件绑定、加载内容等）
+- 调用 `editorInstance.init()` → 编辑器执行真正的初始化
+  （**可 async**：通过 `await this.fileNode.read()` 异步读取内容）
 
 > ✅ 此时编辑器已可见且可交互。
 
 ### 3. 编辑与保存
 - 用户编辑操作由具体编辑器内部处理。
-- 保存由外部触发（如快捷键、菜单），调用 `commands.executeCommand("editor.save")`，编辑器需实现 `getData()` 返回当前数据。
-- 自动备份通过 `autosave.backup` 命令在打开标签页后触发。
+- 保存由外部触发，调用 `commands.executeCommand("editor.save")`，
+  编辑器需实现 `getData()` 返回当前数据。
+- 自动备份通过 `autosave.backup` 在打开标签页后触发。
 
 ### 4. 关闭标签页（资源清理）
 `commands.executeCommand("editor.close", indexOrId)` → `tabs.closeTab`：

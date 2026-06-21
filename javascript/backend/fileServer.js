@@ -157,6 +157,14 @@ export class FileNode {
   }
 
   /**
+   * 从磁盘读取文件
+   * @returns {Promise<File>}
+   */
+  file() {
+    return this.handle.getFile();
+  }
+
+  /**
    * 采样验证文件是否可能是二进制不可读文件。
    *
    * 策略（按优先级）：
