@@ -79,6 +79,14 @@ export class JavaButton {
     this.#_id = (v?.toString()) ? v.toString() : "missingno";
   }
 
+  #_number;
+  /** 物品数量 @type {int} */
+  get number() { return this.#_number; }
+  set number(v) {
+    this.#_number = Math.abs(printInt(v));
+    if (this.#_number == 0 || this.#_number > 64) this.#_number = 1;
+  }
+
   #_enchant_glint_override;
   get enchant_glint_override() { return this.#_enchant_glint_override; }
   set enchant_glint_override(v) { this.#_enchant_glint_override = !!v; }

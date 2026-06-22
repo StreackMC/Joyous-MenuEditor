@@ -5,7 +5,7 @@ import { JavaButton, BedrockButton, JMenu } from "./dataDef.js";
 import MCColors from "../../library/MCColors.js";
 import i18n from "../../i18n.js";
 import { HTMLmcItemDisplay } from "../../ui/customElements/HTMLmcItemDisplay.js";
-import { ensureItem, getIndex, HTMLmcChestDisplay } from "../../ui/customElements/HTMLmcChestDisplay.js";
+import { ensureItem, getIndex, getRowColumn, HTMLmcChestDisplay } from "../../ui/customElements/HTMLmcChestDisplay.js";
 import commandServer from "../../backend/commandServer.js";
 import { Item, getItemFromMC } from "../../library/MCItemStack.js";
 import utils from "../../ui/utils.js";
@@ -261,20 +261,19 @@ export class JMElement extends HTMLElement {
     this.#_chestEl.line = this.#_data.lines || 3;
 
     // prepare items array (54 slots)
-    const itemsArr = new Array(54).fill(null);
     if (this.#_data.java instanceof Map) {
       for (const [slot, btn] of this.#_data.java.entries()) {
         if (!slot || slot.length < 2) continue;
         const line = parseInt(slot[0]);
         const column = parseInt(slot[1]);
         if (Number.isNaN(line) || Number.isNaN(column)) continue;
-        const idx = (line - 1) * 9 + (column - 1);
-        if (idx >= 0 && idx < 54) {
-          itemsArr[idx] = btn.id || null;
+        const index = (line - 1) * 9 + (column - 1);
+        if (index >= 0 && index < 54) {
+          // 物品有效，提交渲染
+          this._commitJavaBtnUpdate(index, btn);
         }
       }
     }
-    this.#_chestEl.setItems(itemsArr);
     // reset UI state
     this._commitJavaTitle(tr('title_idle'), 'set');
     this.#_editBody.removeAttribute('visible');
@@ -484,12 +483,12 @@ export class JMElement extends HTMLElement {
     
     // click 点击事件
     this.#_chestEl.addEventListener('itemClick', (e) => {
-      const { row, column, item, index } = e.detail;
+      const { row, column, /* 注意此处item的tooltip已经被污染了 */item, index } = e.detail;
       if (this.#edittingJbutton) {
         // 有正在进行的编辑，询问要不要保存
       } else {
         // 没有正在进行的编辑，开始
-        this._commitJavaBtnEdit(index, row, column, item);
+        this._startJavaBtnEdit(index, row, column, null);
       }
     });
 
@@ -503,16 +502,7 @@ export class JMElement extends HTMLElement {
       let permission = this.#_permField.value.replaceAll(/!/g, "");
       if (!this._putAndGetPermBool()) { permission = "!" + permission; };
       // 写入数据
-      this.#edittingJbutton = new JavaButton({
-        display: {
-          id: this.#edittingJitem.id || "missingno",
-          enchant: this.#edittingJitem?.ISC?.enchantment_glint_override || false,
-          tooltip: tooltips,
-        },
-        action: this.#_actionPicker.value,
-        perm: permission,
-        param: this.#_paramField.value
-      });
+      this.#edittingJbutton = Item2JavaButton(this.#edittingJitem, this.#_actionPicker.value, permission, this.#_paramField.value);
       this._commitJavaBtnUpdate(this.#edittingJslot, this.#edittingJitem);
       // 关闭 unsaved
       // todo
@@ -572,8 +562,10 @@ export class JMElement extends HTMLElement {
 
   #javeBtnRenderQueue = [];
   #javeBtnRenderQueueTOid = null;
-  /** 队列渲染JavaButton更新 (0-index) @param {Item} item */
+  /** 队列渲染JavaButton更新 (0-index) @param {Item|JavaButton} item */
   _commitJavaBtnUpdate(index, item) {
+    if (item instanceof JavaButton) { item = JavaButton2Item(item); }
+    if (!(item instanceof Item)) return;
     index = parseInt(index);
     if (index < 0 || index >= 54) return;
     this.#javeBtnRenderQueue.push([index, /* rAF渲染时会ensure一遍，此处不重复调用 */item]);
@@ -590,13 +582,13 @@ export class JMElement extends HTMLElement {
   /** 正在编辑的按钮物品 @type {Item|null} */
   #edittingJitem = null;
   /** 立即渲染JavaButton编辑，无条件替换正在进行的编辑 @type {Item} item */
-  _commitJavaBtnEdit(index, row, column, item) {
+  _startJavaBtnEdit(index, row, column, item) {
     // 替换正在编辑的
     this.#edittingJbutton = this.#_data.java.get(`${row}${column}`);
     this.#edittingJitem = item;
     this.#edittingJslot = index;
     if (!this.#edittingJbutton) this.#edittingJbutton = new JavaButton({ display: { id: "apple" } });
-    if (!this.#edittingJitem) this.#edittingJitem = new Item(this.#edittingJbutton.id);
+    if (!this.#edittingJitem) this.#edittingJitem = JavaButton2Item(this.#edittingJbutton);
     // 载入信息
     this._commitJavaTitle(tr('title_edit', { slot: index + 1, column: column, row: row }), 'set');
     this.#_permField.value = this.#edittingJbutton.permission;
@@ -623,7 +615,14 @@ export class JMElement extends HTMLElement {
       this._renderReplacer(this.#_slotTitleEl, 'textContent', this.#pendingJavaTitle);
       // JavaChest
       this.#javeBtnRenderQueue.forEach(([index, item]) => {
-        this.#_chestEl.setItem(index, item);
+        const i = ensureItem(item);
+        const [row, column] = getRowColumn(index);
+        let btn = this.#_data.java.get(`${row}${column}`);
+        if (!(btn instanceof JavaButton)) { btn = Item2JavaButton(btn); }
+        if (!i) return;
+        if (!i.ISC?.lore) { i.ISC.lore = []; }
+        i.ISC.lore.push(MCColors.parse(tr("attach_to_tooltip", {action:btn.action_type, param:btn.action_param})));
+        this.#_chestEl.setItem(index, i);
       });
       this.#javeBtnRenderQueue = [];
     });
@@ -701,7 +700,52 @@ customElements.define("jmenu-editor", JMElement);
 
 /** 创建元素 @returns {HTMLElement} */
 function ce(t, c) { const e = document.createElement(t); if (c) e.className = c; return e; }
+/** 获取基于本编辑器节点的翻译键，其他节点请使用正常方法 */
 function tr(key, params = {}) { return i18n.parseSafe(`editor.jmenu.${key}`, params); }
+/**
+ * 将按钮转换为物品
+ * @param {JavaButton} btn 源JAVA按钮
+ * @returns {Item} 
+ */
+export function JavaButton2Item(btn) {
+  if (!(btn instanceof JavaButton)) return;
+  if (btn.tooltip.length == 0) btn.tooltip.push("");
+  if (btn.tooltip.length > 1) {
+    const lores = btn.tooltip.slice(1, -1);
+    return new Item(btn.id, btn.number, {
+      enchantment_glint_override: !!btn.enchant_glint_override,
+      item_name: btn.tooltip[0],
+      lore: lores,
+    });
+  } else {
+    return new Item(btn.id, btn.number, {
+      enchantment_glint_override: !!btn.enchant_glint_override,
+      item_name: btn.tooltip[0],
+    });
+  }
+}
+/**
+ * 将物品转换为按钮
+ * @param {Item} btn 物品
+ * @param {string} [action="none"] 
+ * @param {string} [param=""] 
+ * @param {string} [perm=""] 
+ * @returns {JavaButton} 按钮
+ */
+export function Item2JavaButton(btn, action = "none", perm = "", param = "") {
+  let tooltips = [(btn.ISC?.item_name || "")];
+  tooltips.push(...(btn.ISC?.lore || []));
+  return new JavaButton({
+    display: {
+      id: btn.id || "missingno",
+      enchant: btn?.ISC?.enchantment_glint_override || false,
+      tooltip: tooltips,
+    },
+    action: (action || "none"),
+    perm: (perm || ""),
+    param: (param || "")
+  });
+}
 
 //debug
 commandServer.executeCommand("editor.open", `{

@@ -145,13 +145,13 @@
       "action_type_cmd": "以玩家身份执行命令",
       "action_type_op": "以 OP 身份执行命令",
       "action_type_con": "以控制台身份执行命令",
-      "action_type_url": "在浏览器中打开",
+      "action_type_url": "在浏览器中打开 URL",
       "action_param": "操作参数",
       "action_param_reset": "重置",
       "rename_title": "修改菜单标题",
       "sync_java_to_bedrock": "同步 Java 至基岩版",
       "sync_bedrock_to_java": "同步基岩版至 Java",
-      "empty_slot": "空槽位"
+      "attach_to_tooltip": "&r&7——————————\n&r&b当点击后：\n&r&f执行操作 [%action%]\n&r&f参数 [%param%]\n&r&7此段为按钮信息，不出现在游戏内。"
     },
     "welcome": {
       "headline": "欢迎",
