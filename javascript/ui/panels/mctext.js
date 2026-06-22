@@ -210,7 +210,7 @@ export function edit(data = "") {
     promiseCall = [resolve, reject];
   
     // 显示UI
-    mctPanel.view.editor.textContent = data;
+    mctPanel.view.editor.value = data;
     mctPanel.root.showed = true;
     uploadToRender();
   });
