@@ -28,7 +28,7 @@ export class HTMLmcChestDisplay extends HTMLElement {
   #_items;
 
   static get observedAttributes() {
-    return ['line', 'name'];
+    return ['line', 'name', 'highlight-index'];
   }
 
   constructor() {
@@ -67,6 +67,21 @@ export class HTMLmcChestDisplay extends HTMLElement {
       this.setAttribute('name', String(val));
     }
     // 属性变化会触发 attributeChangedCallback，但为了保险仍请求渲染（重复会被去重）
+    this._requestRender();
+  }
+
+  get highlightIndex() {
+    const v = this.getAttribute('highlight-index');
+    if (v == null) return -1;
+    const n = parseInt(v);
+    return Number.isNaN(n) ? -1 : n;
+  }
+  set highlightIndex(idx) {
+    if (idx == null || idx === -1) {
+      this.removeAttribute('highlight-index');
+    } else {
+      this.setAttribute('highlight-index', String(parseInt(idx)));
+    }
     this._requestRender();
   }
 
@@ -239,6 +254,10 @@ export class HTMLmcChestDisplay extends HTMLElement {
         justify-content: center;
         overflow: hidden;
       }
+      .slot-focused {
+        box-shadow: 0 0 0 2px var(--s-color-primary, #006782) inset;
+        border-color: var(--s-color-primary, #006782);
+      }
       .slot:hover {
         border-color: #373737 #FFF #FFF #373737;
       }
@@ -258,6 +277,12 @@ export class HTMLmcChestDisplay extends HTMLElement {
         align-items: center;
         justify-content: center;
         overflow: hidden;
+      }
+      /* 确保带图标与空槽在获得焦点时视觉一致 */
+      .slot.slot-focused, .slot-empty.slot-focused {
+        box-shadow: 0 0 0 2px var(--s-color-primary, #006782) inset !important;
+        border-color: var(--s-color-primary, #006782) !important;
+        outline: 2px solid var(--s-color-primary, #006782);
       }
     `;
 
@@ -308,6 +333,12 @@ export class HTMLmcChestDisplay extends HTMLElement {
       const col = i % 9;
       slot.dataset.row = row;
       slot.dataset.column = col;
+
+      // 焦点高亮
+      const hidx = this.highlightIndex;
+      if (hidx >= 0 && i === hidx) {
+        slot.classList.add('slot-focused');
+      }
 
       const item = this.#_items[i];
       if (item && item instanceof Item) {

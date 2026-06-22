@@ -25,7 +25,47 @@ export class JMenu {
   }
 
   /** 转回文本 @type {String} */
-  toString() {}
+  toString() {
+    const obj = {
+      jme: "menu",
+      jmev: JMenu.version,
+      title: this.title,
+      lines: this.lines,
+      "java-buttons": {},
+      "bedrock-buttons": [],
+    };
+
+    // java buttons
+    for (const [slot, btn] of this.java.entries()) {
+      const perm = (btn.permission_when_and_have === false && btn.permission) ? `!${btn.permission}` : (btn.permission || "");
+      obj["java-buttons"][slot] = {
+        display: {
+          id: btn.id,
+          enchant: !!btn.enchant_glint_override,
+          tooltip: Array.isArray(btn.tooltip) ? btn.tooltip : [],
+        },
+        perm: perm,
+        action: btn.action_type || "none",
+        param: btn.action_param || "",
+      };
+    }
+
+    // bedrock buttons
+    for (const btn of this.bedrock) {
+      const perm = (btn.permission_when_and_have === false && btn.permission) ? `!${btn.permission}` : (btn.permission || "");
+      obj["bedrock-buttons"].push({
+        display: {
+          text: btn.text,
+          icon: btn.icon || "",
+        },
+        perm: perm,
+        action: btn.action_type || "none",
+        param: btn.action_param || "",
+      });
+    }
+
+    return JSON.stringify(obj, null, 2);
+  }
 }
 
 /** 获取合法的Java按钮数据 @return {Map<String,JavaButton>} */

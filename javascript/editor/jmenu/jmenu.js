@@ -119,17 +119,12 @@ mc-chest-display {
 .iteminfo-body {
   flex-direction: column;
   gap: .9em;
-  opacity: 0;
-  transform: translateY(-12px);
   display: none;
-  transition: opacity 0.3s ease, transform 0.3s ease;
   pointer-events: none;
 }
 
 .iteminfo-body[visible="true"] {
   display: flex;
-  opacity: 1;
-  transform: translateY(0);
   pointer-events: auto;
 }
 
@@ -228,6 +223,10 @@ export class JMElement extends HTMLElement {
   /** java: h2 in edit area @type {HTMLElement} */ #_slotTitleEl;
   /** java: s-card.iteminfo-unsave @type {HTMLElement} */ #_unsaveCard;
   /** java: unsave text div @type {HTMLElement} */ #_unsaveTextEl;
+  /** java: unsave dismiss btn @type {HTMLElement} */ #_unsaveDismissBtn;
+  /** java: unsave cancel btn @type {HTMLElement} */ #_unsaveCancelBtn;
+  /** java: unsave save btn @type {HTMLElement} */ #_unsaveSaveBtn;
+  /** pending switch target */ #_pendingSwitch = null;
   /** java: float-tips for perm @type {HTMLElement} */ #_permToggleTip;
   /** java: s-text-field for perm @type {HTMLElement} */ #_permField;
   /** java: s-icon-button for perm mode toggle @type {HTMLElement} */ #_permToggleBtn;
@@ -278,6 +277,8 @@ export class JMElement extends HTMLElement {
     this._commitJavaTitle(tr('title_idle'), 'set');
     this.#_editBody.removeAttribute('visible');
     this.#_unsaveCard.removeAttribute('visible');
+    // 清除高亮
+    try { this.#_chestEl.highlightIndex = -1; } catch (_) {}
   }
 
   /** @returns {JMenu|null} */
@@ -359,19 +360,27 @@ export class JMElement extends HTMLElement {
     unsaveText.setAttribute('slot', 'text');
     unsaveCard.appendChild(unsaveText);
     this.#_unsaveTextEl = unsaveText;
-
     const dismissBtn = document.createElement('s-button');
     dismissBtn.setAttribute('slot', 'action');
     dismissBtn.style.backgroundColor = 'var(--s-color-error-container,#FFDAD6)';
     dismissBtn.setAttribute('type', 'filled-tonal');
     dismissBtn.textContent = tr('dismiss');
     unsaveCard.appendChild(dismissBtn);
+    this.#_unsaveDismissBtn = dismissBtn;
+
+    const saveUnsBtn = document.createElement('s-button');
+    saveUnsBtn.setAttribute('slot', 'action');
+    saveUnsBtn.setAttribute('type', 'filled-tonal');
+    saveUnsBtn.textContent = i18n.parse('tooltip.save');
+    unsaveCard.appendChild(saveUnsBtn);
+    this.#_unsaveSaveBtn = saveUnsBtn;
 
     const cancelBtn = document.createElement('s-button');
     cancelBtn.setAttribute('slot', 'action');
     cancelBtn.setAttribute('type', 'filled-tonal');
     cancelBtn.textContent = i18n.parse('tooltip.cancel');
     unsaveCard.appendChild(cancelBtn);
+    this.#_unsaveCancelBtn = cancelBtn;
 
     // ── Save ──
     const saveBtn = document.createElement('s-button');
@@ -484,30 +493,43 @@ export class JMElement extends HTMLElement {
     // click 点击事件
     this.#_chestEl.addEventListener('itemClick', (e) => {
       const { row, column, /* 注意此处item的tooltip已经被污染了 */item, index } = e.detail;
-      if (this.#edittingJbutton) {
-        // 有正在进行的编辑，询问要不要保存
-      } else {
-        // 没有正在进行的编辑，开始
+      // 若没有正在编辑或编辑的是同一格，则直接开始/切换
+      if (!this.#edittingJbutton || this.#edittingJslot === index) {
         this._startJavaBtnEdit(index, row, column, null);
+        return;
       }
+      // 有正在进行的编辑且目标不同，弹出未保存提示
+      this.#_pendingSwitch = { index, row, column, item };
+      this.#_unsaveTextEl.innerHTML = i18n.parseSafe("editor.jmenu.unsave_text", { slot: this.#edittingJslot + 1, row: getRowColumn(this.#edittingJslot)[0], column: getRowColumn(this.#edittingJslot)[1] });
+      this.#_unsaveCard.setAttribute('visible', 'true');
     });
 
     // save 保存按钮
     this.#_saveBtn.addEventListener('click', e => {
-      console.log("JMENU Java Button #", this.#edittingJslot, this.#edittingJitem, this.#edittingJbutton, "save for ", e);
-      // 构建 tooltip
-      const tooltips = this.#edittingJitem?.ISC?.lore || [];
-      tooltips.unshift(this.#edittingJitem?.ISC?.item_name || "");
-      // 构建权限信息
-      let permission = this.#_permField.value.replaceAll(/!/g, "");
-      if (!this._putAndGetPermBool()) { permission = "!" + permission; };
-      // 写入数据
-      this.#edittingJbutton = Item2JavaButton(this.#edittingJitem, this.#_actionPicker.value, permission, this.#_paramField.value);
-      this._commitJavaBtnUpdate(this.#edittingJslot, this.#edittingJitem, this.#edittingJbutton);
-      // 关闭 unsaved
-      // todo
-      // 提示信息
-      utils.msg(i18n.parseSafe("msg.savedTo", { path: `#${this.#edittingJslot + 1}` }), i18n.parseSafe("msg.done"), 'success');
+      this._doSaveEditting();
+    });
+
+    // unsave prompt actions
+    this.#_unsaveDismissBtn.addEventListener('click', () => {
+      // 舍弃当前编辑并切换到待处理的槽位
+      this.#_unsaveCard.removeAttribute('visible');
+      const pending = this.#_pendingSwitch;
+      this.#_pendingSwitch = null;
+      // 不保存当前编辑，直接切换
+      this._startJavaBtnEdit(pending.index, pending.row, pending.column, null);
+    });
+    this.#_unsaveSaveBtn.addEventListener('click', async () => {
+      // 先保存当前编辑，然后切换
+      await this._doSaveEditting();
+      this.#_unsaveCard.removeAttribute('visible');
+      const pending = this.#_pendingSwitch;
+      this.#_pendingSwitch = null;
+      this._startJavaBtnEdit(pending.index, pending.row, pending.column, null);
+    });
+    this.#_unsaveCancelBtn.addEventListener('click', () => {
+      // 取消切换，保留当前编辑
+      this.#_unsaveCard.removeAttribute('visible');
+      this.#_pendingSwitch = null;
     });
 
     // 编辑物品按钮
@@ -597,6 +619,8 @@ export class JMElement extends HTMLElement {
     this._putAndGetPermBool(!!this.#edittingJbutton.permission_when_and_have);
     // 显示这个元素
     this.#_editBody.setAttribute("visible", true);
+    // 标记当前正在编辑的格子（突出显示）
+    try { this.#_chestEl.highlightIndex = index; } catch (_) {}
   }
 
   _rafId = null;
@@ -621,6 +645,31 @@ export class JMElement extends HTMLElement {
         this.#_chestEl.setItem(index, mirror);
       });
     })
+  }
+
+  /** 执行保存正在编辑的按钮（抽离以复用） */
+  async _doSaveEditting() {
+    if (this.#edittingJslot == null) return;
+    try {
+      // 构建 permission
+      let permission = this.#_permField.value.replaceAll(/!/g, "");
+      if (!this._putAndGetPermBool()) { permission = "!" + permission; };
+      this.#edittingJbutton = Item2JavaButton(this.#edittingJitem, this.#_actionPicker.value, permission, this.#_paramField.value);
+      this._commitJavaBtnUpdate(this.#edittingJslot, this.#edittingJitem, this.#edittingJbutton);
+      // 同步回数据模型
+      try {
+        const [row, column] = getRowColumn(this.#edittingJslot);
+        const key = `${row}${column}`;
+        if (this.#_data && this.#_data.java instanceof Map) {
+          this.#_data.java.set(key, this.#edittingJbutton);
+        }
+      } catch (err) { console.warn("Failed to sync edited button to JMenu data:", err); }
+      // 调用保存命令
+      try { commandServer.executeCommand("files.save"); } catch (e) { console.warn(e); }
+      utils.msg(i18n.parseSafe("msg.savedTo", { path: `#${this.#edittingJslot + 1}` }), i18n.parseSafe("msg.done"), 'success');
+    } catch (e) {
+      console.warn("Failed to save editing button:", e);
+    }
   }
 
   /** 
