@@ -2,6 +2,7 @@
 
 import MCColors from "../../library/MCColors.js";
 import { Item, getItemFromMC } from "../../library/MCItemStack.js";
+import { HTMLmcItemDisplay } from "./HTMLmcItemDisplay.js";
 
 /**
  * 箱子界面
@@ -281,7 +282,7 @@ export class HTMLmcChestDisplay extends HTMLElement {
     if (nameAttr) {
       this._titleEl.style.display = 'block';
       // 用 MCColors 解析格式代码
-      this._titleEl.innerHTML = MCColors.toHtml(nameAttr);
+      this._titleEl.innerHTML = MCColors.toHtml(MCColors.parse(nameAttr));
       // 设置 title 显示完整纯文本（去除格式）
       this._titleEl.title = MCColors.strip(nameAttr);
     } else {

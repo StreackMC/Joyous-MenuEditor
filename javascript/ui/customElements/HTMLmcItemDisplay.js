@@ -446,10 +446,10 @@ export class HTMLmcItemDisplay extends HTMLElement {
         }
         break;
       case 'name':
-        this._tooltipTitleEl.innerHTML = MCColors.toHtml("§f" + value) || '';
+        this._tooltipTitleEl.innerHTML = MCColors.toHtml("§f" + MCColors.parse(value)) || '';
         break;
       case 'lore':
-        this._tooltipDescEl.innerHTML = MCColors.toHtml((value || '').replace(/\n/g, `\n§o§5`)) || '';
+        this._tooltipDescEl.innerHTML = MCColors.toHtml((MCColors.parse(value) || '').replace(/\n/g, `\n§o§5`)) || '';
         break;
       default:
         break;
@@ -475,8 +475,8 @@ export class HTMLmcItemDisplay extends HTMLElement {
     }
 
     // 更新内容
-    this._tooltipTitleEl.innerHTML = MCColors.toHtml(name) || '';
-    this._tooltipDescEl.innerHTML = MCColors.toHtml(lore) || '';
+    this._tooltipTitleEl.innerHTML = MCColors.toHtml(MCColors.parse(name)) || '';
+    this._tooltipDescEl.innerHTML = MCColors.toHtml(MCColors.parse(lore)) || '';
 
     // 先让 tooltip 可见但不可见（visibility:hidden）以获取尺寸
     this._tooltipEl.style.display = 'block';
