@@ -24,7 +24,7 @@ import { Item, getItemFromMC } from "../../library/MCItemStack.js";
  */
 export class HTMLmcChestDisplay extends HTMLElement {
   /** @type {Array<Item|null>} */
-  _items = new Array(54).fill(null);
+  #_items;
 
   static get observedAttributes() {
     return ['line', 'name'];
@@ -37,6 +37,7 @@ export class HTMLmcChestDisplay extends HTMLElement {
     this._onClick = this._onClick.bind(this);
     this._renderPending = false;
     this._renderId = null;
+    this.#_items = new Array(54).fill(null);
   }
 
   // ---------- 属性访问器 ----------
@@ -72,7 +73,7 @@ export class HTMLmcChestDisplay extends HTMLElement {
 
   /** 获取全部物品的副本 */
   get items() {
-    return this._items.slice();
+    return this.#_items.slice();
   }
 
   /**
@@ -82,10 +83,10 @@ export class HTMLmcChestDisplay extends HTMLElement {
   setItems(arr) {
     if (!Array.isArray(arr)) return;
     // 清空所有槽位
-    this._items.fill(null);
+    this.#_items.fill(null);
     const max = Math.min(arr.length, 54);
     for (let i = 0; i < max; i++) {
-      this._items[i] = ensureItem(arr[i]);
+      this.#_items[i] = ensureItem(arr[i]);
     }
     this._requestRender();
   }
@@ -97,7 +98,7 @@ export class HTMLmcChestDisplay extends HTMLElement {
    */
   getItem(index) {
     if (index < 0 || index >= 54) return null;
-    return this._items[index];
+    return this.#_items[index];
   }
 
   /**
@@ -107,29 +108,29 @@ export class HTMLmcChestDisplay extends HTMLElement {
    */
   setItem(index, item) {
     if (index < 0 || index >= 54) return;
-    this._items[index] = ensureItem(item);
+    this.#_items[index] = ensureItem(item);
     this._requestRender();
   }
 
   /** 清空所有物品 */
   clear() {
-    this._items.fill(null);
+    this.#_items.fill(null);
     this._requestRender();
   }
 
   /** 根据引用查询指定物品在第几个（引用比较） */
   indexOf(item) {
-    return this._items.indexOf(item);
+    return this.#_items.indexOf(item);
   }
 
   /** 根据引用查询指定物品是否存在 */
   includes(item) {
-    return this._items.includes(item);
+    return this.#_items.includes(item);
   }
 
   /** 物品数组长度（固定54） */
   get length() {
-    return this._items.length;
+    return this.#_items.length;
   }
 
   // ---------- 生命周期 ----------
@@ -138,8 +139,13 @@ export class HTMLmcChestDisplay extends HTMLElement {
     // 捕获click
     this._grid.addEventListener('click', this._onClick);
     // 捕获hover
-    this._grid.addEventListener('mouseenter', this._onMouseEnter, true);
-    this._grid.addEventListener('mouseleave', this._onMouseLeave, true);
+    const clazz = this;
+    this.#hoverHandler = [
+      (e) => { this._onMouseEnter(e, clazz); },
+      (e) => { this._onMouseLeave(e, clazz); },
+    ];
+    this._grid.addEventListener('mouseenter', this.#hoverHandler[0], true);
+    this._grid.addEventListener('mouseleave', this.#hoverHandler[1], true);
     // 首次渲染
     this._requestRender();
   }
@@ -147,8 +153,8 @@ export class HTMLmcChestDisplay extends HTMLElement {
   disconnectedCallback() {
     // 移除捕获
     this._grid.removeEventListener('click', this._onClick);
-    this._grid.removeEventListener('mouseenter', this._onMouseEnter, true);
-    this._grid.removeEventListener('mouseleave', this._onMouseLeave, true);
+    this._grid.removeEventListener('mouseenter', this.#hoverHandler[0], true);
+    this._grid.removeEventListener('mouseleave', this.#hoverHandler[1], true);
     // 取消待处理的动画帧
     if (this._renderId) {
       cancelAnimationFrame(this._renderId);
@@ -302,7 +308,7 @@ export class HTMLmcChestDisplay extends HTMLElement {
       slot.dataset.row = row;
       slot.dataset.column = col;
 
-      const item = this._items[i];
+      const item = this.#_items[i];
       if (item && item instanceof Item) {
         const display = document.createElement('mc-item-display');
         // 图片路径
@@ -352,30 +358,33 @@ export class HTMLmcChestDisplay extends HTMLElement {
   }
 
   // ---------- Hover事件 ----------
-  _onMouseEnter(e) {
+
+  #hoverHandler = [];
+
+  _onMouseEnter(e, clazz) {
     const slot = e.target.closest('.slot');
     if (!slot) return;
     const index = parseInt(slot.dataset.index);
     const row = parseInt(slot.dataset.row) + 1;  // 转1-index
     const column = parseInt(slot.dataset.column) + 1;
-    const item = this._items[index] || null;
+    const item = clazz.#_items[index] || null;
 
-    this.dispatchEvent(new CustomEvent('itemHover', {
+    clazz.dispatchEvent(new CustomEvent('itemHover', {
       detail: { row, column, index, item, action: 'enter' },
       bubbles: true,
       composed: true
     }));
   }
 
-  _onMouseLeave(e) {
+  _onMouseLeave(e, clazz) {
     const slot = e.target.closest('.slot');
     if (!slot) return;
     const index = parseInt(slot.dataset.index);
     const row = parseInt(slot.dataset.row) + 1;
     const column = parseInt(slot.dataset.column) + 1;
-    const item = this._items[index] || null;
+    const item = clazz.#_items[index] || null;
 
-    this.dispatchEvent(new CustomEvent('itemHover', {
+    clazz.dispatchEvent(new CustomEvent('itemHover', {
       detail: { row, column, index, item, action: 'leave' },
       bubbles: true,
       composed: true
@@ -391,7 +400,7 @@ export class HTMLmcChestDisplay extends HTMLElement {
     const row = parseInt(slot.dataset.row);
     const column = parseInt(slot.dataset.column);
     const index = row * 9 + column;
-    const item = this._items[index] || null; // 可能为 null
+    const item = this.#_items[index] || null; // 可能为 null
 
     const event = new CustomEvent('itemClick', {
       detail: {
