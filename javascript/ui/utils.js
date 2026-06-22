@@ -115,7 +115,7 @@ export function setPageTitle(title) {
  * 弹出轻量消息提示框
  * @param {string} Message 消息文本
  * @param {string} [ConfirmBtnText=''] 确认按钮文字
- * @param {string|boolean} [type='none'] 样式(none, info, success, warning, error) || 为兼容老版本，使用布尔值时视作'error'
+ * @param {'none'|'info'|'success'|'warning'|'error'|true} [type='none'] 样式 || 为兼容老版本，使用布尔值时视作'error'
  * @param {number} [duration=4000] 自动关闭时长（毫秒）；≤0 则不自动关闭
  * @param {function} [onclick] 点击确认按钮时的回调函数
  * @param {string} [align='auto'] 弹窗位置 'auto'|'top'|'bottom'
