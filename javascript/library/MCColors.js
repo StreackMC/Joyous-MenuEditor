@@ -344,19 +344,48 @@ function parseWithDefault(text) {
 
 /**
  * 使用指定的前缀替换为 §（仅当前缀后跟有效的格式化代码时）
- * @param {string} text 源文本
+ * @param {string|null|undefined} text 源文本
  * @param {string} prefix 要替换的前缀（不能为 null，可以为空字符串，此时不进行替换）
  * @returns {string} 替换后的文本
  * @throws {TypeError} 如果 prefix 为 null
+ * @throws {TypeError} prefix 无法被视作 string
+ * @throws {TypeError} text 无法被视作 string
  */
 function parseWithPrefix(text, prefix) {
-  if (prefix == null) {
+  // 对每个参数进行合法性校验
+  if (!typeof prefix === 'string') {
+    if (prefix?.replace) {// 存在 replace 方法就放行
+    } else if (prefix?.toString) {
+      // 尝试使用潜在的 toString
+      prefix = prefix.toString();
+    } else {
+      try {
+        prefix = new String(prefix);
+      } catch (error) {
+        throw new Error("参数 prefix 无法被视作文本：" + error.message);
+      }
+    }
+  }
+  if (prefix === null) {
     throw new TypeError('参数 prefix 为 null');
   }
   if (prefix === '') {
     return text == null ? '' : text;
   }
-  if (text == null) return '';
+  if (!typeof text === 'string') {
+    if (text?.replace) {// 存在 replace 方法就放行
+    } else if (text?.toString) {
+      // 尝试使用潜在的 toString
+      text = text.toString();
+    } else {
+      try {
+        text = new String(text);
+      } catch (error) {
+        throw new Error("参数 text 无法被视作文本：" + error.message);
+      }
+    }
+  }
+  if (text === null || text === undefined || text === '') return '';
 
   // 转义 prefix 中的正则特殊字符
   const escapeRegExp = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -382,6 +411,9 @@ function parseWithPrefix(text, prefix) {
  * @param {string} text 源文本
  * @param {string} [prefix='&'] 要替换的前缀
  * @returns {string} 替换后的文本
+ * @throws {TypeError} prefix 是 null
+ * @throws {TypeError} prefix 无法被视作 string
+ * @throws {TypeError} text 无法被视作 string
  */
 function parse(text, prefix = '&') {
   // 当 prefix 被显式传递为 undefined 时，也使用默认值 '&'
