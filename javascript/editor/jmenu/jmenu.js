@@ -498,7 +498,13 @@ export class JMElement extends HTMLElement {
         this._startJavaBtnEdit(index, row, column, null);
         return;
       }
-      // 有正在进行的编辑且目标不同，弹出未保存提示
+      // 有正在进行的编辑且目标不同，先判断是否有未保存的改动
+      if (!this._isCurrentEditDirty()) {
+        // 无改动，直接切换
+        this._startJavaBtnEdit(index, row, column, null);
+        return;
+      }
+      // 有未保存改动，弹出未保存提示
       this.#_pendingSwitch = { index, row, column, item };
       this.#_unsaveTextEl.innerHTML = i18n.parseSafe("editor.jmenu.unsave_text", { slot: this.#edittingJslot + 1, row: getRowColumn(this.#edittingJslot)[0], column: getRowColumn(this.#edittingJslot)[1] });
       this.#_unsaveCard.setAttribute('visible', 'true');
@@ -669,6 +675,35 @@ export class JMElement extends HTMLElement {
       utils.msg(i18n.parseSafe("msg.savedTo", { path: `#${this.#edittingJslot + 1}` }), i18n.parseSafe("msg.done"), 'success');
     } catch (e) {
       console.warn("Failed to save editing button:", e);
+    }
+  }
+
+  /** 判断当前编辑区是否有未保存的改动 */
+  _isCurrentEditDirty() {
+    if (this.#edittingJslot == null) return false;
+    try {
+      // 构建将在保存时生成的 JavaButton
+      let permission = this.#_permField.value.replaceAll(/!/g, "");
+      if (!this._putAndGetPermBool()) { permission = "!" + permission; };
+      const candidate = Item2JavaButton(this.#edittingJitem, this.#_actionPicker.value, permission, this.#_paramField.value);
+      const original = this.#edittingJbutton;
+      if (!original) return true;
+      // 对比关键字段
+      const fieldsEqual = (
+        candidate.id === original.id &&
+        candidate.number === original.number &&
+        !!candidate.enchant_glint_override === !!original.enchant_glint_override &&
+        candidate.action_type === original.action_type &&
+        (candidate.action_param || "") === (original.action_param || "") &&
+        (candidate.permission || "") === (original.permission || "") &&
+        (candidate.permission_when_and_have === original.permission_when_and_have) &&
+        Array.isArray(candidate.tooltip) && Array.isArray(original.tooltip) &&
+        candidate.tooltip.length === original.tooltip.length &&
+        candidate.tooltip.every((v, i) => v === original.tooltip[i])
+      );
+      return !fieldsEqual;
+    } catch (e) {
+      return true;
     }
   }
 
