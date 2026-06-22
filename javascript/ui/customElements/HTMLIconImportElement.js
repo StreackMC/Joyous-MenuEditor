@@ -48,5 +48,5 @@ img[is="j-icon"] {
   user-select: none;
   pointer-events: none;
 }`;
-style.dataset.comment = "Inserted by HTMLIconImportElement.js";
+style.dataset.comment = "Inserted by customElements/HTMLIconImportElement.js";
 document.head.appendChild(style);

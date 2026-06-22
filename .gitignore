@@ -41,7 +41,6 @@ desktop.ini
 *.swp
 *.swo
 *~
-.DS_Store
 
 # 运行时数据
 *.pid
@@ -75,6 +74,7 @@ out/
 # 临时文件
 tmp/
 temp/
+*test*
 
 # 配置文件 (如果你不希望提交某些配置文件)
 # 例如：各种应用的 config.json
