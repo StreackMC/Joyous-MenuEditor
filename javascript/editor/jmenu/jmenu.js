@@ -4,10 +4,19 @@ import { Editor } from "../editor.js";
 import { JavaButton, BedrockButton, JMenu } from "./dataDef.js";
 import MCColors from "../../library/MCColors.js";
 import i18n from "../../i18n.js";
-import { HTMLmcChestDisplay } from "../../ui/customElements/HTMLmcChestDisplay.js";
+import { HTMLmcItemDisplay } from "../../ui/customElements/HTMLmcItemDisplay.js";
+import { ensureItem, getIndex, HTMLmcChestDisplay } from "../../ui/customElements/HTMLmcChestDisplay.js";
 import commandServer from "../../backend/commandServer.js";
-const EditorId = "jmenu";
+import { Item, getItemFromMC } from "../../library/MCItemStack.js";
+import utils from "../../ui/utils.js";
+import mctext from "../../ui/panels/mctext.js";
+import mcitem from "../../ui/panels/mcitem.js";
 
+/** 编辑器ID */
+const EditorId = "jmenu";
+/** 动画防抖间隔 */
+const delayedUpdateTimeout = 100;
+/** 编辑器 ShadowDOM 样式 */
 const JMeleSTYLE = `
 /* BASE */
 .root {
@@ -89,6 +98,7 @@ mc-chest-display {
   display: flex;
   flex-direction: column;
   gap: .9em;
+  transition: height 0.2s ease;
 }
 
 .iteminfo-root h2 {
@@ -107,16 +117,17 @@ mc-chest-display {
 }
 
 .iteminfo-body {
-  display: flex;
   flex-direction: column;
   gap: .9em;
   opacity: 0;
   transform: translateY(-12px);
+  display: none;
   transition: opacity 0.3s ease, transform 0.3s ease;
   pointer-events: none;
 }
 
-.iteminfo-body[visible] {
+.iteminfo-body[visible="true"] {
+  display: flex;
   opacity: 1;
   transform: translateY(0);
   pointer-events: auto;
@@ -136,6 +147,11 @@ mc-chest-display {
 /* BEDROCK-AREA */
 .bedrock {}
 `;
+/** 权限模式按钮状态图标 */
+const SVG_ICONS = {
+  having: `<svg viewBox="0 -960 960 960"><path d="M280-280v-400h400v400H280Zm80-80h240v-240H360v240Zm-240 80v-80h80v80h-80Zm0-320v-80h80v80h-80Zm160 480v-80h80v80h-80Zm0-640v-80h80v80h-80Zm320 640v-80h80v80h-80Zm0-640v-80h80v80h-80Zm160 480v-80h80v80h-80Zm0-320v-80h80v80h-80ZM480-480Z"/></svg>`,
+  missing: `<svg viewBox="0 -960 960 960"><path d="M280-280v-400h400v400H280Zm-160 0v-80h80v80h-80Zm0-320v-80h80v80h-80Zm160 480v-80h80v80h-80Zm0-640v-80h80v80h-80Zm320 640v-80h80v80h-80Zm0-640v-80h80v80h-80Zm160 480v-80h80v80h-80Zm0-320v-80h80v80h-80Z"/></svg>`,
+};
 
 // ───────────────────── EditorJmenu ─────────────────────
 
@@ -194,44 +210,38 @@ editorManager.regisiterEditor(EditorId, async (fileNode, filename) => {
   return "";
 }, EditorJmenu);
 
-// ───────────────────── SVG 图标常量 ─────────────────────
-
-const SVG_ICONS = {
-  // 全屏 — have 状态
-  fullscreen: `<svg viewBox="0 -960 960 960"><path d="M280-280v-400h400v400H280Zm80-80h240v-240H360v240Zm-240 80v-80h80v80h-80Zm0-320v-80h80v80h-80Zm160 480v-80h80v80h-80Zm0-640v-80h80v80h-80Zm320 640v-80h80v80h-80Zm0-640v-80h80v80h-80Zm160 480v-80h80v80h-80Zm0-320v-80h80v80h-80ZM480-480Z"/></svg>`,
-  // 缩小 — miss 状态
-  fullscreen_exit: `<svg viewBox="0 -960 960 960"><path d="M280-280v-400h400v400H280Zm-160 0v-80h80v80h-80Zm0-320v-80h80v80h-80Zm160 480v-80h80v80h-80Zm0-640v-80h80v80h-80Zm320 640v-80h80v80h-80Zm0-640v-80h80v80h-80Zm160 480v-80h80v80h-80Zm0-320v-80h80v80h-80Z"/></svg>`,
-};
-
 // ───────────────────── JMElement ─────────────────────
 
 export class JMElement extends HTMLElement {
-  /** @type {JMenu|null} */          #_data;
-  /** @type {number} */ #_hoverIndex = -1;
-  /** @type {number} */ #_selectedIndex = -1;
-  /** @type {number|null} */ #_pendingSelection = null;
-  /** @type {boolean} */ #_unsaved = false;
-
+  /** Menu Data @type {JMenu|null} */ #_data;
+  
   // DOM refs
-  /** @type {HTMLElement} */ #_titleEl;       // actionbar title
-  /** @type {HTMLmcChestDisplay} */ #_chestEl;       // mc-chest-display
-  /** @type {HTMLElement} */ #_editArea;      // s-card.iteminfo-root
-  /** @type {HTMLElement} */ #_editBody;      // .iteminfo-body
-  /** @type {HTMLElement} */ #_slotTitleEl;   // h2 in edit area
-  /** @type {HTMLElement} */ #_unsaveCard;    // s-card.iteminfo-unsave
-  /** @type {HTMLElement} */ #_unsaveTextEl;  // unsave text div
-  /** @type {HTMLElement} */ #_permField;     // s-text-field for perm
-  /** @type {HTMLElement} */ #_permToggleBtn; // s-icon-button for toggle
-  /** @type {HTMLElement} */ #_permToggleIcon; // s-icon inside toggle
-  /** @type {HTMLElement} */ #_permRemoveBtn; // s-icon-button for remove
-  /** @type {HTMLElement} */ #_picker;        // s-picker for action type
-  /** @type {HTMLElement} */ #_paramField;    // s-text-field for param
+  /** java: save btn @type {HTMLElement} */ #_saveBtn;
+  /** java: item edit btn @type {HTMLElement} */ #_editItemBtn;
+  /** actionbar: title @type {HTMLElement} */ #_titleEl; 
+  /** actionbar: title rename btn @type {HTMLElement} */ #_renameTitleBtn; 
+  /** actionbar: java2bedrock @type {HTMLElement} */ #_java2bedrockBtn; 
+  /** actionbar: bedrock2java @type {HTMLElement} */ #_bedrock2javaBtn; 
+  /** java: mc-chest-display @type {HTMLmcChestDisplay} */ #_chestEl;
+  /** java: s-card.iteminfo-root @type {HTMLElement} */ #_editArea;
+  /** java: .iteminfo-body @type {HTMLElement} */ #_editBody;
+  /** java: h2 in edit area @type {HTMLElement} */ #_slotTitleEl;
+  /** java: s-card.iteminfo-unsave @type {HTMLElement} */ #_unsaveCard;
+  /** java: unsave text div @type {HTMLElement} */ #_unsaveTextEl;
+  /** java: float-tips for perm @type {HTMLElement} */ #_permToggleTip;
+  /** java: s-text-field for perm @type {HTMLElement} */ #_permField;
+  /** java: s-icon-button for perm mode toggle @type {HTMLElement} */ #_permToggleBtn;
+  /** java: s-icon inside perm mode toggle @type {HTMLElement} */ #_permToggleIcon;
+  /** java: s-icon-button for remove @type {HTMLElement} */ #_permRemoveBtn;
+  /** java: s-picker for action type @type {HTMLElement} */ #_actionPicker;
+  /** java: s-text-field for param @type {HTMLElement} */ #_paramField;
 
   constructor() {
     super();
     this.attachShadow({ mode: 'open' });
     this._buildShadowDOM();
-    this._bindEvents();
+    this._bindEvents_actionbar();
+    this._bindEvents_java();
   }
 
   // ═════════════════════════════════════════════
@@ -243,16 +253,12 @@ export class JMElement extends HTMLElement {
     if (!(data instanceof JMenu)) throw new Error("Unrecognized Data Type: " + data);
     this.#_data = data;
     // 更新 UI：菜单标题、箱子名称与行数、以及格子物品
-    try {
-      // actionbar title
-      this.#_titleEl.innerHTML = MCColors.toHtml(this.#_data.title || "");
-      this.#_titleEl.title = MCColors.strip(this.#_data.title || "");
-    } catch (e) {
-      this.#_titleEl.textContent = this.#_data.title || "";
-    }
+    // actionbar title must be plain text (remove formatting codes)
+    this.#_titleEl.textContent = MCColors.remove(this.#_data.title || "");
+    this.#_titleEl.title = MCColors.strip(this.#_data.title || "");
     // chest: set name and line count
-    try { this.#_chestEl.name = this.#_data.title || ""; } catch (e) { this.#_chestEl.setAttribute('name', this.#_data.title || ''); }
-    try { this.#_chestEl.line = this.#_data.lines || 3; } catch (e) { this.#_chestEl.setAttribute('line', String(this.#_data.lines || 3)); }
+    this.#_chestEl.name = MCColors.parse(this.#_data.title || "");
+    this.#_chestEl.line = this.#_data.lines || 3;
 
     // prepare items array (54 slots)
     const itemsArr = new Array(54).fill(null);
@@ -270,7 +276,7 @@ export class JMElement extends HTMLElement {
     }
     this.#_chestEl.setItems(itemsArr);
     // reset UI state
-    this.#_slotTitleEl.textContent = tr('title_idle');
+    this._commitJavaTitle(tr('title_idle'), 'set');
     this.#_editBody.removeAttribute('visible');
     this.#_unsaveCard.removeAttribute('visible');
   }
@@ -304,12 +310,17 @@ export class JMElement extends HTMLElement {
     this.#_titleEl = title;
 
     // 重命名按钮
-    actionbar.appendChild(this._buildTipBtn(
-      '<svg viewBox="0 -960 960 960"><path d="m490-527 37 37 217-217-37-37-217 217ZM200-200h37l233-233-37-37-233 233v37Zm355-205L405-555l167-167-29-29-219 219-56-56 218-219q24-24 56.5-24t56.5 24l29 29 50-50q12-12 28.5-12t28.5 12l93 93q12 12 12 28.5T828-678L555-405ZM270-120H120v-150l285-285 150 150-285 285Z"></path></svg>',
-      tr('rename_title'), true
-    ));
-    actionbar.appendChild(this._buildTipBtn('arrow_forward', tr('sync_java_to_bedrock')));
-    actionbar.appendChild(this._buildTipBtn('arrow_back', tr('sync_bedrock_to_java')));
+    [this.#_renameTitleBtn, this.#_java2bedrockBtn, this.#_bedrock2javaBtn,] = [
+      this._buildTipBtn(
+        '<svg viewBox="0 -960 960 960"><path d="m490-527 37 37 217-217-37-37-217 217ZM200-200h37l233-233-37-37-233 233v37Zm355-205L405-555l167-167-29-29-219 219-56-56 218-219q24-24 56.5-24t56.5 24l29 29 50-50q12-12 28.5-12t28.5 12l93 93q12 12 12 28.5T828-678L555-405ZM270-120H120v-150l285-285 150 150-285 285Z"></path></svg>',
+        tr('rename_title'), true
+      ),
+      this._buildTipBtn('arrow_forward', tr('sync_java_to_bedrock')),
+      this._buildTipBtn('arrow_back', tr('sync_bedrock_to_java')),
+    ]
+    actionbar.appendChild(this.#_renameTitleBtn);
+    actionbar.appendChild(this.#_java2bedrockBtn);
+    actionbar.appendChild(this.#_bedrock2javaBtn);
 
     // ─── Java 区域 ──────────────────────────────
     const java = ce('div', 'java');
@@ -327,7 +338,7 @@ export class JMElement extends HTMLElement {
     java.appendChild(editArea);
     this.#_editArea = editArea;
 
-    // 位置标题（即用户所指的"标题"）—— 始终可见
+    // Java标题—— 始终可见
     const slotTitle = document.createElement('h2');
     slotTitle.textContent = '';
     editArea.appendChild(slotTitle);
@@ -360,15 +371,16 @@ export class JMElement extends HTMLElement {
     const cancelBtn = document.createElement('s-button');
     cancelBtn.setAttribute('slot', 'action');
     cancelBtn.setAttribute('type', 'filled-tonal');
-    cancelBtn.textContent = tr('cancel');
+    cancelBtn.textContent = i18n.parse('tooltip.cancel');
     unsaveCard.appendChild(cancelBtn);
 
     // ── Save ──
     const saveBtn = document.createElement('s-button');
     saveBtn.style.display = 'flex';
     saveBtn.setAttribute('type', 'filled-tonal');
-    saveBtn.textContent = tr('save');
+    saveBtn.textContent = i18n.parse('tooltip.save');
     editBody.appendChild(saveBtn);
+    this.#_saveBtn = saveBtn;
 
     // ── Edit item ──
     const editItemBtn = document.createElement('s-button');
@@ -376,6 +388,7 @@ export class JMElement extends HTMLElement {
     editItemBtn.setAttribute('type', 'filled-tonal');
     editItemBtn.textContent = tr('edit_item');
     editBody.appendChild(editItemBtn);
+    this.#_editItemBtn = editItemBtn;
 
     // ── Permission field ──
     const permField = document.createElement('s-text-field');
@@ -385,11 +398,14 @@ export class JMElement extends HTMLElement {
     editBody.appendChild(permField);
     this.#_permField = permField;
 
-    // 权限切换按钮（单个，SVG 动态替换：fullscreen ↔ fullscreen_exit）
-    const permTip = this._buildTipBtn(SVG_ICONS.fullscreen, tr('permission_switch'), false, "");
-    permTip.setAttribute('slot', 'end');
-    permField.appendChild(permTip);
-    this.#_permToggleBtn = permTip.querySelector('s-icon-button');
+    // 权限切换按钮
+    const permTip = ce("span", "");
+    const permTipRoot = this._buildTipBtn(SVG_ICONS.fullscreen, "", false, "");
+    permTipRoot.setAttribute('slot', 'end');
+    permField.appendChild(permTipRoot);
+    permTipRoot.appendChild(permTip);
+    this.#_permToggleTip = permTip;
+    this.#_permToggleBtn = permTipRoot.querySelector('s-icon-button');
     this.#_permToggleIcon = this.#_permToggleBtn.querySelector('s-icon');
 
     // 权限移除按钮
@@ -414,7 +430,7 @@ export class JMElement extends HTMLElement {
       item.textContent = tr(key);
       picker.appendChild(item);
     }
-    this.#_picker = picker;
+    this.#_actionPicker = picker;
 
     // ── Action param field ──
     const paramField = document.createElement('s-text-field');
@@ -436,187 +452,202 @@ export class JMElement extends HTMLElement {
   //  事件绑定
   // ═════════════════════════════════════════════
 
-  _bindEvents() {
-    // 悬停事件：更新标题提示
-    this.#_chestEl.addEventListener('itemHover', e => {
-      const { action, row, column, index } = e.detail;
+  /** 挂载 ACTIONBAR 事件 */
+  _bindEvents_actionbar() {
+    // 修改 MenuTitle
+    this.#_renameTitleBtn.addEventListener('click', () => {
+      try {
+        const where = this;
+        mctext.edit(this.#_data.title).then(([result, newText]) => {
+          if (result) this.#_data.title = newText;
+          where._scheduleRender();
+        });
+      } catch (error) {
+        console.error("Failed to rename the menu", this.#_data, " as ", error);
+      }
+    });
+  }
+
+  /** 挂载 Java区域 事件 */
+  _bindEvents_java() {
+    // hover 移动
+    this.#_chestEl.addEventListener('itemHover', (e) => {
+      const { row, column, item, index, action } = e.detail;
       if (action === 'enter') {
-        this.#_hoverIndex = index;
-        this.#_slotTitleEl.textContent = tr('title_hover', { slot: index + 1, row, column });
-      } else if (action === 'leave') {
-        this.#_hoverIndex = -1;
-        if (this.#_selectedIndex === -1) this.#_slotTitleEl.textContent = tr('title_idle');
+        // enter
+        this._commitJavaTitle(tr("title_hover", { slot: index + 1, column: column, row: row }), 'temp');
+      } else {
+        // leave
+        this._commitJavaTitle(null, 'reset');
+      }
+    });
+    
+    // click 点击事件
+    this.#_chestEl.addEventListener('itemClick', (e) => {
+      const { row, column, item, index } = e.detail;
+      if (this.#edittingJbutton) {
+        // 有正在进行的编辑，询问要不要保存
+      } else {
+        // 没有正在进行的编辑，开始
+        this._commitJavaBtnEdit(index, row, column, item);
       }
     });
 
-    // 点击事件：选中/编辑或触发未保存提示
-    this.#_chestEl.addEventListener('itemClick', e => {
-      const { row, column, index } = e.detail;
-      if (this.#_unsaved && this.#_selectedIndex !== -1 && this.#_selectedIndex !== index) {
-        // 待执行的选择保留，以便用户在未保存提示中决定
-        this.#_pendingSelection = index;
-        this._showUnsavePrompt(this.#_selectedIndex);
-        return;
-      }
-      this._applySelection(index, row, column);
+    // save 保存按钮
+    this.#_saveBtn.addEventListener('click', e => {
+      console.log("JMENU Java Button #", this.#edittingJslot, this.#edittingJitem, this.#edittingJbutton, "save for ", e);
+      // 构建 tooltip
+      const tooltips = this.#edittingJitem?.ISC?.lore || [];
+      tooltips.unshift(this.#edittingJitem?.ISC?.item_name || "");
+      // 构建权限信息
+      let permission = this.#_permField.value.replaceAll(/!/g, "");
+      if (!this._putAndGetPermBool()) { permission = "!" + permission; };
+      // 写入数据
+      this.#edittingJbutton = new JavaButton({
+        display: {
+          id: this.#edittingJitem.id || "missingno",
+          enchant: this.#edittingJitem?.ISC?.enchantment_glint_override || false,
+          tooltip: tooltips,
+        },
+        action: this.#_actionPicker.value,
+        perm: permission,
+        param: this.#_paramField.value
+      });
+      this._commitJavaBtnUpdate(this.#edittingJslot, this.#edittingJitem);
+      // 关闭 unsaved
+      // todo
+      // 提示信息
+      utils.msg(i18n.parseSafe("msg.savedTo", { path: `#${this.#edittingJslot + 1}` }), i18n.parseSafe("msg.done"), 'success');
     });
 
-    // 点击编辑区外部时（预留：用于取消或收起）
-    this.#_editArea.addEventListener('click', e => {
-      // 不处理默认行为，目前留空以允许内嵌控件响应
-    });
-
-    // 表单控件变化
-    this.#_picker.addEventListener('change', e => { this.#_unsaved = true; });
-    this.#_permField.addEventListener('input', e => { this.#_unsaved = true; });
-    this.#_paramField.addEventListener('input', e => { this.#_unsaved = true; });
-
-    // unsave card buttons
-    const dismissBtn = this.#_unsaveCard.querySelector('s-button[slot="action"]');
-    const cancelBtn = Array.from(this.#_unsaveCard.querySelectorAll('s-button[slot="action"]'))[1];
-    if (dismissBtn) dismissBtn.addEventListener('click', () => {
-      this.#_unsaved = false;
-      this.#_unsaveCard.removeAttribute('visible');
-      if (this.#_pendingSelection != null) {
-        const idx = this.#_pendingSelection; this.#_pendingSelection = null;
-        const rc = this._indexToRowCol(idx);
-        this._applySelection(idx, rc[0], rc[1]);
+    // 编辑物品按钮
+    this.#_editItemBtn.addEventListener('click', e => {
+      try {
+        const where = this;
+        mcitem.edit(this.#edittingJitem).then(([result, newItem]) => {
+          if (result) this.#edittingJitem = newItem;
+          where._scheduleRender();
+        });
+      } catch (error) {
+        console.error("Failed to edit the menu button item", this.#edittingJitem, " as ", error);
       }
-    });
-    if (cancelBtn) cancelBtn.addEventListener('click', () => {
-      this.#_unsaveCard.removeAttribute('visible');
-      this.#_pendingSelection = null;
-    });
-
-    // save button (first in editBody following unsave card)
-    const saveBtn = this.#_editBody.querySelector('s-button[type="filled-tonal"]');
-    if (saveBtn) saveBtn.addEventListener('click', () => { this._saveCurrentEdit(); });
-
-    // permission toggle and remove
-    if (this.#_permToggleBtn) this.#_permToggleBtn.addEventListener('click', () => { this._togglePermPreview(); });
-    if (this.#_permRemoveBtn) this.#_permRemoveBtn.addEventListener('click', () => { this.#_permField.setAttribute('value', ''); this.#_unsaved = true; });
-
-    // param reset button
-    const resetTip = this.#_paramField.querySelector('s-tooltip');
-    if (resetTip) {
-      const resetBtn = resetTip.querySelector('s-icon-button');
-      if (resetBtn) resetBtn.addEventListener('click', () => { this.#_paramField.setAttribute('value', ''); this.#_unsaved = true; });
-    }
+    })
   }
 
-  // Helper: convert index -> [row, column] (1-indexed)
-  _indexToRowCol(index) {
-    const row = Math.floor(index / 9) + 1;
-    const column = (index % 9) + 1;
-    return [row, column];
+  /** 进入DOM */
+  connectedCallback() {
   }
 
-  // 显示未保存提示，填充提示文本
-  _showUnsavePrompt(idx) {
-    const [row, column] = this._indexToRowCol(idx);
-    this.#_unsaveTextEl.textContent = tr('unsave_text', { slot: idx + 1, row, column });
-    this.#_unsaveCard.setAttribute('visible', '');
-  }
-
-  // 应用选中并展开编辑区
-  _applySelection(index, row, column) {
-    // 取消之前选中样式
-    this._clearSelectedStyle();
-    this.#_selectedIndex = index;
-    // 设置选中样式（直接操作 chest shadow slots）
-    try {
-      const slotEl = this.#_chestEl.shadowRoot?.querySelector(`.slot[data-index="${index}"]`);
-      if (slotEl) {
-        slotEl.style.transition = 'box-shadow 0.2s ease, transform 0.2s ease';
-        slotEl.style.boxShadow = '0 0 0 3px rgba(63,138,255,0.55)';
-        slotEl.style.transform = 'translateY(-2px)';
-      }
-    } catch (e) {}
-
-    // Fill edit area with current button data if exists
-    const key = `${String(row)}${String(column)}`;
-    const btn = (this.#_data && this.#_data.java && this.#_data.java.get) ? this.#_data.java.get(key) : null;
-    // 标题显示
-    const titleKey = i18n.has && i18n.has(`editor.jmenu.title_edit`) ? 'title_edit' : 'title_hover';
-    this.#_slotTitleEl.textContent = tr(titleKey, { slot: index + 1, row, column });
-    // 显示编辑区
-    this.#_editBody.setAttribute('visible', '');
-
-    if (btn) {
-      // permission
-      const permVal = btn.permission || '';
-      this.#_permField.setAttribute('value', permVal);
-      // update toggle icon
-      const iconSvg = (btn.permission_when_and_have) ? SVG_ICONS.fullscreen : SVG_ICONS.fullscreen_exit;
-      if (this.#_permToggleIcon) this.#_permToggleIcon.innerHTML = iconSvg;
-      // show/hide remove button
-      if (permVal && permVal.length > 0) this.#_permRemoveBtn.style.display = '';
-      else this.#_permRemoveBtn.style.display = 'none';
-      // action type
-      this.#_picker.setAttribute('value', btn.action_type || 'none');
-      // param
-      this.#_paramField.setAttribute('value', btn.action_param || '');
-    } else {
-      this.#_permField.setAttribute('value', '');
-      if (this.#_permToggleIcon) this.#_permToggleIcon.innerHTML = SVG_ICONS.fullscreen;
-      this.#_permRemoveBtn.style.display = 'none';
-      this.#_picker.setAttribute('value', 'none');
-      this.#_paramField.setAttribute('value', '');
-    }
-    // mark unsaved false for now
-    this.#_unsaved = false;
-  }
-
-  _clearSelectedStyle() {
-    try {
-      const prev = this.#_chestEl.shadowRoot?.querySelector('.slot[style*="box-shadow"]');
-      if (prev) {
-        prev.style.boxShadow = '';
-        prev.style.transform = '';
-      }
-    } catch (e) {}
-  }
-
-  // 保存当前编辑到数据模型
-  _saveCurrentEdit() {
-    if (this.#_selectedIndex < 0) return;
-    const [row, column] = this._indexToRowCol(this.#_selectedIndex);
-    const key = `${String(row)}${String(column)}`;
-    let btn = (this.#_data && this.#_data.java && this.#_data.java.get) ? this.#_data.java.get(key) : null;
-    if (!btn) {
-      // 创建一个最小占位按钮以保证数据存在
-      // 这里仅用默认 MC 缺省图标
-      btn = new JavaButton({ display: { id: 'missingno' } });
-      this.#_data.java.set(key, btn);
-    }
-    const permVal = this.#_permField.getAttribute('value') || '';
-    btn.permission = permVal;
-    // toggled preview is stored only after save
-    const pickerVal = this.#_picker.getAttribute('value') || 'none';
-    btn.action_type = pickerVal;
-    const paramVal = this.#_paramField.getAttribute('value') || '';
-    btn.action_param = paramVal;
-
-    // update chest display (in case id changed)
-    const items = this.#_chestEl.items;
-    items[this.#_selectedIndex] = btn.id || null;
-    this.#_chestEl.setItems(items);
-
-    this.#_unsaved = false;
-    this.#_unsaveCard.removeAttribute('visible');
-  }
-
-  _togglePermPreview() {
-    // 切换当前编辑中的权限显示（仅 UI 预览）
-    const cur = this.#_permToggleIcon;
-    if (!cur) return;
-    const isHave = cur.innerHTML === SVG_ICONS.fullscreen;
-    cur.innerHTML = isHave ? SVG_ICONS.fullscreen_exit : SVG_ICONS.fullscreen;
-    this.#_unsaved = true;
+  /** 退出DOM */
+  disconnectedCallback() {
+    if (this._rafId) cancelAnimationFrame(this._rafId);
   }
 
   // ═════════════════════════════════════════════
-  //  辅助：构建 s-tooltip > s-icon-button > s-icon
+  //  渲染API + rAF防抖
+  // ═════════════════════════════════════════════
+
+  #originJavaTitle = "";
+  #pendingJavaTitle = "";
+  #pendingJavaTitleTOid = null;
+  /** 防抖渲染 JavaTitle @param {'temp'|'reset'|'set'} [mode] */
+  _commitJavaTitle(text, mode = 'temp') {
+    switch (mode) {
+      case 'reset':
+        this.#pendingJavaTitle = this.#originJavaTitle;
+        break;
+      case 'set':
+        this.#pendingJavaTitle = text;
+        this.#originJavaTitle = text;
+        break;
+      default:
+        this.#pendingJavaTitle = text;
+        break;
+    }
+    if (this.#pendingJavaTitleTOid) clearTimeout(this.#pendingJavaTitleTOid);
+    this.#pendingJavaTitleTOid = setTimeout(() => {
+      this._scheduleRender();
+    }, delayedUpdateTimeout);
+  }
+
+  #javeBtnRenderQueue = [];
+  #javeBtnRenderQueueTOid = null;
+  /** 队列渲染JavaButton更新 (0-index) @param {Item} item */
+  _commitJavaBtnUpdate(index, item) {
+    index = parseInt(index);
+    if (index < 0 || index >= 54) return;
+    this.#javeBtnRenderQueue.push([index, /* rAF渲染时会ensure一遍，此处不重复调用 */item]);
+    if (this.#javeBtnRenderQueueTOid) clearTimeout(this.#javeBtnRenderQueueTOid);
+    this.#javeBtnRenderQueueTOid = setTimeout(() => {
+      this._scheduleRender();
+    }, delayedUpdateTimeout);
+  }
+
+  /** 正在编辑的按钮 @type {JavaButton|null} */
+  #edittingJbutton = null;
+  /** 正在编辑的按钮序号 @type {int|null} */
+  #edittingJslot = null;
+  /** 正在编辑的按钮物品 @type {Item|null} */
+  #edittingJitem = null;
+  /** 立即渲染JavaButton编辑，无条件替换正在进行的编辑 @type {Item} item */
+  _commitJavaBtnEdit(index, row, column, item) {
+    // 替换正在编辑的
+    this.#edittingJbutton = this.#_data.java.get(`${row}${column}`);
+    this.#edittingJitem = item;
+    this.#edittingJslot = index;
+    if (!this.#edittingJbutton) this.#edittingJbutton = new JavaButton({ display: { id: "apple" } });
+    if (!this.#edittingJitem) this.#edittingJitem = new Item(this.#edittingJbutton.id);
+    // 载入信息
+    this._commitJavaTitle(tr('title_edit', { slot: index + 1, column: column, row: row }), 'set');
+    this.#_permField.value = this.#edittingJbutton.permission;
+    this.#_actionPicker.value = this.#edittingJbutton.action_type;
+    this.#_paramField.value = this.#edittingJbutton.action_param;
+    this._putAndGetPermBool(!!this.#edittingJbutton.permission_when_and_have);
+    // 显示这个元素
+    this.#_editBody.setAttribute("visible", true);
+  }
+
+  _rafId = null;
+  /** 请求渲染，在下个帧完成，自动合并防抖 */
+  _scheduleRender() {
+    if (this._rafId) { cancelAnimationFrame(this._rafId); };
+    this._rafId = requestAnimationFrame(() => {
+      // 执行渲染
+      this._rafId = null;
+      // Menu Title
+      const isMenuTitleChanged = this._renderReplacer(this.#_titleEl, 'textContent', MCColors.remove(this.#_data.title));
+      if (isMenuTitleChanged) {
+        this.#_chestEl.name = MCColors.parse(this.#_data.title);
+      }
+      // Java编辑面板 title
+      this._renderReplacer(this.#_slotTitleEl, 'textContent', this.#pendingJavaTitle);
+      // JavaChest
+      this.#javeBtnRenderQueue.forEach(([index, item]) => {
+        this.#_chestEl.setItem(index, item);
+      });
+      this.#javeBtnRenderQueue = [];
+    });
+  }
+
+  /** 
+   * 渲染辅助器：比较当前值和目标值，若不同则更新。
+   * 会自动转换类型。
+   * @param {HTMLElement} el - 要操作的目标元素
+   * @param {string} targetProp - 要设置的属性名（如 'innerText'）
+   * @param {string} targetValue - 目标值
+   * @returns {boolean} 是否替换了
+   */
+  _renderReplacer(el, targetProp, targetValue) {
+    const currentValue = el[targetProp];
+    if (currentValue != targetValue) {
+      el[targetProp] = targetValue;
+      return true;
+    }
+    return false;
+  }
+
+  // ═════════════════════════════════════════════
+  //  辅助
   // ═════════════════════════════════════════════
 
   /**
@@ -640,6 +671,28 @@ export class JMElement extends HTMLElement {
     tipEl.appendChild(document.createTextNode(tip));
     return tipEl;
   }
+
+  #javaPermStatus = true;
+  /**
+   * 设置/获取权限切换按钮的状态
+   * @param {null|boolean} status 严格布尔则设置，否则仅获取
+   * @returns （设置完成后）当前状态
+   */
+  _putAndGetPermBool(status) {
+    if (status === true) {
+      this.#javaPermStatus = true;
+      this.#_permToggleTip.innerHTML = tr("permission_have");
+      this.#_permToggleIcon.innerHTML = SVG_ICONS.having;
+      return true;
+    } else if (status === false) {
+      this.#javaPermStatus = false;
+      this.#_permToggleTip.innerHTML = tr("permission_miss");
+      this.#_permToggleIcon.innerHTML = SVG_ICONS.missing;
+      return false;
+    } else {
+      return this.#javaPermStatus;
+    }
+  }
 }
 
 customElements.define("jmenu-editor", JMElement);
@@ -649,3 +702,38 @@ customElements.define("jmenu-editor", JMElement);
 /** 创建元素 @returns {HTMLElement} */
 function ce(t, c) { const e = document.createElement(t); if (c) e.className = c; return e; }
 function tr(key, params = {}) { return i18n.parseSafe(`editor.jmenu.${key}`, params); }
+
+//debug
+commandServer.executeCommand("editor.open", `{
+  "title": "&b主菜单",
+  "lines": 3,
+  "java-buttons": {
+    "12": {
+      "display": {
+        "id": "apple",
+        "enchant": false,
+        "tooltip": [
+          "&f第一个是按钮标题",
+          "&f其它都是 Lore 行，且行首会自动添加 &r ，无需在此添加。"
+        ]
+      },
+      "perm": "",
+      "action": "menu",
+      "param": "example"
+    }
+  },
+  "bedrock-buttons": [
+    {
+      "display": {
+        "text": "apple",
+        "icon": "textures/ui/icon_recipe_nature.png"
+      },
+      "perm": "",
+      "action": "menu",
+      "param": "example"
+    }
+  ],
+  "jme": "menu",
+  "jmev": 1
+}
+  `);

@@ -118,6 +118,87 @@
       }
     }
   },
+  "editor": {
+    "actions": {
+      "openFile": "打开文件",
+      "openFolder": "打开工作区",
+      "revert": "撤销",
+      "redo": "恢复"
+    },
+    "ACE": {
+      "err": "未能加载 ACE 编辑器。"
+    },
+    "jmenu": {
+      "title_idle": "点按以开始编辑……",
+      "title_hover": "点按以编辑 #%slot% [第 %row% 行 第 %column% 列]",
+      "title_edit": "正编辑 #%slot% [第 %row% 行 第 %column% 列]",
+      "unsave_text": "尚未保存按钮 #%slot% [第 %row% 行 第 %column% 列]，要怎么做？",
+      "dismiss": "舍弃所有更改",
+      "edit_item": "编辑物品",
+      "permission_label": "权限节点",
+      "permission_have": "有权限时可见<br>点击切换",
+      "permission_miss": "没有权限才可见<br>点击切换",
+      "permission_remove": "点击移除权限要求",
+      "action_type": "操作类型",
+      "action_type_none": "无响应",
+      "action_type_menu": "跳转至其他菜单",
+      "action_type_cmd": "以玩家身份执行命令",
+      "action_type_op": "以 OP 身份执行命令",
+      "action_type_con": "以控制台身份执行命令",
+      "action_type_url": "在浏览器中打开",
+      "action_param": "操作参数",
+      "action_param_reset": "重置",
+      "rename_title": "修改菜单标题",
+      "sync_java_to_bedrock": "同步 Java 至基岩版",
+      "sync_bedrock_to_java": "同步基岩版至 Java",
+      "empty_slot": "空槽位"
+    },
+    "welcome": {
+      "headline": "欢迎",
+      "text1": "您可以打开一个文件来开始编辑菜单。<br>在支持的浏览器上，也支持打开文件夹作为工作区以批量编辑菜单。",
+      "text2": "或者：<a target='_blank' href='https://github.com/StreackMC/Joyous/releases'>获取Joyous插件</a>"
+    },
+    "browser": {
+      "title": {
+        "beforeload": "安全提示"
+      },
+      "text": {
+        "beforeload": "您正访问外部站点 <span title=\"%url%\">%target%</span> ：<br><ul><li>外部站点无法确保安全性，可能会干扰本应用的运行；</li><li>部分站点禁止在嵌套中运行，因此该页面可能不会正常展示。</li></ul>"
+      }
+    }
+  },
+  "msg": {
+    "command_failure": "无法执行命令：%msg%",
+    "missing_tab": "不存在的标签页#%index%",
+    "autosave": {
+      "fail_recover": "无法恢复上次的工作区：%msg%"
+    },
+    "done": "好",
+    "ok": "好",
+    "okay": "好",
+    "unknownEditor": "未知的编辑器：%editor%",
+    "clipboard": {
+      "api_not_found": "没有找到 ClipboardAPI ，部分功能将不可用。请将浏览器版本升到最新后再试。",
+      "uncopied": "未能复制文本：%msg%",
+      "copied": "已复制文本：%text%",
+      "ungot": "无法获取剪贴板，请检查是否授予权限：%msg%",
+      "max_displayed_chars": 25
+    },
+    "permission_revoked": "文件系统权限已被撤销，工作区已重置。可重新「打开工作区」以继续编辑。",
+    "permission_denied_restore": "权限不足，无法自动恢复上一次的工作区。可通过「打开工作区」手动加载。",
+    "file_changed_external": "文件 %target% 已被外部程序修改。是否重新加载？",
+    "saved": "已保存",
+    "savedWith": "已保存 %target%",
+    "savedTo": "已保存到 %path%",
+    "savedWithTo": "已保存 %target% 到 %path%",
+    "unable_to_open": "无法打开 %target% ： %reason%",
+    "unsaved": {
+      "title": "未保存的更改",
+      "tip": "文件 %target% 看起来还没有保存。要怎么做？"
+    },
+    "too_large_file": "要打开的 %file% 太大了（%size%KB），继续操作可能会导致卡顿。\n要继续吗？",
+    "binary_file_sus": "%file% 可能是一个二进制文件，继续使用文本编辑器打开可能会导致卡顿。\n目前没有可用的已注册的对应格式处理编辑器。\n要继续吗？"
+  },
   "minecraft": {
     "items": [
       { "translation": "苹果", "key": "apple" },
@@ -275,88 +356,5 @@
       { "translation": "木锹", "key": "wooden_shovel" },
       { "translation": "木剑", "key": "wooden_sword" }
     ]
-  },
-  "editor": {
-    "actions": {
-      "openFile": "打开文件",
-      "openFolder": "打开工作区",
-      "revert": "撤销",
-      "redo": "恢复"
-    },
-    "ACE": {
-      "err": "未能加载 ACE 编辑器。"
-    },
-    "jmenu": {
-      "title_idle": "点击以开始编辑……",
-      "title_hover": "点击以编辑 #%slot%，第 %row% 行 第 %column% 列",
-      "title_edit": "正编辑 #%slot%，第 %row% 行 第 %column% 列",
-      "unsave_text": "尚未保存按钮 #%slot% [第 %row% 行 第 %column% 列]，要怎么做？",
-      "dismiss": "舍弃所有更改",
-      "cancel": "取消",
-      "save": "保存",
-      "edit_item": "编辑物品",
-      "permission_label": "权限节点",
-      "permission_have": "仅当拥有权限 [%perm%] 时玩家可见",
-      "permission_miss": "仅当缺少权限 [%perm%] 时玩家可见",
-      "permission_remove": "点击移除权限要求",
-      "permission_switch": "点击切换",
-      "action_type": "操作类型",
-      "action_type_none": "无响应",
-      "action_type_menu": "跳转至其他菜单",
-      "action_type_cmd": "以玩家身份执行命令",
-      "action_type_op": "以 OP 身份执行命令",
-      "action_type_con": "以控制台身份执行命令",
-      "action_type_url": "在浏览器中打开",
-      "action_param": "操作参数",
-      "action_param_reset": "重置",
-      "sync_java_to_bedrock": "同步 Java 至基岩版",
-      "sync_bedrock_to_java": "同步基岩版至 Java",
-      "empty_slot": "空槽位"
-    },
-    "welcome": {
-      "headline": "欢迎",
-      "text1": "您可以打开一个文件来开始编辑菜单。<br>在支持的浏览器上，也支持打开文件夹作为工作区以批量编辑菜单。",
-      "text2": "或者：<a target='_blank' href='https://github.com/StreackMC/Joyous/releases'>获取Joyous插件</a>"
-    },
-    "browser": {
-      "title": {
-        "beforeload": "安全提示"
-      },
-      "text": {
-        "beforeload": "您正访问外部站点 <span title=\"%url%\">%target%</span> ：<br><ul><li>外部站点无法确保安全性，可能会干扰本应用的运行；</li><li>部分站点禁止在嵌套中运行，因此该页面可能不会正常展示。</li></ul>"
-      }
-    }
-  },
-  "msg": {
-    "command_failure": "无法执行命令：%msg%",
-    "missing_tab": "不存在的标签页#%index%",
-    "autosave": {
-      "fail_recover": "无法恢复上次的工作区：%msg%"
-    },
-    "done": "好",
-    "ok": "好",
-    "okay": "好",
-    "unknownEditor": "未知的编辑器：%editor%",
-    "clipboard": {
-      "api_not_found": "没有找到 ClipboardAPI ，部分功能将不可用。请将浏览器版本升到最新后再试。",
-      "uncopied": "未能复制文本：%msg%",
-      "copied": "已复制文本：%text%",
-      "ungot": "无法获取剪贴板，请检查是否授予权限：%msg%",
-      "max_displayed_chars": 25
-    },
-    "permission_revoked": "文件系统权限已被撤销，工作区已重置。可重新「打开工作区」以继续编辑。",
-    "permission_denied_restore": "权限不足，无法自动恢复上一次的工作区。可通过「打开工作区」手动加载。",
-    "file_changed_external": "文件 %target% 已被外部程序修改。是否重新加载？",
-    "saved": "已保存",
-    "savedWith": "已保存 %target%",
-    "savedTo": "已保存到 %path%",
-    "savedWithTo": "已保存 %target% 到 %path%",
-    "unable_to_open": "无法打开 %target% ： %reason%",
-    "unsaved": {
-      "title": "未保存的更改",
-      "tip": "文件 %target% 看起来还没有保存。要怎么做？"
-    },
-    "too_large_file": "要打开的 %file% 太大了（%size%KB），继续操作可能会导致卡顿。\n要继续吗？",
-    "binary_file_sus": "%file% 可能是一个二进制文件，继续使用文本编辑器打开可能会导致卡顿。\n目前没有可用的已注册的对应格式处理编辑器。\n要继续吗？"
   }
 }
