@@ -245,7 +245,8 @@ export class HTMLmcItemDisplay extends HTMLElement {
           top: 0;
           left: 0;
           overflow: auto;
-          scrollbar-width: thin;
+          /* 隐藏滚动条，因为不隐藏滚动条就会占据空间导致宽度计算错误。后续有时间修复或者换成自定义滚动条 */
+          scrollbar-width: none;
           max-width: 80vw;
           max-height: 80vh;
           display: none;
