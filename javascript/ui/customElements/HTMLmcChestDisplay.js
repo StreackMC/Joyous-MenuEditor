@@ -5,6 +5,19 @@ import { Item, getItemFromMC } from "../../library/MCItemStack.js";
 
 /**
  * 箱子界面
+ * 
+ * 独有事件 onItemHover ，仅支持 addEventListener 监听：
+ * ```javascript
+ * document.querySelector('mc-chest-display').addEventListener('itemHover', (e) => {
+ *   const { row, column, item, action } = e.detail;
+ *   if (action === 'enter') {
+ *     console.log(`悬停在第 ${row} 行 ${column} 列，物品：`, item);
+ *   } else {
+ *     console.log('离开槽位');
+ *   }
+ * });
+ * ```
+ * 
  * @apiNote 第几个是 0-index ，行列是 1-index
  * @attr {number} line - 显示的行数（1~6）
  * @attr {string} name - 箱子名称（支持 § 格式代码）
@@ -122,13 +135,20 @@ export class HTMLmcChestDisplay extends HTMLElement {
   // ---------- 生命周期 ----------
 
   connectedCallback() {
+    // 捕获click
     this._grid.addEventListener('click', this._onClick);
-    // 初次渲染
+    // 捕获hover
+    this._grid.addEventListener('mouseenter', this._onMouseEnter, true);
+    this._grid.addEventListener('mouseleave', this._onMouseLeave, true);
+    // 首次渲染
     this._requestRender();
   }
 
   disconnectedCallback() {
+    // 移除捕获
     this._grid.removeEventListener('click', this._onClick);
+    this._grid.removeEventListener('mouseenter', this._onMouseEnter, true);
+    this._grid.removeEventListener('mouseleave', this._onMouseLeave, true);
     // 取消待处理的动画帧
     if (this._renderId) {
       cancelAnimationFrame(this._renderId);
@@ -189,7 +209,6 @@ export class HTMLmcChestDisplay extends HTMLElement {
         overflow: hidden;
         text-overflow: ellipsis;
         max-width: 100%;
-        display: none;
         line-height: 1.2;
       }
 
@@ -330,6 +349,37 @@ export class HTMLmcChestDisplay extends HTMLElement {
 
       this._grid.appendChild(slot);
     }
+  }
+
+  // ---------- Hover事件 ----------
+  _onMouseEnter(e) {
+    const slot = e.target.closest('.slot');
+    if (!slot) return;
+    const index = parseInt(slot.dataset.index);
+    const row = parseInt(slot.dataset.row) + 1;  // 转1-index
+    const column = parseInt(slot.dataset.column) + 1;
+    const item = this._items[index] || null;
+
+    this.dispatchEvent(new CustomEvent('itemHover', {
+      detail: { row, column, index, item, action: 'enter' },
+      bubbles: true,
+      composed: true
+    }));
+  }
+
+  _onMouseLeave(e) {
+    const slot = e.target.closest('.slot');
+    if (!slot) return;
+    const index = parseInt(slot.dataset.index);
+    const row = parseInt(slot.dataset.row) + 1;
+    const column = parseInt(slot.dataset.column) + 1;
+    const item = this._items[index] || null;
+
+    this.dispatchEvent(new CustomEvent('itemHover', {
+      detail: { row, column, index, item, action: 'leave' },
+      bubbles: true,
+      composed: true
+    }));
   }
 
   // ---------- 点击事件 ----------
