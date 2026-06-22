@@ -18,7 +18,6 @@
  * @property {...any} [key:string] - 其他组件（保留但仅部分方法可用）
  */
 
-import MCColors from "./MCColors.js";
 
 /**
  * 表示一个物品堆叠（Item Stack）。
@@ -446,74 +445,4 @@ export function textComponentToLegacy(jsonText) {
   } catch (e) {
     return jsonText;
   }
-}
-
-// ───────────────────── 以下代码由 DeepSeek 生成 ─────────────────────
-// ───────────────────── 工具函数（模块级） ─────────────────────
-
-/**
- * 计算悬浮提示框的最佳弹出位置
- * @param {number} pointerX  - 指针/手指的 X 坐标（viewport）
- * @param {number} pointerY  - 指针/手指的 Y 坐标（viewport）
- * @param {number} tipWidth  - 提示框预估宽度
- * @param {number} tipHeight - 提示框预估高度
- * @param {boolean} isMobile - 是否移动端（移动端额外偏移避免手指遮挡）
- * @returns {{ top: number, left: number }} 提示框的 fixed 定位坐标
- */
-function calcTooltipPosition(pointerX, pointerY, tipWidth, tipHeight, isMobile) {
-  const vw = window.innerWidth;
-  const vh = window.innerHeight;
-  const gap = isMobile ? 28 : 12; // 移动端偏移更大，避免手指遮挡
-  const edgeMargin = 8;
-
-  // 候选方向：[水平偏移, 垂直偏移, 优先级说明]
-  const candidates = [
-    { dx: gap, dy: gap, label: '右下' }, // 首选：指针右下
-    { dx: gap, dy: -tipHeight - gap, label: '右上' },
-    { dx: -tipWidth - gap, dy: gap, label: '左下' },
-    { dx: -tipWidth - gap, dy: -tipHeight - gap, label: '左上' },
-  ];
-
-  // 移动端优先向上弹出（手指下方空间通常不足且易被遮挡）
-  if (isMobile) {
-    candidates.unshift(
-      { dx: gap, dy: -tipHeight - gap, label: '右上(移动优先)' },
-      { dx: -tipWidth - gap, dy: -tipHeight - gap, label: '左上(移动优先)' },
-    );
-  }
-
-  for (const cand of candidates) {
-    const left = pointerX + cand.dx;
-    const top = pointerY + cand.dy;
-    if (
-      left >= edgeMargin &&
-      top >= edgeMargin &&
-      left + tipWidth <= vw - edgeMargin &&
-      top + tipHeight <= vh - edgeMargin
-    ) {
-      return { top, left };
-    }
-  }
-
-  // 兜底：强制放在指针右下并 clamp 到视口内
-  let fallbackLeft = pointerX + gap;
-  let fallbackTop = pointerY + gap;
-  fallbackLeft = Math.min(fallbackLeft, vw - tipWidth - edgeMargin);
-  fallbackTop = Math.min(fallbackTop, vh - tipHeight - edgeMargin);
-  fallbackLeft = Math.max(fallbackLeft, edgeMargin);
-  fallbackTop = Math.max(fallbackTop, edgeMargin);
-  return { top: fallbackTop, left: fallbackLeft };
-}
-
-/**
- * 通过 ResizeObserver 更新 amount 的 font-size
- * font-size = min(元素宽, 元素高) × 0.475
- * @param {HTMLElement} host     - 自定义元素宿主
- * @param {HTMLElement} amountEl - 数量文字元素
- */
-function updateAmountFontSize(host, amountEl) {
-  const rect = host.getBoundingClientRect();
-  const size = Math.min(rect.width, rect.height);
-  const fontSize = size * 0.475;
-  amountEl.style.fontSize = fontSize + 'px';
 }
