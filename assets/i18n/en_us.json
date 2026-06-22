@@ -93,6 +93,34 @@
       { "translation": "Water Bucket", "key": "water_bucket" }
     ]
   },
+  "editor": {
+    "jmenu": {
+      "title_idle": "Click to start edit...",
+      "title_hover": "Click to edit #%slot% in row %row%, column %column%",
+      "unsave_text": "You haven't saved Button#%slot% [row %row%, column %column%], what do you want to do?",
+      "dismiss": "Dismiss All Changes",
+      "cancel": "Cancel",
+      "save": "Save",
+      "edit_item": "Edit the item",
+      "permission_label": "Permission Node",
+      "permission_have": "Only when have the permission [%perm%] will the player see it.",
+      "permission_miss": "Only when miss the permission [%perm%] will the player see it.",
+      "permission_remove": "Click to remove the permission requirement.",
+      "permission_switch": "Click to switch it.",
+      "action_type": "Action Type",
+      "action_type_none": "No response",
+      "action_type_menu": "Turn to another menu",
+      "action_type_cmd": "Execute command as the player",
+      "action_type_op": "Execute command as an OP",
+      "action_type_con": "Execute command as Console",
+      "action_type_url": "Open in browser",
+      "action_param": "Action Param",
+      "action_param_reset": "Reset",
+      "sync_java_to_bedrock": "Sync Java to Bedrock",
+      "sync_bedrock_to_java": "Sync Bedrock to Java",
+      "empty_slot": "Empty Slot"
+    }
+  },
   "msg": {
     "permission_revoked": "File system permission has been revoked. The workspace has been reset. Use \"Open Workspace\" to continue editing.",
     "permission_denied_restore": "Insufficient permission to restore the previous workspace. Use \"Open Workspace\" to load it manually.",

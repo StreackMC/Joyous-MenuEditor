@@ -286,6 +286,33 @@
     "ACE": {
       "err": "未能加载 ACE 编辑器。"
     },
+    "jmenu": {
+      "title_idle": "点击以开始编辑……",
+      "title_hover": "点击以编辑 #%slot%，第 %row% 行 第 %column% 列",
+      "title_edit": "正编辑 #%slot%，第 %row% 行 第 %column% 列",
+      "unsave_text": "尚未保存按钮 #%slot% [第 %row% 行 第 %column% 列]，要怎么做？",
+      "dismiss": "舍弃所有更改",
+      "cancel": "取消",
+      "save": "保存",
+      "edit_item": "编辑物品",
+      "permission_label": "权限节点",
+      "permission_have": "仅当拥有权限 [%perm%] 时玩家可见",
+      "permission_miss": "仅当缺少权限 [%perm%] 时玩家可见",
+      "permission_remove": "点击移除权限要求",
+      "permission_switch": "点击切换",
+      "action_type": "操作类型",
+      "action_type_none": "无响应",
+      "action_type_menu": "跳转至其他菜单",
+      "action_type_cmd": "以玩家身份执行命令",
+      "action_type_op": "以 OP 身份执行命令",
+      "action_type_con": "以控制台身份执行命令",
+      "action_type_url": "在浏览器中打开",
+      "action_param": "操作参数",
+      "action_param_reset": "重置",
+      "sync_java_to_bedrock": "同步 Java 至基岩版",
+      "sync_bedrock_to_java": "同步基岩版至 Java",
+      "empty_slot": "空槽位"
+    },
     "welcome": {
       "headline": "欢迎",
       "text1": "您可以打开一个文件来开始编辑菜单。<br>在支持的浏览器上，也支持打开文件夹作为工作区以批量编辑菜单。",

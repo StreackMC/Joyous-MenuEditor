@@ -1,4 +1,6 @@
 export class JMenu {
+  /** 现行版本 */
+  static version = 1;
   /** Java版按钮 @type {Map<String,JavaButton>} */
   java;
   /** 基岩版按钮 @type {BedrockButton[]} */
@@ -21,6 +23,9 @@ export class JMenu {
     this.java = getJavaButton(jeBtns);
     this.bedrock = getBedrockButton(beBtns);
   }
+
+  /** 转回文本 @type {String} */
+  toString() {}
 }
 
 /** 获取合法的Java按钮数据 @return {Map<String,JavaButton>} */
