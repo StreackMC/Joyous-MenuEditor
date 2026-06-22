@@ -353,7 +353,7 @@ function parseWithDefault(text) {
  */
 function parseWithPrefix(text, prefix) {
   // 对每个参数进行合法性校验
-  if (!typeof prefix === 'string') {
+  if (!(typeof prefix === 'string')) {
     if (prefix?.replace) {// 存在 replace 方法就放行
     } else if (prefix?.toString) {
       // 尝试使用潜在的 toString
@@ -372,7 +372,7 @@ function parseWithPrefix(text, prefix) {
   if (prefix === '') {
     return text == null ? '' : text;
   }
-  if (!typeof text === 'string') {
+  if (!(typeof text === 'string')) {
     if (text?.replace) {// 存在 replace 方法就放行
     } else if (text?.toString) {
       // 尝试使用潜在的 toString

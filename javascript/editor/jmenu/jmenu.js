@@ -270,7 +270,7 @@ export class JMElement extends HTMLElement {
         const index = (line - 1) * 9 + (column - 1);
         if (index >= 0 && index < 54) {
           // 物品有效，提交渲染
-          this._commitJavaBtnUpdate(index, btn);
+          this._commitJavaBtnUpdate(index, JavaButton2Item(btn), btn);
         }
       }
     }
@@ -503,7 +503,7 @@ export class JMElement extends HTMLElement {
       if (!this._putAndGetPermBool()) { permission = "!" + permission; };
       // 写入数据
       this.#edittingJbutton = Item2JavaButton(this.#edittingJitem, this.#_actionPicker.value, permission, this.#_paramField.value);
-      this._commitJavaBtnUpdate(this.#edittingJslot, this.#edittingJitem);
+      this._commitJavaBtnUpdate(this.#edittingJslot, this.#edittingJitem, this.#edittingJbutton);
       // 关闭 unsaved
       // todo
       // 提示信息
@@ -562,13 +562,13 @@ export class JMElement extends HTMLElement {
 
   #javeBtnRenderQueue = [];
   #javeBtnRenderQueueTOid = null;
-  /** 队列渲染JavaButton更新 (0-index) @param {Item|JavaButton} item */
-  _commitJavaBtnUpdate(index, item) {
-    if (item instanceof JavaButton) { item = JavaButton2Item(item); }
+  /** 队列渲染JavaButton更新 (0-index) @param {Item} item @param {JavaButton} btn */
+  _commitJavaBtnUpdate(index, item, btn) {
+    if (!(btn instanceof JavaButton)) return;
     if (!(item instanceof Item)) return;
     index = parseInt(index);
     if (index < 0 || index >= 54) return;
-    this.#javeBtnRenderQueue.push([index, /* rAF渲染时会ensure一遍，此处不重复调用 */item]);
+    this.#javeBtnRenderQueue.push([index, /* rAF渲染时会ensure一遍，此处不重复调用 */item, btn]);
     if (this.#javeBtnRenderQueueTOid) clearTimeout(this.#javeBtnRenderQueueTOid);
     this.#javeBtnRenderQueueTOid = setTimeout(() => {
       this._scheduleRender();
@@ -614,18 +614,13 @@ export class JMElement extends HTMLElement {
       // Java编辑面板 title
       this._renderReplacer(this.#_slotTitleEl, 'textContent', this.#pendingJavaTitle);
       // JavaChest
-      this.#javeBtnRenderQueue.forEach(([index, item]) => {
-        const i = ensureItem(item);
-        const [row, column] = getRowColumn(index);
-        let btn = this.#_data.java.get(`${row}${column}`);
-        if (!(btn instanceof JavaButton)) { btn = Item2JavaButton(btn); }
-        if (!i) return;
-        if (!i.ISC?.lore) { i.ISC.lore = []; }
-        i.ISC.lore.push(MCColors.parse(tr("attach_to_tooltip", {action:btn.action_type, param:btn.action_param})));
-        this.#_chestEl.setItem(index, i);
+      this.#javeBtnRenderQueue.forEach(([index, item, btn]) => {
+        if (!Array.isArray(item.ISC?.lore)) { item.ISC.lore = []; }
+        const mirror = item.clone();
+        mirror.ISC.lore.push(MCColors.parse(tr("attach_to_tooltip", { action: btn.action_type, param: btn.action_param })));
+        this.#_chestEl.setItem(index, mirror);
       });
-      this.#javeBtnRenderQueue = [];
-    });
+    })
   }
 
   /** 

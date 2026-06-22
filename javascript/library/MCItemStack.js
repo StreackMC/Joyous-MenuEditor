@@ -182,6 +182,29 @@ export class Item {
     return result;
   }
 
+  /**
+   * 创建当前物品堆叠的深拷贝。
+   * @returns {Item} 新的物品堆叠实例，拥有独立的属性。
+   */
+  clone() {
+    // 提取 ISC 中的数据属性，排除 function（如 toString）
+    const dataOnly = {};
+    for (const [key, value] of Object.entries(this.ISC)) {
+      if (key === 'toString') continue; // 跳过函数
+      dataOnly[key] = value;
+    }
+
+    // 深拷贝数据对象
+    let iscCopy;
+    if (typeof structuredClone === 'function') {
+      iscCopy = structuredClone(dataOnly);
+    } else {
+      iscCopy = JSON.parse(JSON.stringify(dataOnly));
+    }
+
+    // 创建新实例，构造函数会自动重新生成 toString
+    return new Item(this.id, this.amount, iscCopy);
+  }
 }
 
 /**
