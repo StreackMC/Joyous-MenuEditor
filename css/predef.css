@@ -24,6 +24,10 @@ mc-item-display {
   height: var(--size, 4em);
 }
 
+mc-chest-display {
+  width: 394px;
+}
+
 .pixel, mc-item-display::part(amount), mc-item-display::part(tooltip-title), mc-item-display::part(tooltip-description) {
   font-family: "mojangles", "unifont", sans-serif;
 }
