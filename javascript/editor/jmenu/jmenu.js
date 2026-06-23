@@ -1238,32 +1238,44 @@ export class JMElement extends HTMLElement {
     card.setAttribute('type', 'filled');
     card.dataset.index = index;
 
-    // Headline: 按钮类型（文本|按钮→打开URL）
+    // Headline: 操作类型
     const headline = document.createElement('div');
     headline.setAttribute('slot', 'headline');
     headline.textContent = tr('action_type_' + (btn.action_type || 'none'));
     card.appendChild(headline);
 
-    // Subhead: 权限信息
+    // Subhead: 操作参数
     const subhead = document.createElement('div');
     subhead.setAttribute('slot', 'subhead');
-    if (btn.permission) {
-      subhead.textContent = btn.permission_when_and_have
-        ? tr('bedrock_perm_have', { perm: btn.permission })
-        : tr('bedrock_perm_miss', { perm: btn.permission });
-    } else {
-      subhead.textContent = tr('bedrock_perm_none');
-    }
+    subhead.textContent = btn.action_param
+      ? i18n.parseSafe('bedrock_param_info', { param: btn.action_param })
+      : tr('bedrock_param_none');
     card.appendChild(subhead);
 
-    // Text: 渲染后的 display.text（支持 § 格式）+ 操作参数
+    // Text: 渲染后的 display.text（支持 § 格式）+ 权限指示器（小字带颜色）
     const textEl = document.createElement('div');
     textEl.setAttribute('slot', 'text');
-    const textHtml = MCColors.toHtml(MCColors.parse(btn.text || ''));
-    const paramHtml = btn.action_param
-      ? '<br><span style="opacity:0.7;font-size:0.85em">' + i18n.parseSafe('bedrock_param_info', { param: btn.action_param }) + '</span>'
-      : '<br><span style="opacity:0.5;font-size:0.85em">' + tr('bedrock_param_none') + '</span>';
-    textEl.innerHTML = textHtml + paramHtml;
+    textEl.innerHTML = MCColors.toHtml(MCColors.parse(btn.text || ''));
+    // 权限指示器
+    const permEl = document.createElement('div');
+    permEl.style.fontSize = '0.8em';
+    permEl.style.marginTop = '0.3em';
+    if (btn.permission) {
+      if (btn.permission_when_and_have) {
+        // 有权限才可见 → 黄色警告
+        permEl.style.color = 'var(--s-color-warning-container, #ffe169)';
+        permEl.textContent = tr('bedrock_perm_have', { perm: btn.permission });
+      } else {
+        // 无权限才可见 → 红色错误
+        permEl.style.color = 'var(--s-color-error, #ba1a1a)';
+        permEl.textContent = tr('bedrock_perm_miss', { perm: btn.permission });
+      }
+    } else {
+      // 无权限要求 → 绿色成功
+      permEl.style.color = 'var(--s-color-success-container, #92f8b4)';
+      permEl.textContent = tr('bedrock_perm_none');
+    }
+    textEl.appendChild(permEl);
     card.appendChild(textEl);
 
     // Action slot: 三个操作按钮
