@@ -1483,38 +1483,3 @@ export function Item2JavaButton(btn, action = "none", perm = "", param = "") {
     param: (param || "")
   });
 }
-
-//debug
-commandServer.executeCommand("editor.open", `{
-  "title": "&b主菜单",
-  "lines": 3,
-  "java-buttons": {
-    "12": {
-      "display": {
-        "id": "apple",
-        "enchant": false,
-        "tooltip": [
-          "&f第一个是按钮标题",
-          "&f其它都是 Lore 行，且行首会自动添加 &r ，无需在此添加。"
-        ]
-      },
-      "perm": "",
-      "action": "menu",
-      "param": "example"
-    }
-  },
-  "bedrock-buttons": [
-    {
-      "display": {
-        "text": "apple",
-        "icon": "textures/ui/icon_recipe_nature.png"
-      },
-      "perm": "",
-      "action": "menu",
-      "param": "example"
-    }
-  ],
-  "jme": "menu",
-  "jmev": 1
-}
-  `);
