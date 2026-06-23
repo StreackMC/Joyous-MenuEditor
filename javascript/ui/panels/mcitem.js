@@ -124,16 +124,8 @@ function updateItemPreview() {
 
   el.amount = currentItem.amount > 1 ? String(currentItem.amount) : "";
 
-  // 自定义名称（从 JSON 文本组件提取纯文本）
-  const nameJson = currentItem.ISC.item_name || "";
-  let nameText = "";
-  try {
-    const parsed = JSON.parse(nameJson);
-    nameText = parsed.text || "";
-  } catch {
-    nameText = nameJson;
-  }
-  el.name = nameText;
+  // 自定义名称（使用 Item.getDisplayName() 统一处理）
+  el.name = currentItem.getDisplayName ? currentItem.getDisplayName() : (currentItem.ISC?.item_name || '');
 
   // Lore（数组转文本）
   const loreArr = currentItem.ISC.lore || [];
@@ -164,13 +156,8 @@ mcitemPanel.fields.glint.addEventListener("change", syncFieldsToItem);
  */
 function getNamePlainText() {
   if (!currentItem) return "";
-  const nameJson = currentItem.ISC.item_name || "";
-  try {
-    const parsed = JSON.parse(nameJson);
-    return parsed.text || "";
-  } catch {
-    return nameJson;
-  }
+  // 使用 Item.getDisplayName() 统一获取展示名称
+  return currentItem.getDisplayName ? currentItem.getDisplayName() : (currentItem.ISC?.item_name || '');
 }
 
 /**

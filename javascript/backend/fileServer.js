@@ -1354,7 +1354,7 @@ export async function saveToFile(tabId = tabs.getCurrentTabId()) {
           await fileNode.save(serialized);
           msg(
             i18n.parseSafe("msg.savedWith", { target: fileNode.name }),
-            null, "success", 2000
+            i18n.parseSafe("msg.done"), "success", 2000
           );
           return;
         } catch (_) { /* 重建失败，降级到保存对话框 */ }
@@ -1407,27 +1407,41 @@ async function saveToNewFile(data, tabId, suggestedName = "untitled.txt") {
 
   msg(
     i18n.parseSafe("msg.savedTo", { path: fileNode.name }),
-    null, "success", 2000
+    i18n.parseSafe("msg.done"), "success", 2000
   );
   return fileNode;
 }
 
 /**
- * 将当前标签页内容另存为新文件
+ * 将当前标签页内容另存为新文件。
+ *
+ * 若存在文件系统（`currentFileSystem`），则在目标文件夹下创建文件；
+ * 若不存在（如纯浏览器环境），则降级使用浏览器保存对话框（与 `saveToFile`
+ * 无文件绑定时行为一致）。
+ *
  * @param {string} fileName
  * @param {FolderNode|string} [targetFolder] 目标文件夹（节点或路径），默认根目录
  * @param {string|number} [tabId] 标签页
- * @returns {Promise<FileNode>}
+ * @returns {Promise<FileNode|null>}
  */
 export async function saveAsToFile(fileName, targetFolder = null, tabId = tabs.getCurrentTabId()) {
   const tab = tabs.getTab(tabId);
-  const raw = targetFolder || currentFileSystem;
-  if (!raw) throw new Error("没有可用的文件系统目标");
-  const folder = ensureFolder(raw, undefined, "targetFolder");
-
-  const fileNode = await createFile(folder, fileName);
   const data = tab.instance.getData();
-  await fileNode.save(typeof data === "string" ? data : JSON.stringify(data, null, 2));
+  if (data === undefined || data === null) {
+    throw new Error("编辑器没有返回有效数据");
+  }
+  const serialized = typeof data === "string" ? data : JSON.stringify(data, null, 2);
+
+  // 检查是否有文件系统
+  const raw = targetFolder || currentFileSystem;
+  if (!raw) {
+    // 无文件系统，降级使用浏览器保存对话框（与 saveToFile 行为一致）
+    return await saveToNewFile(serialized, tab.id, fileName || tab.name);
+  }
+
+  const folder = ensureFolder(raw, undefined, "targetFolder");
+  const fileNode = await createFile(folder, fileName);
+  await fileNode.save(serialized);
   bindTabToFile(tab.id, fileNode);
   return fileNode;
 }
@@ -1883,7 +1897,7 @@ commands.regisiterCommand("files.saveAs", (fileName, folder) => saveAsToFile(fil
 commands.regisiterCommandWithHotkey("files.saveCurrent", () => {
   try {
     saveToFile();
-    msg(i18n.parseSafe("msg.saved"), null, "success", 2000);
+    msg(i18n.parseSafe("msg.saved"), i18n.parseSafe("msg.done"), "success", 2000);
   } catch (e) {
     msg(e.message, i18n.parseSafe("msg.done"), "error");
   }
@@ -1904,21 +1918,20 @@ commands.regisiterCommand("files.getPath", (node) => getNodePath(node));
 commands.regisiterCommand("editor.save", () => {
   try {
     saveToFile();
-    msg(i18n.parseSafe("msg.saved"), null, "success", 2000);
+    msg(i18n.parseSafe("msg.saved"), i18n.parseSafe("msg.done"), "success", 2000);
   } catch (e) {
     msg(e.message, i18n.parseSafe("msg.done"), "error");
   }
 });
 commands.regisiterCommand("editor.saveAs", async () => {
-  if (!currentFileSystem) {
-    msg("没有打开的工作区，无法另存为。", i18n.parseSafe("msg.done"), "error");
-    return;
-  }
-  const fileName = window.prompt(i18n.parseSafe("tooltip.saveAs"), "untitled.txt");
-  if (!fileName) return;
+  // 无论是否有文件系统，saveAsToFile 现在均会正确处理：
+  // - 有文件系统 → 在目标文件夹创建文件
+  // - 无文件系统 → 降级使用浏览器保存对话框
+  const suggestedName = window.prompt(i18n.parseSafe("tooltip.saveAs"), "untitled.txt");
+  if (!suggestedName) return;
   try {
-    await saveAsToFile(fileName);
-    msg(i18n.parseSafe("msg.savedTo", { path: fileName }), null, "success", 2000);
+    await saveAsToFile(suggestedName);
+    msg(i18n.parseSafe("msg.savedTo", { path: suggestedName }), i18n.parseSafe("msg.done"), "success", 2000);
   } catch (e) {
     msg(e.message, i18n.parseSafe("msg.done"), "error");
   }

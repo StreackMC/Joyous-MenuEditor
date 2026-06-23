@@ -181,11 +181,11 @@ export class Tab {
   }
 }
 
-// 双击标签页切换器的空白区域打开空编辑器
+// 双击标签页切换器的空白区域打开新建文件对话框
 eTabs.addEventListener("dblclick", (e) => {
   if (e.target != eTabs) { return; };
   e.stopPropagation();
-  commands.executeCommand("editor.open");
+  commands.executeCommand("file.new");
 });
 
 // 滚动转为水平

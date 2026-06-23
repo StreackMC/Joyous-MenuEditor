@@ -163,6 +163,8 @@ export class HTMLmcItemDisplay extends HTMLElement {
     this._onTouchMove = this._onTouchMove.bind(this);
     this._onTouchEnd = this._onTouchEnd.bind(this);
     this._onTouchCancel = this._onTouchCancel.bind(this);
+    this._onImgClick = this._onImgClick.bind(this);
+    this._onImgError = this._onImgError.bind(this);
   }
 
   /** 构建 ShadowDOM 内部结构 */
@@ -360,6 +362,10 @@ export class HTMLmcItemDisplay extends HTMLElement {
 
   /** @override */
   connectedCallback() {
+    // 绑定其它事件
+    this._imgEl.addEventListener('click', this._onImgClick);
+    this._imgEl.addEventListener('error', this._onImgError);
+
     // 初始渲染属性
     this._syncAttributes();
 
@@ -408,6 +414,8 @@ export class HTMLmcItemDisplay extends HTMLElement {
     this.removeEventListener('touchend', this._onTouchEnd);
     this.removeEventListener('touchcancel', this._onTouchCancel);
     this.removeEventListener('wheel', this._onWheel);
+    this._imgEl.removeEventListener('click', this._onImgClick);
+    this._imgEl.removeEventListener('error', this._onImgError);
 
     // 确保 tooltip 隐藏
     this._hideTooltip();
@@ -433,7 +441,17 @@ export class HTMLmcItemDisplay extends HTMLElement {
   _syncAttribute(name, value) {
     switch (name) {
       case 'src':
-        this._imgEl.src = value || '';
+        this._imgEl.dataset.failedOn = "";
+        const fileName = value.replaceAll(/(.*\/)|(\.png)/g, "");
+        if (fileName === 'air') {
+          this._imgEl.src = './assets/icons/none.svg';
+        } else if (fileName === 'missingno') {
+          // 错误物品使用丢失材质
+          this._imgEl.src = `./assets/icons/missingno.svg`;
+        } else {
+          // 查找材质
+          this._imgEl.src = value || `./assets/icons/missingno.svg`;
+        }
         break;
       case 'amount':
         // amount 为空或者1则不显示
@@ -726,6 +744,26 @@ export class HTMLmcItemDisplay extends HTMLElement {
   _onDocTouchEnd() {
     this._lastTouchPos = { x: 0, y: 0 };
     this._deactivateTouchScroll();
+  }
+
+  // ──────────────────── 其它事件处理 ────────────────────
+
+  _onImgError(e) {
+    if (this._imgEl.src == './assets/icons/missingno.svg') {
+      console.error("无法为 ", this, " 加载 FALLBACK 图片！", e);
+      return;
+    };
+    console.warn("无法为 ", this, " 加载 ", this._imgEl.src, " 图片！", e);
+    this._imgEl.dataset.failedOn = this._imgEl.src;
+    this._imgEl.src = './assets/icons/missingno.svg';
+  }
+  
+  _onImgClick() {
+    if (this._imgEl.dataset.failedOn) {
+      // 重试加载图片
+      this._imgEl.src = this._imgEl.dataset.failedOn;
+      this._imgEl.dataset.failedOn = "";
+    }
   }
 }
 if (!customElements.get('mc-item-display')) {
