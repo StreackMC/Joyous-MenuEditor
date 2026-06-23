@@ -40,6 +40,7 @@ export function dialog(title = "", text = "", allowCancel = true, btns = [i18n.p
     });
     dialog.setAttribute("disable-bg-close", "true");
     dialog.setAttribute("disable-forced-size", "true");
+    dialog.showed = true;
   });
 }
 
