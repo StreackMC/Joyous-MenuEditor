@@ -130,6 +130,6 @@ editorManager.regisiterEditor(EditorId, (data, filename) => {
   return "";
   // ACE 作为兜底编辑器不主动竞争文件
   // return (filename) ? filename : `Untitled-${editorManager.getUntitledId()}`;
-}, EditorAce);
+}, EditorAce, () => "");
 
 export default { EditorAce };

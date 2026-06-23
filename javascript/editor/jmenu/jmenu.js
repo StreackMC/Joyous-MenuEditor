@@ -208,7 +208,17 @@ editorManager.regisiterEditor(EditorId, async (fileNode, filename) => {
     return (content.title) ? MCColors.remove(content.title) : "Untitled Menu";
   }
   return "";
-}, EditorJmenu);
+}, EditorJmenu, () => {
+  // 返回一个空 JMenu 的 JSON 字符串
+  return JSON.stringify({
+    jme: "menu",
+    jmev: 1,
+    title: "",
+    lines: 3,
+    "java-buttons": {},
+    "bedrock-buttons": []
+  }, null, 2);
+});
 
 // ───────────────────── JMElement ─────────────────────
 
@@ -528,6 +538,12 @@ export class JMElement extends HTMLElement {
         this._startJavaBtnEdit(index, row, column, null);
         return;
       }
+      // 若当前编辑的物品 ID 为 air，则静默丢弃，不提示
+      if (this.#edittingJitem && (this.#edittingJitem.id === 'minecraft:air' || this.#edittingJitem.getClearId() === 'air')) {
+        this.#_unsaveCard.removeAttribute('visible');
+        this._startJavaBtnEdit(index, row, column, null);
+        return;
+      }
       // 有未保存改动，弹出未保存提示
       this.#_pendingSwitch = { index, row, column, item };
       this.#_unsaveTextEl.innerHTML = i18n.parseSafe("editor.jmenu.unsave_text", { slot: this.#edittingJslot + 1, row: getRowColumn(this.#edittingJslot)[0], column: getRowColumn(this.#edittingJslot)[1] });
@@ -590,6 +606,20 @@ export class JMElement extends HTMLElement {
     // 权限模式反转
     this.#_permToggleBtn.addEventListener('click', () => { this._putAndGetPermBool(!this._putAndGetPermBool()); })
     
+    // 权限输入框：自动过滤 ! 字符，若开头有 ! 则自动去除并反转模式
+    this.#_permField.addEventListener('input', () => {
+      const raw = this.#_permField.value;
+      if (raw.startsWith('!')) {
+        // 去掉开头的 ! 并反转权限模式
+        this.#_permField.value = raw.replace(/^!+/, '');
+        this._putAndGetPermBool(!this._putAndGetPermBool());
+      }
+      // 移除所有剩余的 ! 字符（防止粘贴或输入多个）
+      if (this.#_permField.value.includes('!')) {
+        this.#_permField.value = this.#_permField.value.replace(/!/g, '');
+      }
+    });
+
     // 清空按钮
     this.#_permRemoveBtn.addEventListener('click', () => {
       this.#_permField.value = "";
@@ -663,18 +693,32 @@ export class JMElement extends HTMLElement {
     this.#edittingJbutton = this.#_data.java.get(`${row}${column}`);
     this.#edittingJitem = item;
     this.#edittingJslot = index;
-    if (!this.#edittingJbutton) this.#edittingJbutton = new JavaButton({ display: { id: "apple" } });
-    if (!this.#edittingJitem) this.#edittingJitem = JavaButton2Item(this.#edittingJbutton);
+    if (!this.#edittingJbutton) {
+      // 空槽位：默认使用 air 作为物品 ID
+      this.#edittingJbutton = new JavaButton({ display: { id: "air" } });
+    }
+    if (!this.#edittingJitem) {
+      this.#edittingJitem = JavaButton2Item(this.#edittingJbutton);
+    }
     // 载入信息
     this._commitJavaTitle(tr('title_edit', { slot: index + 1, column: column, row: row }), 'set');
-    this.#_permField.value = this.#edittingJbutton.permission;
+    // 权限节点：去除 ! 前缀后再显示（! 用于标记权限模式，不存入输入框）
+    this.#_permField.value = (this.#edittingJbutton.permission || '').replace(/^!/, '');
     this.#_actionPicker.value = this.#edittingJbutton.action_type;
     this.#_paramField.value = this.#edittingJbutton.action_param;
-    this._putAndGetPermBool(!!this.#edittingJbutton.permission_when_and_have);
+    // 权限模式：若原数据以 ! 开头，表示「无权限时可见」
+    const rawPerm = this.#edittingJbutton.permission || '';
+    const permMode = rawPerm.startsWith('!') ? !this.#edittingJbutton.permission_when_and_have : !!this.#edittingJbutton.permission_when_and_have;
+    this._putAndGetPermBool(permMode);
     // 显示这个元素
     this.#_editBody.setAttribute("visible", true);
     // 标记当前正在编辑的格子（突出显示）
     try { this.#_chestEl.highlightIndex = index; } catch (_) {}
+    // 若物品为 air，自动模拟点击「编辑物品」按钮，引导用户选取真正的物品
+    if (this.#edittingJitem && (this.#edittingJitem.id === 'minecraft:air' || this.#edittingJitem.getClearId() === 'air')) {
+      // 延迟一帧触发，确保 UI 已渲染完毕
+      requestAnimationFrame(() => { this.#_editItemBtn.click(); });
+    }
   }
 
   _rafId = null;
@@ -723,8 +767,8 @@ export class JMElement extends HTMLElement {
   async _doSaveEditting() {
     if (this.#edittingJslot == null) return;
     try {
-      // 构建 permission
-      let permission = this.#_permField.value.replaceAll(/!/g, "");
+      // 构建 permission：输入框已过滤 !，只需根据权限模式添加前缀
+      let permission = this.#_permField.value.replace(/!/g, "");
       if (!this._putAndGetPermBool()) { permission = "!" + permission; };
       this.#edittingJbutton = Item2JavaButton(this.#edittingJitem, this.#_actionPicker.value, permission, this.#_paramField.value);
       this._commitJavaBtnUpdate(this.#edittingJslot, this.#edittingJitem, this.#edittingJbutton);
@@ -748,8 +792,8 @@ export class JMElement extends HTMLElement {
   _isCurrentEditDirty() {
     if (this.#edittingJslot == null) return false;
     try {
-      // 构建将在保存时生成的 JavaButton
-      let permission = this.#_permField.value.replaceAll(/!/g, "");
+      // 构建将在保存时生成的 JavaButton（输入框已过滤 !）
+      let permission = this.#_permField.value.replace(/!/g, "");
       if (!this._putAndGetPermBool()) { permission = "!" + permission; };
       const candidate = Item2JavaButton(this.#edittingJitem, this.#_actionPicker.value, permission, this.#_paramField.value);
       const original = this.#edittingJbutton;

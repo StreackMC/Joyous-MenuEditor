@@ -29,6 +29,13 @@ export let regEditorsClazz = new Map();
  */
 export let regEditorsVarify = new Map();
 
+/**
+ * 已注册的新建文件函数集合。
+ * 键为编辑器 ID，值为同步函数，返回一个字符串（该编辑器类型的空白文件内容）。
+ * @type {Map<string, Function>}
+ */
+export let regEditorNewFile = new Map();
+
 // ══════════════════════════════════════════════════════════
 //  MemFileNode — 内存数据源统一接口
 // ══════════════════════════════════════════════════════════
@@ -163,10 +170,15 @@ export function normalizeToFileNode(raw, name = "untitled") {
  *    接收归一化后的文件节点。返回**非空字符串**表示接受此文件，该字符串用作标签页标题；
  *    返回 `""` 或 `false` 表示拒绝。
  * @param {typeof Editor} clazz - 编辑器类，构造器签名 `(fileNode: FileNode|MemFileNode, filename: string)`
+ * @param {Function} [newFileFn] - 可选的新建文件函数，签名 `() => string`，返回空白文件内容。
+ *    若提供，`file.new` 命令会将该编辑器类型列为可选的新建类型。
  */
-export function regisiterEditor(id, varify, clazz) {
+export function regisiterEditor(id, varify, clazz, newFileFn) {
   regEditorsClazz.set(id, clazz);
   regEditorsVarify.set(id, varify);
+  if (typeof newFileFn === 'function') {
+    regEditorNewFile.set(id, newFileFn);
+  }
 }
 
 // ══════════════════════════════════════════════════════════
@@ -326,11 +338,52 @@ export async function ensureText(data) {
   }
 }
 
+// ══════════════════════════════════════════════════════════
+//  新建文件命令
+// ══════════════════════════════════════════════════════════
+
+/**
+ * 新建文件命令。弹出类型选择对话框，创建对应编辑器类型的空白文件并打开标签页。
+ * 使用 `utils.js` 的 `dialog` 完成类型选取。
+ * 同时注册为 `files.new` 别名。
+ */
+async function _fileNewHandler() {
+  // 使用 dialog 展示两个选项：JMenu 菜单编辑器 / ACE 文本编辑器
+  try {
+    const choice = await UI.dialog(
+      i18n.parseSafe("tooltip.tip"),
+      i18n.parseSafe("editor.newFile.prompt"),
+      true,
+      [
+        "JMenu 菜单文件",                                // 索引 0：JMenu
+        "ACE 文本文件",                                 // 索引 1：ACE
+      ]
+    );
+    if (choice === 0) {
+      // JMenu
+      const content = regEditorNewFile.get("jmenu")();
+      return openEditor(content, "jmenu", `Untitled-${getUntitledId()}`);
+    } else if (choice === 1) {
+      // ACE
+      const content = regEditorNewFile.get("ace")();
+      return openEditor(content, "ace", `Untitled-${getUntitledId()}`);
+    }
+  } catch (_) {
+    // 用户取消，不做任何事
+    return null;
+  }
+}
+commands.regisiterCommand("file.new", _fileNewHandler);
+
+// 同时注册为 files.new 别名
+commands.regisiterCommand("files.new", () => commands.executeCommand("file.new"));
+
 export default {
   regisiterEditor,
   openEditor,
   regEditorsClazz,
   regEditorsVarify,
+  regEditorNewFile,
   getUntitledId,
   untitledCounts,
   ensureText,

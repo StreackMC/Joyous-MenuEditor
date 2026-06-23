@@ -55,18 +55,19 @@ export class Item {
     this.amount = Math.max(1, Math.min(99, amount));
     // 为 ISC 对象附加 toString 方法（伪类方式）
     this.ISC = this._createISCWithToString(ISC);
-    // 确保 item_name 存在：优先使用当前语言翻译表中的名称，找不到则回退为 minecraft.item.${id}
+    // 确保 item_name 存在：优先使用当前语言翻译表中的名称，找不到则回退为纯文本的 ID
     try {
       if (!this.ISC.item_name || String(this.ISC.item_name).trim() === "") {
         const key = (this.id || '').split(':').pop();
         const translations = (typeof i18n.getCurrentTranslations === 'function') ? i18n.getCurrentTranslations() : {};
         const itemsList = (translations && translations.minecraft && Array.isArray(translations.minecraft.items)) ? translations.minecraft.items : [];
         const found = itemsList.find(it => it.key === key);
-        const name = found ? found.translation : `minecraft.item.${this.id}`;
-        this.ISC.item_name = JSON.stringify(name);
+        // 使用纯文本赋值（非 JSON.stringify），因为 item_name 在项目中被当作原始文本使用
+        this.ISC.item_name = found ? found.translation : key;
       }
     } catch (e) {
-      this.ISC.item_name = JSON.stringify(`minecraft.item.${this.id}`);
+      // 回退：使用不带命名空间的 ID 作为展示文本
+      this.ISC.item_name = (this.id || '').split(':').pop() || 'unknown';
     }
   }
 
