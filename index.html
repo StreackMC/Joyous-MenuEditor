@@ -132,6 +132,20 @@
           $tooltip.saveTo$
         </s-popup-menu-item>
 
+        <!-- 移动端专享：快速工具 -->
+        <s-popup-menu-item data-i18n class="mobile-fold" mobile data-click="panel.mctext.open">
+          <s-icon slot="start" name="text_fields"></s-icon>
+          $panel.mctext.astool$
+        </s-popup-menu-item>
+        <s-popup-menu-item data-i18n class="mobile-fold" mobile data-click="panel.mcgradient.open">
+          <s-icon slot="start" name="gradient"></s-icon>
+          $panel.mcgradient.astool$
+        </s-popup-menu-item>
+        <s-popup-menu-item data-i18n class="mobile-fold" mobile data-click="file.new">
+          <s-icon slot="start" name="note_add"></s-icon>
+          $editor.actions.newFile$
+        </s-popup-menu-item>
+
         <!-- 一般 -->
         <s-popup-menu-item data-i18n class="divideBottom" data-click="editor.saveAs">
           <s-icon slot="start">
