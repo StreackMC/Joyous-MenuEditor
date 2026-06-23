@@ -320,17 +320,34 @@ export class HTMLmcChestDisplay extends HTMLElement {
       }
     }
 
-    // ---- 渲染物品网格 ----
+    // ---- 渲染物品网格（按引用更新，尽量复用已有 mc-item-display） ----
     const line = this.line;
     const total = Math.min(line * 9, 54);
-    this._grid.innerHTML = '';
+
+    // 复用现有 slot 元素，避免每次清空导致子元素（尤其是 mc-item-display）被销毁
+    // 保持或创建必要数量的 slot
+    const existingSlots = Array.from(this._grid.children);
+    // 移除多余的 slot
+    if (existingSlots.length > total) {
+      for (let j = existingSlots.length - 1; j >= total; j--) {
+        this._grid.removeChild(existingSlots[j]);
+      }
+    }
 
     for (let i = 0; i < total; i++) {
-      const slot = document.createElement('div');
-      slot.className = 'slot';
-      slot.dataset.index = i;
+      let slot = this._grid.children[i];
       const row = Math.floor(i / 9);
       const col = i % 9;
+
+      // 如果 slot 不存在则创建并 append
+      if (!slot) {
+        slot = document.createElement('div');
+        this._grid.appendChild(slot);
+      }
+
+      // 基本属性与定位
+      slot.className = 'slot';
+      slot.dataset.index = i;
       slot.dataset.row = row;
       slot.dataset.column = col;
 
@@ -338,54 +355,64 @@ export class HTMLmcChestDisplay extends HTMLElement {
       const hidx = this.highlightIndex;
       if (hidx >= 0 && i === hidx) {
         slot.classList.add('slot-focused');
+      } else {
+        slot.classList.remove('slot-focused');
       }
 
       const item = this.#_items[i];
       if (item && item instanceof Item) {
-        const display = document.createElement('mc-item-display');
-        // 图片路径
+        slot.classList.remove('slot-empty');
+
+        // 计算期望的属性值
         const imgPath = `./assets/minecraft/items/${item.id.replace(/.*:/, '')}.png`;
-        display.setAttribute('src', imgPath);
-        display.setAttribute('amount', item.amount);
-
-        // 名称（JSON 文本组件 → 纯文本）
+        const amount = String(item.amount);
         let nameText = '';
-        if (item.ISC.item_name) {
-          try {
-            const parsed = JSON.parse(item.ISC.item_name);
-            nameText = parsed.text || item.ISC.item_name;
-          } catch {
-            nameText = item.ISC.item_name;
-          }
+        if (item.ISC && item.ISC.item_name) {
+          try { nameText = JSON.parse(item.ISC.item_name).text || item.ISC.item_name; } catch { nameText = item.ISC.item_name; }
         }
-        if (nameText) display.setAttribute('name', nameText);
-
-        // 描述（JSON 数组 → 纯文本，每行用换行分隔）
         let loreText = '';
-        if (item.ISC.lore && Array.isArray(item.ISC.lore)) {
-          const lines = item.ISC.lore.map(line => {
-            try {
-              const parsed = JSON.parse(line);
-              return parsed.text || line;
-            } catch {
-              return line;
-            }
-          });
+        if (item.ISC && item.ISC.lore && Array.isArray(item.ISC.lore)) {
+          const lines = item.ISC.lore.map(line => { try { return JSON.parse(line).text || line; } catch { return line; } });
           loreText = lines.join('\n');
         }
-        if (loreText) display.setAttribute('lore', loreText);
+        const hasGlint = !!(item.ISC && item.ISC.enchantment_glint_override);
 
-        // 附魔光泽（如果组件存在）
-        if (item.ISC.enchantment_glint_override) {
-          display.setAttribute('enchantment-glint', '');
+        const existing = slot.querySelector('mc-item-display');
+        if (existing) {
+          // 按引用更新已有元素，只有在实际不同的情况下写入属性，减少不必要的 attribute 改变
+          if (existing.getAttribute('src') !== imgPath) existing.src = imgPath;
+          if ((existing.getAttribute('amount') || '') !== amount) existing.amount = amount;
+
+          if ((existing.getAttribute('name') || '') !== (nameText || '')) {
+            if (nameText) existing.name = nameText; else existing.removeAttribute('name');
+          }
+          if ((existing.getAttribute('lore') || '') !== (loreText || '')) {
+            if (loreText) existing.lore = loreText; else existing.removeAttribute('lore');
+          }
+
+          const exGlint = existing.hasAttribute('enchantment-glint');
+          if (exGlint !== hasGlint) {
+            if (hasGlint) existing.setAttribute('enchantment-glint', '');
+            else existing.removeAttribute('enchantment-glint');
+          }
+        } else {
+          // 创建新的 display
+          const display = document.createElement('mc-item-display');
+          display.setAttribute('src', imgPath);
+          display.setAttribute('amount', amount);
+          if (nameText) display.setAttribute('name', nameText);
+          if (loreText) display.setAttribute('lore', loreText);
+          if (hasGlint) display.setAttribute('enchantment-glint', '');
+          // 清空 slot 内容并插入新的 display（仅在不存在时执行）
+          slot.innerHTML = '';
+          slot.appendChild(display);
         }
-
-        slot.appendChild(display);
       } else {
+        // 空槽：移除任何残留的 mc-item-display
         slot.classList.add('slot-empty');
+        const existing = slot.querySelector('mc-item-display');
+        if (existing) slot.removeChild(existing);
       }
-
-      this._grid.appendChild(slot);
     }
   }
 
