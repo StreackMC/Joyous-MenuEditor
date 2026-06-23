@@ -145,7 +145,48 @@ mc-chest-display {
 }
 
 /* BEDROCK-AREA */
-.bedrock {}
+.bedrock {
+  display: flex;
+  flex-direction: column;
+  gap: .5em;
+  padding: 1em;
+  grid-row-start: 2;
+}
+
+.bedrock-header {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: .5em;
+  padding: 0 .2em;
+}
+
+.bedrock-header h2 {
+  flex: 1;
+  margin: 0;
+  font-size: 1.1em;
+  font-weight: 600;
+}
+
+.bedrock-list {
+  display: flex;
+  flex-direction: column;
+  gap: .5em;
+}
+
+.bedrock-card {
+  cursor: pointer;
+}
+.bedrock-card:hover {
+  filter: brightness(1.05);
+}
+
+.bedrock-card-actions {
+  display: flex;
+  flex-direction: row;
+  gap: .3em;
+  margin-left: auto;
+}
 `;
 /** 权限模式按钮状态图标 */
 const SVG_ICONS = {
@@ -252,6 +293,11 @@ export class JMElement extends HTMLElement {
   /** java: shrink chest size @type {HTMLElement} */ #_shrinkBtn;
   /** java: s-text-field for param @type {HTMLElement} */ #_paramField;
   /** java: reset btn for param @type {HTMLElement} */ #_paramClearBtn;
+  /** bedrock: root container @type {HTMLElement} */ #_bedrockRoot;
+  /** bedrock: list container @type {HTMLElement} */ #_bedrockList;
+  /** bedrock: add button @type {HTMLElement} */ #_bedrockAddBtn;
+  /** bedrock render queue @type {Array<[number, BedrockButton]>} */ #_bedrockRenderQueue = [];
+  /** bedrock render queue timeout @type {number|null} */ #_bedrockRenderQueueTOid = null;
 
   constructor() {
     super();
@@ -259,6 +305,7 @@ export class JMElement extends HTMLElement {
     this._buildShadowDOM();
     this._bindEvents_actionbar();
     this._bindEvents_java();
+    this._bindEvents_bedrock();
   }
 
   // ═════════════════════════════════════════════
@@ -291,12 +338,24 @@ export class JMElement extends HTMLElement {
         }
       }
     }
+
+    // prepare bedrock buttons
+    if (Array.isArray(this.#_data.bedrock)) {
+      for (let i = 0; i < this.#_data.bedrock.length; i++) {
+        const btn = this.#_data.bedrock[i];
+        if (btn instanceof BedrockButton) {
+          this._commitBedrockUpdate(i, btn);
+        }
+      }
+    }
     // reset UI state
     this._commitJavaTitle(tr('title_idle'), 'set');
     this.#_editBody.removeAttribute('visible');
     this.#_unsaveCard.removeAttribute('visible');
     // 清除高亮
     try { this.#_chestEl.highlightIndex = -1; } catch (_) {}
+    // 清空基岩版渲染队列
+    this.#_bedrockRenderQueue = [];
   }
 
   /** @returns {JMenu|null} */
@@ -487,7 +546,26 @@ export class JMElement extends HTMLElement {
     this.#_shrinkBtn = shrinkBtn;
     
     // ─── Bedrock 区域 ───────────────────────────
-    root.appendChild(ce('div', 'bedrock'));
+    const bedrockRoot = ce('div', 'bedrock');
+    root.appendChild(bedrockRoot);
+    this.#_bedrockRoot = bedrockRoot;
+
+    // 头部：标题 + 添加按钮
+    const bedrockHeader = ce('div', 'bedrock-header');
+    bedrockRoot.appendChild(bedrockHeader);
+    const bedrockTitle = document.createElement('h2');
+    bedrockTitle.textContent = tr('bedrock_title');
+    bedrockHeader.appendChild(bedrockTitle);
+    const addBtn = document.createElement('s-button');
+    addBtn.setAttribute('type', 'filled-tonal');
+    addBtn.textContent = tr('bedrock_add');
+    bedrockHeader.appendChild(addBtn);
+    this.#_bedrockAddBtn = addBtn;
+
+    // 按钮列表容器
+    const bedrockList = ce('div', 'bedrock-list');
+    bedrockRoot.appendChild(bedrockList);
+    this.#_bedrockList = bedrockList;
   }
 
   // ═════════════════════════════════════════════
@@ -507,6 +585,58 @@ export class JMElement extends HTMLElement {
       } catch (error) {
         console.error("Failed to rename the menu", this.#_data, " as ", error);
       }
+    });
+
+    // Java → Bedrock 同步（按顺序映射）
+    this.#_java2bedrockBtn.addEventListener('click', () => {
+      const javaArr = [];
+      if (this.#_data.java instanceof Map) {
+        // 将 Map 按 key 排序后转为有序数组
+        const sortedKeys = Array.from(this.#_data.java.keys()).sort((a, b) => {
+          const [ar, ac] = [parseInt(a[0]), parseInt(a[1])];
+          const [br, bc] = [parseInt(b[0]), parseInt(b[1])];
+          return (ar - br) || (ac - bc);
+        });
+        for (const key of sortedKeys) {
+          const btn = this.#_data.java.get(key);
+          if (btn instanceof JavaButton) {
+            javaArr.push(new BedrockButton({
+              display: { text: btn.tooltip?.[0] || btn.id, icon: "" },
+              perm: btn.permission ? (btn.permission_when_and_have ? "" : "!") + btn.permission : "",
+              action: btn.action_type || "none",
+              param: btn.action_param || ""
+            }));
+          }
+        }
+      }
+      this.#_data.bedrock = javaArr;
+      // 提交全部重渲染
+      for (let i = 0; i < this.#_data.bedrock.length; i++) {
+        this._commitBedrockUpdate(i, this.#_data.bedrock[i]);
+      }
+    });
+
+    // Bedrock → Java 同步（按顺序映射到前 N 个格子）
+    this.#_bedrock2javaBtn.addEventListener('click', () => {
+      if (!Array.isArray(this.#_data.bedrock)) return;
+      this.#_data.java.clear();
+      const maxSlots = this.#_data.lines * 9;
+      for (let i = 0; i < Math.min(this.#_data.bedrock.length, maxSlots); i++) {
+        const btn = this.#_data.bedrock[i];
+        if (!(btn instanceof BedrockButton)) continue;
+        const row = Math.floor(i / 9) + 1;
+        const col = (i % 9) + 1;
+        const key = `${row}${col}`;
+        const jBtn = new JavaButton({
+          display: { id: "paper", tooltip: [btn.text || "", ""] },
+          perm: btn.permission,
+          action: btn.action_type || "none",
+          param: btn.action_param || ""
+        });
+        this.#_data.java.set(key, jBtn);
+        this._commitJavaBtnUpdate(i, JavaButton2Item(jBtn), jBtn);
+      }
+      this._scheduleRender();
     });
   }
 
@@ -630,6 +760,180 @@ export class JMElement extends HTMLElement {
     })
   }
 
+  // ═════════════════════════════════════════════
+  //  基岩版事件绑定
+  // ═════════════════════════════════════════════
+
+  _bindEvents_bedrock() {
+    // 添加新按钮
+    this.#_bedrockAddBtn.addEventListener('click', () => {
+      const btn = new BedrockButton({
+        display: { text: "新按钮", icon: "" },
+        perm: "",
+        action: "none",
+        param: ""
+      });
+      this.#_data.bedrock.push(btn);
+      this._commitBedrockUpdate(this.#_data.bedrock.length - 1, btn);
+    });
+
+    // 点击列表中的卡片 → 编辑对话框（使用事件委托）
+    this.#_bedrockList.addEventListener('click', (e) => {
+      const card = e.target.closest('.bedrock-card');
+      if (!card) return;
+      const index = parseInt(card.dataset.index);
+      if (Number.isNaN(index) || !this.#_data?.bedrock?.[index]) return;
+      this._openBedrockEditDialog(index);
+    });
+  }
+
+  // ═════════════════════════════════════════════
+  //  基岩版编辑对话框
+  // ═════════════════════════════════════════════
+
+  /**
+   * 打开基岩版按钮编辑对话框
+   * @param {number} index 按钮索引
+   */
+  _openBedrockEditDialog(index) {
+    const btn = this.#_data.bedrock[index];
+    if (!btn) return;
+
+    // 构建对话框内容
+    const dialog = document.createElement('s-dialog');
+    dialog.setAttribute('showed', 'true');
+
+    const headline = document.createElement('div');
+    headline.setAttribute('slot', 'headline');
+    headline.textContent = tr('bedrock_edit_title', { index: index + 1 });
+    dialog.appendChild(headline);
+
+    const textSlot = document.createElement('div');
+    textSlot.setAttribute('slot', 'text');
+    textSlot.style.display = 'flex';
+    textSlot.style.flexDirection = 'column';
+    textSlot.style.gap = '.8em';
+    dialog.appendChild(textSlot);
+
+    // 文本输入
+    const textField = document.createElement('s-text-field');
+    textField.setAttribute('label', tr('bedrock_text_label'));
+    textField.value = btn.text || '';
+    textSlot.appendChild(textField);
+
+    // 图标输入
+    const iconField = document.createElement('s-text-field');
+    iconField.setAttribute('label', tr('bedrock_icon_label'));
+    iconField.value = btn.icon || '';
+    textSlot.appendChild(iconField);
+
+    // 权限输入
+    const permField = document.createElement('s-text-field');
+    permField.setAttribute('label', tr('permission_label'));
+    permField.value = (btn.permission || '').replace(/^!/, '');
+    textSlot.appendChild(permField);
+
+    // 权限模式切换（用按钮表示）
+    let permMode = !btn.permission.startsWith('!') && btn.permission_when_and_have !== false;
+    const permToggleRow = document.createElement('div');
+    permToggleRow.style.display = 'flex';
+    permToggleRow.style.flexDirection = 'row';
+    permToggleRow.style.alignItems = 'center';
+    permToggleRow.style.gap = '.5em';
+    const permToggleBtn = document.createElement('s-button');
+    permToggleBtn.setAttribute('type', 'outlined');
+    permToggleBtn.textContent = permMode ? tr('permission_have') : tr('permission_miss');
+    permToggleBtn.addEventListener('click', () => {
+      permMode = !permMode;
+      permToggleBtn.textContent = permMode ? tr('permission_have') : tr('permission_miss');
+    });
+    permToggleRow.appendChild(document.createTextNode(tr('permission_label') + ':'));
+    permToggleRow.appendChild(permToggleBtn);
+    textSlot.appendChild(permToggleRow);
+
+    // 动作类型选择器
+    const actionPicker = document.createElement('s-picker');
+    actionPicker.setAttribute('label', tr('action_type'));
+    actionPicker.setAttribute('value', btn.action_type || 'none');
+    const types = [
+      ['menu', 'action_type_menu'], ['cmd', 'action_type_cmd'],
+      ['op', 'action_type_op'], ['con', 'action_type_con'],
+      ['url', 'action_type_url'], ['none', 'action_type_none'],
+    ];
+    for (const [val, key] of types) {
+      const item = document.createElement('s-picker-item');
+      item.setAttribute('value', val);
+      item.textContent = tr(key);
+      actionPicker.appendChild(item);
+    }
+    textSlot.appendChild(actionPicker);
+
+    // 参数输入
+    const paramField = document.createElement('s-text-field');
+    paramField.setAttribute('label', tr('action_param'));
+    paramField.value = btn.action_param || '';
+    textSlot.appendChild(paramField);
+
+    // 删除按钮（危险操作）
+    const deleteBtn = document.createElement('s-button');
+    deleteBtn.setAttribute('type', 'filled-tonal');
+    deleteBtn.style.backgroundColor = 'var(--s-color-error-container,#FFDAD6)';
+    deleteBtn.textContent = tr('bedrock_delete');
+    deleteBtn.addEventListener('click', () => {
+      this.#_data.bedrock.splice(index, 1);
+      dialog.removeAttribute('showed');
+      this._scheduleRender();
+    });
+    textSlot.appendChild(deleteBtn);
+
+    // 操作按钮
+    const cancelBtn = document.createElement('s-button');
+    cancelBtn.setAttribute('slot', 'action');
+    cancelBtn.setAttribute('type', 'text');
+    cancelBtn.textContent = i18n.parse('tooltip.cancel');
+    cancelBtn.addEventListener('click', () => { dialog.removeAttribute('showed'); });
+    dialog.appendChild(cancelBtn);
+
+    const saveBtn = document.createElement('s-button');
+    saveBtn.setAttribute('slot', 'action');
+    saveBtn.setAttribute('type', 'text');
+    saveBtn.textContent = i18n.parse('tooltip.save');
+    saveBtn.addEventListener('click', () => {
+      // 保存修改
+      const rawPerm = permField.value.replace(/!/g, '');
+      btn.text = textField.value || '?';
+      btn.icon = iconField.value || '';
+      btn.permission = permMode ? rawPerm : '!' + rawPerm;
+      btn.action_type = actionPicker.value;
+      btn.action_param = paramField.value || '';
+      this._commitBedrockUpdate(index, btn);
+      dialog.removeAttribute('showed');
+    });
+    dialog.appendChild(saveBtn);
+
+    // 挂载到 body
+    document.body.appendChild(dialog);
+
+    // 监听关闭事件，移除 DOM
+    dialog.addEventListener('closed', () => {
+      if (dialog.parentNode) dialog.parentNode.removeChild(dialog);
+    });
+  }
+
+  /** 队列渲染BedrockButton更新 */
+  _commitBedrockUpdate(index, btn) {
+    if (!(btn instanceof BedrockButton)) return;
+    index = parseInt(index);
+    if (Number.isNaN(index) || index < 0) return;
+    // 去重：移除同一 index 的待处理项
+    this.#_bedrockRenderQueue = this.#_bedrockRenderQueue.filter(([i]) => i !== index);
+    this.#_bedrockRenderQueue.push([index, btn]);
+    if (this.#_bedrockRenderQueueTOid) clearTimeout(this.#_bedrockRenderQueueTOid);
+    this.#_bedrockRenderQueueTOid = setTimeout(() => {
+      this._scheduleRender();
+    }, delayedUpdateTimeout);
+  }
+
   /** 进入DOM */
   connectedCallback() {
   }
@@ -637,6 +941,7 @@ export class JMElement extends HTMLElement {
   /** 退出DOM */
   disconnectedCallback() {
     if (this._rafId) cancelAnimationFrame(this._rafId);
+    if (this.#_bedrockRenderQueueTOid) clearTimeout(this.#_bedrockRenderQueueTOid);
   }
 
   // ═════════════════════════════════════════════
@@ -760,7 +1065,97 @@ export class JMElement extends HTMLElement {
 
       // JavaChest 行数渲染
       this.#_chestEl.line = this.#_data.lines;
+
+      // ═══════ 基岩版按钮渲染 ═══════
+      // 清空列表（但保留头部的添加按钮和标题）
+      while (this.#_bedrockList.firstChild) {
+        this.#_bedrockList.removeChild(this.#_bedrockList.firstChild);
+      }
+
+      // 处理渲染队列
+      const processedIndexes = new Set();
+      this.#_bedrockRenderQueue.forEach(([index, btn]) => {
+        if (!(btn instanceof BedrockButton)) return;
+        processedIndexes.add(index);
+        this._renderBedrockCard(index, btn);
+      });
+
+      // 确保所有未在队列中的已有按钮也渲染
+      if (Array.isArray(this.#_data?.bedrock)) {
+        for (let i = 0; i < this.#_data.bedrock.length; i++) {
+          if (!processedIndexes.has(i) && this.#_data.bedrock[i] instanceof BedrockButton) {
+            this._renderBedrockCard(i, this.#_data.bedrock[i]);
+          }
+        }
+      }
+
+      // 清空队列
+      this.#_bedrockRenderQueue = [];
     })
+  }
+
+  /**
+   * 渲染单个基岩版按钮卡片
+   * @param {number} index
+   * @param {BedrockButton} btn
+   */
+  _renderBedrockCard(index, btn) {
+    const card = document.createElement('s-card');
+    card.className = 'bedrock-card';
+    card.setAttribute('clickable', 'true');
+    card.setAttribute('type', 'filled');
+    card.dataset.index = index;
+
+    // Headline: 按钮类型（文本|按钮→打开URL）
+    const headline = document.createElement('div');
+    headline.setAttribute('slot', 'headline');
+    const actionLabel = tr('action_type_' + (btn.action_type || 'none'));
+    headline.textContent = actionLabel;
+    card.appendChild(headline);
+
+    // Subhead: 权限信息
+    const subhead = document.createElement('div');
+    subhead.setAttribute('slot', 'subhead');
+    if (btn.permission) {
+      subhead.textContent = btn.permission_when_and_have
+        ? tr('bedrock_perm_have', { perm: btn.permission })
+        : tr('bedrock_perm_miss', { perm: btn.permission });
+    } else {
+      subhead.textContent = tr('bedrock_perm_none');
+    }
+    card.appendChild(subhead);
+
+    // Text: 渲染后的 display.text（支持 § 格式）
+    const textEl = document.createElement('div');
+    textEl.setAttribute('slot', 'text');
+    textEl.innerHTML = MCColors.toHtml(MCColors.parse(btn.text || ''));
+    card.appendChild(textEl);
+
+    // Tooltip: 显示参数信息
+    const tooltip = document.createElement('s-tooltip');
+    tooltip.setAttribute('align', 'bottom');
+    // 将图标按钮作为触发器
+    const infoBtn = document.createElement('s-icon-button');
+    infoBtn.setAttribute('slot', 'trigger');
+    infoBtn.setAttribute('type', 'text');
+    infoBtn.innerHTML = '<s-icon name="info"></s-icon>';
+    tooltip.appendChild(infoBtn);
+    // 参数信息（防止XSS）
+    const paramInfo = document.createElement('span');
+    const paramText = btn.action_param
+      ? i18n.parseSafe('bedrock_param_info', { param: btn.action_param })
+      : tr('bedrock_param_none');
+    paramInfo.textContent = paramText;
+    tooltip.appendChild(paramInfo);
+
+    // 将 tooltip 放入 card 的 action slot
+    const actionSlot = document.createElement('div');
+    actionSlot.setAttribute('slot', 'action');
+    actionSlot.className = 'bedrock-card-actions';
+    actionSlot.appendChild(tooltip);
+    card.appendChild(actionSlot);
+
+    this.#_bedrockList.appendChild(card);
   }
 
   /** 执行保存正在编辑的按钮（抽离以复用） */
