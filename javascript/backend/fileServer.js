@@ -1354,7 +1354,7 @@ export async function saveToFile(tabId = tabs.getCurrentTabId()) {
           await fileNode.save(serialized);
           msg(
             i18n.parseSafe("msg.savedWith", { target: fileNode.name }),
-            null, "success", 2000
+            i18n.parseSafe("msg.done"), "success", 2000
           );
           return;
         } catch (_) { /* 重建失败，降级到保存对话框 */ }
@@ -1407,7 +1407,7 @@ async function saveToNewFile(data, tabId, suggestedName = "untitled.txt") {
 
   msg(
     i18n.parseSafe("msg.savedTo", { path: fileNode.name }),
-    null, "success", 2000
+    i18n.parseSafe("msg.done"), "success", 2000
   );
   return fileNode;
 }
@@ -1883,7 +1883,7 @@ commands.regisiterCommand("files.saveAs", (fileName, folder) => saveAsToFile(fil
 commands.regisiterCommandWithHotkey("files.saveCurrent", () => {
   try {
     saveToFile();
-    msg(i18n.parseSafe("msg.saved"), null, "success", 2000);
+    msg(i18n.parseSafe("msg.saved"), i18n.parseSafe("msg.done"), "success", 2000);
   } catch (e) {
     msg(e.message, i18n.parseSafe("msg.done"), "error");
   }
@@ -1904,7 +1904,7 @@ commands.regisiterCommand("files.getPath", (node) => getNodePath(node));
 commands.regisiterCommand("editor.save", () => {
   try {
     saveToFile();
-    msg(i18n.parseSafe("msg.saved"), null, "success", 2000);
+    msg(i18n.parseSafe("msg.saved"), i18n.parseSafe("msg.done"), "success", 2000);
   } catch (e) {
     msg(e.message, i18n.parseSafe("msg.done"), "error");
   }
@@ -1918,7 +1918,7 @@ commands.regisiterCommand("editor.saveAs", async () => {
   if (!fileName) return;
   try {
     await saveAsToFile(fileName);
-    msg(i18n.parseSafe("msg.savedTo", { path: fileName }), null, "success", 2000);
+    msg(i18n.parseSafe("msg.savedTo", { path: fileName }), i18n.parseSafe("msg.done"), "success", 2000);
   } catch (e) {
     msg(e.message, i18n.parseSafe("msg.done"), "error");
   }
