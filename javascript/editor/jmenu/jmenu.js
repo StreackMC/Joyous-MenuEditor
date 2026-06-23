@@ -172,10 +172,14 @@ mc-chest-display {
   display: flex;
   flex-direction: column;
   gap: .5em;
+  width: 100%;
 }
 
 .bedrock-card {
-  cursor: pointer;
+  max-width: none;
+  width: 100%;
+  margin: 0;
+  box-sizing: border-box;
 }
 .bedrock-card:hover {
   filter: brightness(1.05);
@@ -1039,8 +1043,9 @@ export class JMElement extends HTMLElement {
     });
     dialog.appendChild(saveBtn);
 
-    // 挂载到 body
-    document.body.appendChild(dialog);
+    // 挂载到 s-page 下以确保正确的配色主题
+    const page = document.querySelector('s-page') || document.body;
+    page.appendChild(dialog);
 
     // 监听关闭事件，移除 DOM
     dialog.addEventListener('closed', () => {
@@ -1251,10 +1256,14 @@ export class JMElement extends HTMLElement {
     }
     card.appendChild(subhead);
 
-    // Text: 渲染后的 display.text（支持 § 格式）
+    // Text: 渲染后的 display.text（支持 § 格式）+ 操作参数
     const textEl = document.createElement('div');
     textEl.setAttribute('slot', 'text');
-    textEl.innerHTML = MCColors.toHtml(MCColors.parse(btn.text || ''));
+    const textHtml = MCColors.toHtml(MCColors.parse(btn.text || ''));
+    const paramHtml = btn.action_param
+      ? '<br><span style="opacity:0.7;font-size:0.85em">' + i18n.parseSafe('bedrock_param_info', { param: btn.action_param }) + '</span>'
+      : '<br><span style="opacity:0.5;font-size:0.85em">' + tr('bedrock_param_none') + '</span>';
+    textEl.innerHTML = textHtml + paramHtml;
     card.appendChild(textEl);
 
     // Action slot: 三个操作按钮
