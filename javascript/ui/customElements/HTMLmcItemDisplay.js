@@ -441,6 +441,7 @@ export class HTMLmcItemDisplay extends HTMLElement {
   _syncAttribute(name, value) {
     switch (name) {
       case 'src':
+        this._imgEl.dataset.failedOn = "";
         const fileName = value.replaceAll(/(.*\/)|(\.png)/g, "");
         if (fileName === 'air') {
           this._imgEl.src = './assets/icons/none.svg';
