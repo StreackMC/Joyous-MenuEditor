@@ -241,6 +241,7 @@ export class JMElement extends HTMLElement {
   /** java: expand chest size @type {HTMLElement} */ #_expandBtn;
   /** java: shrink chest size @type {HTMLElement} */ #_shrinkBtn;
   /** java: s-text-field for param @type {HTMLElement} */ #_paramField;
+  /** java: reset btn for param @type {HTMLElement} */ #_paramClearBtn;
 
   constructor() {
     super();
@@ -458,6 +459,7 @@ export class JMElement extends HTMLElement {
     const resetTip = this._buildTipBtn('close', tr('action_param_reset'), false, "");
     resetTip.setAttribute('slot', 'end');
     paramField.appendChild(resetTip);
+    this.#_paramClearBtn = resetTip.querySelector('s-icon-button');
 
     // ── Chest Controller ──
     const expandBtn = document.createElement('s-button');
@@ -584,6 +586,18 @@ export class JMElement extends HTMLElement {
       this.#_data.lines++;
       this._scheduleRender();
     });
+
+    // 权限模式反转
+    this.#_permToggleBtn.addEventListener('click', () => { this._putAndGetPermBool(!this._putAndGetPermBool()); })
+    
+    // 清空按钮
+    this.#_permRemoveBtn.addEventListener('click', () => {
+      this.#_permField.value = "";
+      this._putAndGetPermBool(true);
+    });
+    this.#_paramClearBtn.addEventListener('click', () => {
+      this.#_paramField.value = "";
+    })
   }
 
   /** 进入DOM */
