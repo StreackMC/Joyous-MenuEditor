@@ -95,6 +95,7 @@ mc-chest-display {
   max-width: unset;
   width: 80%;
   padding: 1em;
+  padding-bottom: unset;
   display: flex;
   flex-direction: column;
   gap: .9em;
@@ -237,6 +238,8 @@ export class JMElement extends HTMLElement {
   /** java: s-icon inside perm mode toggle @type {HTMLElement} */ #_permToggleIcon;
   /** java: s-icon-button for remove @type {HTMLElement} */ #_permRemoveBtn;
   /** java: s-picker for action type @type {HTMLElement} */ #_actionPicker;
+  /** java: expand chest size @type {HTMLElement} */ #_expandBtn;
+  /** java: shrink chest size @type {HTMLElement} */ #_shrinkBtn;
   /** java: s-text-field for param @type {HTMLElement} */ #_paramField;
 
   constructor() {
@@ -451,11 +454,26 @@ export class JMElement extends HTMLElement {
     paramField.setAttribute('label', tr('action_param'));
     editBody.appendChild(paramField);
     this.#_paramField = paramField;
-
+    
     const resetTip = this._buildTipBtn('close', tr('action_param_reset'), false, "");
     resetTip.setAttribute('slot', 'end');
     paramField.appendChild(resetTip);
 
+    // ── Chest Controller ──
+    const expandBtn = document.createElement('s-button');
+    expandBtn.setAttribute('slot', 'action');
+    expandBtn.setAttribute('type', 'filled-tonal');
+    expandBtn.textContent = tr('expand_chest');
+    editArea.appendChild(expandBtn);
+    this.#_expandBtn = expandBtn;
+
+    const shrinkBtn = document.createElement('s-button');
+    shrinkBtn.setAttribute('slot', 'action');
+    shrinkBtn.setAttribute('type', 'filled-tonal');
+    shrinkBtn.textContent = tr('shrink_chest');
+    editArea.appendChild(shrinkBtn);
+    this.#_shrinkBtn = shrinkBtn;
+    
     // ─── Bedrock 区域 ───────────────────────────
     root.appendChild(ce('div', 'bedrock'));
   }
@@ -553,7 +571,19 @@ export class JMElement extends HTMLElement {
       } catch (error) {
         console.error("Failed to edit the menu button item", this.#edittingJitem, " as ", error);
       }
-    })
+    });
+
+    // 箱子大小改变
+    this.#_shrinkBtn.addEventListener('click', () => {
+      if (this.#_data.lines <= 1) return;
+      this.#_data.lines--;
+      this._scheduleRender();
+    });
+    this.#_expandBtn.addEventListener('click', () => {
+      if (this.#_data.lines >= 6) return;
+      this.#_data.lines++;
+      this._scheduleRender();
+    });
   }
 
   /** 进入DOM */
@@ -640,14 +670,17 @@ export class JMElement extends HTMLElement {
     this._rafId = requestAnimationFrame(() => {
       // 执行渲染
       this._rafId = null;
+
       // Menu Title
       const isMenuTitleChanged = this._renderReplacer(this.#_titleEl, 'textContent', MCColors.remove(this.#_data.title));
       if (isMenuTitleChanged) {
         this.#_chestEl.name = MCColors.parse(this.#_data.title);
       }
+
       // Java编辑面板 title
       this._renderReplacer(this.#_slotTitleEl, 'textContent', this.#pendingJavaTitle);
-      // JavaChest
+      
+      // JavaChest 物品渲染
       this.#javeBtnRenderQueue.forEach(([index, item, btn]) => {
         if (!Array.isArray(item.ISC?.lore)) { item.ISC.lore = []; }
         // 构建镜像物品，并显示附加信息
@@ -666,6 +699,9 @@ export class JMElement extends HTMLElement {
         // 附加并显示
         this.#_chestEl.setItem(index, mirror);
       });
+
+      // JavaChest 行数渲染
+      this.#_chestEl.line = this.#_data.lines;
     })
   }
 

@@ -146,6 +146,8 @@
       "action_type_op": "以 OP 身份执行命令",
       "action_type_con": "以控制台身份执行命令",
       "action_type_url": "在浏览器中打开 URL",
+      "expand_chest": "增加行",
+      "shrink_chest": "减少行",
       "action_param": "操作参数",
       "action_param_reset": "重置",
       "rename_title": "修改菜单标题",
