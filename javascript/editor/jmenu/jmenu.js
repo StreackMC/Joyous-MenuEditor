@@ -922,7 +922,7 @@ export function JavaButton2Item(btn) {
  * @returns {JavaButton} 按钮
  */
 export function Item2JavaButton(btn, action = "none", perm = "", param = "") {
-  let tooltips = [(btn.ISC?.item_name || "")];
+  let tooltips = [(btn.getDisplayName ? btn.getDisplayName() : (btn.ISC?.item_name || ""))];
   tooltips.push(...(btn.ISC?.lore || []));
   return new JavaButton({
     display: {

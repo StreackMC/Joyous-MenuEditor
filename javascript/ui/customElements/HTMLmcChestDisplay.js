@@ -366,10 +366,8 @@ export class HTMLmcChestDisplay extends HTMLElement {
         // 计算期望的属性值
         const imgPath = `./assets/minecraft/items/${item.id.replace(/.*:/, '')}.png`;
         const amount = String(item.amount);
-        let nameText = '';
-        if (item.ISC && item.ISC.item_name) {
-          try { nameText = JSON.parse(item.ISC.item_name).text || item.ISC.item_name; } catch { nameText = item.ISC.item_name; }
-        }
+        // 使用 Item.getDisplayName() 获取展示名称，统一处理 custom_name / item_name / 翻译 / 回退
+        const nameText = item.getDisplayName ? item.getDisplayName() : (item.ISC?.item_name || '');
         let loreText = '';
         if (item.ISC && item.ISC.lore && Array.isArray(item.ISC.lore)) {
           const lines = item.ISC.lore.map(line => { try { return JSON.parse(line).text || line; } catch { return line; } });

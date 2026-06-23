@@ -55,20 +55,9 @@ export class Item {
     this.amount = Math.max(1, Math.min(99, amount));
     // 为 ISC 对象附加 toString 方法（伪类方式）
     this.ISC = this._createISCWithToString(ISC);
-    // 确保 item_name 存在：优先使用当前语言翻译表中的名称，找不到则回退为纯文本的 ID
-    try {
-      if (!this.ISC.item_name || String(this.ISC.item_name).trim() === "") {
-        const key = (this.id || '').split(':').pop();
-        const translations = (typeof i18n.getCurrentTranslations === 'function') ? i18n.getCurrentTranslations() : {};
-        const itemsList = (translations && translations.minecraft && Array.isArray(translations.minecraft.items)) ? translations.minecraft.items : [];
-        const found = itemsList.find(it => it.key === key);
-        // 使用纯文本赋值（非 JSON.stringify），因为 item_name 在项目中被当作原始文本使用
-        this.ISC.item_name = found ? found.translation : key;
-      }
-    } catch (e) {
-      // 回退：使用不带命名空间的 ID 作为展示文本
-      this.ISC.item_name = (this.id || '').split(':').pop() || 'unknown';
-    }
+    // 注意：ISC.item_name 不再在此处自动填充。
+    // 读取展示名称请使用 getDisplayName() 方法，
+    // 其按 ISC.custom_name > ISC.item_name > 翻译名称 > 回退ID 的优先级返回。
   }
 
   /**
@@ -129,7 +118,7 @@ export class Item {
       this.#bind_element = document.createElement("mc-item-display");
     };
     this.#bind_element.amount = this.amount || 1;
-    this.#bind_element.name = this.ISC.item_name || "";
+    this.#bind_element.name = this.getDisplayName();
     this.#bind_element.enchantmentGlint = (this.ISC.enchantment_glint_override) ? true : false;
     this.#bind_element.lore = this.ISC.lore.join("\n") || "";
     // 材质处理，先获取不带命名空间的
@@ -145,6 +134,41 @@ export class Item {
       this.#bind_element.src = `./assets/minecraft/items/${id}.png`;
     }
     return this.#bind_element;
+  }
+
+  /**
+   * 获取物品的展示名称。
+   * 优先级：ISC.custom_name > ISC.item_name > i18n 翻译名称 > 回退 ID
+   * @returns {string} 纯文本展示名称
+   */
+  getDisplayName() {
+    // 1. custom_name（显式用户覆写）
+    if (this.ISC && this.ISC.custom_name) {
+      const v = String(this.ISC.custom_name).trim();
+      if (v) return v;
+    }
+    // 2. item_name（原始数据组件，可能是 JSON 文本组件字符串或纯文本）
+    if (this.ISC && this.ISC.item_name) {
+      const v = String(this.ISC.item_name).trim();
+      if (v) {
+        // 尝试解析 JSON 文本组件（如 {"text":"苹果"}）
+        try {
+          const parsed = JSON.parse(v);
+          if (parsed && typeof parsed === 'object' && parsed.text) return parsed.text;
+        } catch (_) { /* 不是 JSON，直接返回纯文本 */ }
+        return v;
+      }
+    }
+    // 3. 从 i18n 翻译表中查找物品本来的名字
+    try {
+      const key = (this.id || '').split(':').pop();
+      const translations = (typeof i18n.getCurrentTranslations === 'function') ? i18n.getCurrentTranslations() : {};
+      const itemsList = (translations && translations.minecraft && Array.isArray(translations.minecraft.items)) ? translations.minecraft.items : [];
+      const found = itemsList.find(it => it.key === key);
+      if (found && found.translation) return found.translation;
+    } catch (_) { /* 静默 */ }
+    // 4. 终极回退：不带命名空间的物品 ID
+    return (this.id || '').split(':').pop() || 'unknown';
   }
 
   /**
