@@ -938,21 +938,57 @@ export class JMElement extends HTMLElement {
     const dialog = document.createElement('s-dialog');
     dialog.setAttribute('showed', 'true');
 
+    // headline
     const headline = document.createElement('div');
     headline.setAttribute('slot', 'headline');
     headline.textContent = tr('bedrock_edit_title', { index: index + 1 });
     dialog.appendChild(headline);
 
+    // Style
+    const styleEle = document.createElement('style');
+    styleEle.innerHTML = `
+      .jm-bedrock-editor-popup-root {
+        --grid-min-width: 280px;    /* 每列最小宽度 */
+        --grid-max-width: 320px;      /* 每列最大宽度（1fr = 自适应拉伸） */
+        --grid-max-columns: 2;      /* 最大列数：1, 2, 3, 4... 设为 0 或 auto 表示不限制 */
+        --grid-column-gap: 1.5em;  /* 水平间距 */
+        --grid-row-gap: 1.5em;     /* 垂直间距 */
+        --grid-padding: 1.5em;          /* 容器内边距 */
+        display: grid;
+        grid-template-columns: repeat(
+            auto-fill,
+            minmax(var(--grid-min-width), var(--grid-max-width))
+        );
+        max-width: min(calc((var(--grid-max-width) + var(--grid-column-gap)) * var(--grid-max-columns) - var(--grid-column-gap)), 100%);
+        width: 100%;
+        margin: 0 auto;
+        padding: var(--grid-padding);
+        gap: var(--grid-row-gap, var(--grid-gap)) var(--grid-column-gap, var(--grid-gap));
+        justify-content: center;
+        /* debug */
+        /* border: 1px dashed #ccc; */
+        /* background: rgba(0,0,0,0.02); */
+      }
+      .jm-bedrock-editor-popup-root .jm-bedrock-editor-popup-displaytext {
+        grid-column: 1 / -1;
+      }
+      .jm-bedrock-editor-popup-root > * {
+        width: 100%;
+      }
+    `;
+    dialog.appendChild(styleEle);
+
+    // base
     const textSlot = document.createElement('div');
     textSlot.setAttribute('slot', 'text');
-    textSlot.style.display = 'flex';
-    textSlot.style.flexDirection = 'column';
-    textSlot.style.gap = '.8em';
+    textSlot.classList.add("jm-bedrock-editor-popup-root");
     dialog.appendChild(textSlot);
 
     // 文本输入
     const textField = document.createElement('s-text-field');
     textField.setAttribute('label', tr('bedrock_text_label'));
+    textField.setAttribute('type', 'multiline');
+    textField.classList.add('jm-bedrock-editor-popup-displaytext');
     textField.value = btn.text || '';
     textSlot.appendChild(textField);
 
@@ -1007,7 +1043,6 @@ export class JMElement extends HTMLElement {
     // 删除按钮（危险操作，需确认）
     const deleteBtn = document.createElement('s-button');
     deleteBtn.setAttribute('type', 'filled-tonal');
-    deleteBtn.style.backgroundColor = 'var(--s-color-error-container,#FFDAD6)';
     deleteBtn.textContent = tr('bedrock_delete');
     deleteBtn.addEventListener('click', async () => {
       try {
@@ -1023,6 +1058,7 @@ export class JMElement extends HTMLElement {
         this._scheduleRender();
       } catch (_) { /* 用户取消，什么也不做 */ }
     });
+    deleteBtn.style.backgroundColor = 'var(--s-color-error-container,#FFDAD6)';
     textSlot.appendChild(deleteBtn);
 
     // 操作按钮
