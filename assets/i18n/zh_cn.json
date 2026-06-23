@@ -151,7 +151,9 @@
       "rename_title": "修改菜单标题",
       "sync_java_to_bedrock": "同步 Java 至基岩版",
       "sync_bedrock_to_java": "同步基岩版至 Java",
-      "attach_to_tooltip": "&r&7——————————\n&r&b当点击后：\n&r&f执行操作 [%action%]\n&r&f参数 [%param%]\n&r&7此段为按钮信息，不出现在游戏内。"
+      "attach_to_tooltip": "&r&7——————————\n&r&b当点击后：\n&r&a任何人可见&r&f\n执行操作 [%action%]\n&r&f参数 [%param%]\n&r&7此段为按钮信息，不出现在游戏内。",
+      "attach_to_tooltip_p": "&r&7——————————\n&r&b当点击后：\n&r&6需求权限 &f[%perm%]&r&f\n执行操作 [%action%]\n&r&f参数 [%param%]\n&r&7此段为按钮信息，不出现在游戏内。",
+      "attach_to_tooltip_np": "&r&7——————————\n&r&b当点击后：\n&r&c需缺失权限 &f[%perm%]\n&r&f执行操作 [%action%]\n&r&f参数 [%param%]\n&r&7此段为按钮信息，不出现在游戏内。"
     },
     "welcome": {
       "headline": "欢迎",

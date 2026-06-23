@@ -646,8 +646,20 @@ export class JMElement extends HTMLElement {
       // JavaChest
       this.#javeBtnRenderQueue.forEach(([index, item, btn]) => {
         if (!Array.isArray(item.ISC?.lore)) { item.ISC.lore = []; }
+        // 构建镜像物品，并显示附加信息
         const mirror = item.clone();
-        mirror.ISC.lore.push(MCColors.parse(tr("attach_to_tooltip", { action: btn.action_type, param: btn.action_param })));
+        if (btn.permission) {
+          // 有权限需求，就计算权限模式
+          if (btn.permission_when_and_have) {
+            mirror.ISC.lore.push(MCColors.parse(tr("attach_to_tooltip_p", { perm: btn.permission, action: btn.action_type, param: btn.action_param })));
+          } else {
+            mirror.ISC.lore.push(MCColors.parse(tr("attach_to_tooltip_np", { perm: btn.permission, action: btn.action_type, param: btn.action_param })));
+          }
+        } else {
+          // 没有权限需求
+          mirror.ISC.lore.push(MCColors.parse(tr("attach_to_tooltip", { action: btn.action_type, param: btn.action_param })));
+        }
+        // 附加并显示
         this.#_chestEl.setItem(index, mirror);
       });
     })
