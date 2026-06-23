@@ -19,6 +19,9 @@ const delayedUpdateTimeout = 100;
 /** 编辑器 ShadowDOM 样式 */
 const JMeleSTYLE = `
 /* BASE */
+.pixel {
+  font-family: "mojangles", "unifont", sans-serif;
+}
 .root {
   --jm-actionbar-padding-y: 4px;
   --jm-actionbar-padding-x: min(5%, 16px);
@@ -1359,6 +1362,8 @@ export class JMElement extends HTMLElement {
     // Text: 渲染后的 display.text（支持 § 格式）+ 权限指示器（小字带颜色）
     const textEl = document.createElement('div');
     textEl.setAttribute('slot', 'headline');
+    textEl.style = `line-height: 1.4`;
+    textEl.classList.add('pixel');
     textEl.innerHTML = MCColors.toHtml(MCColors.parse(btn.text || ''));
     card.appendChild(textEl);
 
