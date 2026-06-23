@@ -22,12 +22,12 @@ if (!window.joyous) window.joyous = {};
 /**
  * 
  * @param {string} title 标题
- * @param {string} text 内容
+ * @param {HTMLElement|HTMLElement[]} content 内容，自动展开，若为文本会用空白div包裹
  * @param {boolean} allowCancel 是否要添加一个「取消」按键。点击后Promise会被reject.
  * @param  {string[]} btns 按钮列表，每个都是一个文本，用作按钮显示的文字。点击后会 resolve 第几个被点击。 0 起始。
  * @returns 
  */
-export function dialog(title = "", text = "", allowCancel = true, btns = [i18n.parseSafe("tooltip.confirm")]) {
+export function dialog(title = "", content = [], allowCancel = true, btns = [i18n.parseSafe("tooltip.confirm")]) {
   return new Promise((resolve, reject) => {
     const btnList = [];
     if (allowCancel) btnList.push({ text: i18n.parseSafe("tooltip.cancel"), click: (event) => { reject(event); } });
@@ -35,9 +35,34 @@ export function dialog(title = "", text = "", allowCancel = true, btns = [i18n.p
       btnList.push({ text: element, click: (event) => { resolve(i); } });
     });
     const dialog = Dialog.builder({
-      headline: title, text: text,
+      headline: title, text: "",
       actions: btnList,
     });
+    // 填充内容，先获取元素
+    let contentEle = dialog.querySelector('div[slot="text"]');
+    if (!(contentEle instanceof HTMLElement)) {
+      contentEle = document.createElement('div');
+      contentEle.setAttribute('slot', 'text');
+      dialog.appendChild(contentEle);
+    };
+    // 解析 content
+    if (Array.isArray(content)) {
+      content.forEach((ele) => {
+        if (ele instanceof HTMLElement) {
+          contentEle.appendChild(ele);
+        } else {
+          const divEle = document.createElement('div');
+          divEle.innerHTML = content;
+          contentEle.appendChild(divEle);
+        }
+      });
+    } else if (content instanceof HTMLElement) {
+      contentEle.appendChild(content);
+    } else {
+      const divEle = document.createElement('div');
+      divEle.innerHTML = content;
+      contentEle.appendChild(divEle);
+    }
     dialog.setAttribute("disable-bg-close", "true");
     dialog.setAttribute("disable-forced-size", "true");
     dialog.showed = true;
