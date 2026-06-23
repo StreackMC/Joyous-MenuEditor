@@ -121,17 +121,28 @@ export class Item {
   /**
    * 获取、更新与此物品关联的 Minecraft 元素。
    * @apiNote 调用此方法是**更新**元素内容，也就是说会绑定一个元素并更新它，除非你移除绑定
-   * @returns {HTMLmcItemDisplay} 当前版本未实现，返回 null
+   * @returns {HTMLmcItemDisplay}
    */
   getElement() {
     if (this.#bind_element == null) {
       this.#bind_element = document.createElement("mc-item-display");
     };
-    this.#bind_element.src = `./assets/minecraft/items/${this.id.trim().replace(/.*:/g, "")}.png` || "";
     this.#bind_element.amount = this.amount || 1;
     this.#bind_element.name = this.ISC.item_name || "";
     this.#bind_element.enchantmentGlint = (this.ISC.enchantment_glint_override) ? true : false;
     this.#bind_element.lore = this.ISC.lore.join("\n") || "";
+    // 材质处理，先获取不带命名空间的
+    const id = this.getClearId();
+    if (id === 'air') {
+      // 空气不绘制图案，使用空白svg
+      this.#bind_element.src = `./assets/icons/none.svg`;
+    } else if (id === 'missingno') {
+      // 错误物品使用丢失材质
+      this.#bind_element.src = `./assets/icons/missingno.svg`;
+    } else {
+      // 查找材质
+      this.#bind_element.src = `./assets/minecraft/items/${id}.png`;
+    }
     return this.#bind_element;
   }
 
@@ -140,6 +151,11 @@ export class Item {
    */
   clearElement() {
     this.#bind_element = null;
+  }
+
+  /** 获取不带命名空间的 ID */
+  getClearId() {
+    return this.id.trim().replace(/.*:/g, "");
   }
 
   /**
