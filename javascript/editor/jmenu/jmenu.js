@@ -609,29 +609,30 @@ export class JMElement extends HTMLElement {
       } catch (_) { return; }
       const javaArr = [];
       if (this.#_data.java instanceof Map) {
-      if (this.#_data.java instanceof Map) {
-        // 将 Map 按 key 排序后转为有序数组
-        const sortedKeys = Array.from(this.#_data.java.keys()).sort((a, b) => {
-          const [ar, ac] = [parseInt(a[0]), parseInt(a[1])];
-          const [br, bc] = [parseInt(b[0]), parseInt(b[1])];
-          return (ar - br) || (ac - bc);
-        });
-        for (const key of sortedKeys) {
-          const btn = this.#_data.java.get(key);
-          if (btn instanceof JavaButton) {
-            javaArr.push(new BedrockButton({
-              display: { text: btn.tooltip?.[0] || btn.id, icon: "" },
-              perm: btn.permission ? (btn.permission_when_and_have ? "" : "!") + btn.permission : "",
-              action: btn.action_type || "none",
-              param: btn.action_param || ""
-            }));
+        if (this.#_data.java instanceof Map) {
+          // 将 Map 按 key 排序后转为有序数组
+          const sortedKeys = Array.from(this.#_data.java.keys()).sort((a, b) => {
+            const [ar, ac] = [parseInt(a[0]), parseInt(a[1])];
+            const [br, bc] = [parseInt(b[0]), parseInt(b[1])];
+            return (ar - br) || (ac - bc);
+          });
+          for (const key of sortedKeys) {
+            const btn = this.#_data.java.get(key);
+            if (btn instanceof JavaButton) {
+              javaArr.push(new BedrockButton({
+                display: { text: btn.tooltip?.[0] || btn.id, icon: "" },
+                perm: btn.permission ? (btn.permission_when_and_have ? "" : "!") + btn.permission : "",
+                action: btn.action_type || "none",
+                param: btn.action_param || ""
+              }));
+            }
           }
         }
-      }
-      this.#_data.bedrock = javaArr;
-      // 提交全部重渲染
-      for (let i = 0; i < this.#_data.bedrock.length; i++) {
-        this._commitBedrockUpdate(i, this.#_data.bedrock[i]);
+        this.#_data.bedrock = javaArr;
+        // 提交全部重渲染
+        for (let i = 0; i < this.#_data.bedrock.length; i++) {
+          this._commitBedrockUpdate(i, this.#_data.bedrock[i]);
+        }
       }
     });
 
