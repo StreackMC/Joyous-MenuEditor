@@ -293,6 +293,7 @@ export class JMElement extends HTMLElement {
   /** java: shrink chest size @type {HTMLElement} */ #_shrinkBtn;
   /** java: s-text-field for param @type {HTMLElement} */ #_paramField;
   /** java: reset btn for param @type {HTMLElement} */ #_paramClearBtn;
+  /** java: delete btn @type {HTMLElement} */ #_javaDeleteBtn;
   /** bedrock: root container @type {HTMLElement} */ #_bedrockRoot;
   /** bedrock: list container @type {HTMLElement} */ #_bedrockList;
   /** bedrock: add button @type {HTMLElement} */ #_bedrockAddBtn;
@@ -475,6 +476,15 @@ export class JMElement extends HTMLElement {
     editBody.appendChild(editItemBtn);
     this.#_editItemBtn = editItemBtn;
 
+    // ── Delete (Java) ──
+    const deleteBtn = document.createElement('s-button');
+    deleteBtn.style.display = 'flex';
+    deleteBtn.setAttribute('type', 'filled-tonal');
+    deleteBtn.style.backgroundColor = 'var(--s-color-error-container,#FFDAD6)';
+    deleteBtn.textContent = tr('java_delete');
+    editBody.appendChild(deleteBtn);
+    this.#_javaDeleteBtn = deleteBtn;
+
     // ── Permission field ──
     const permField = document.createElement('s-text-field');
     permField.style.display = 'grid';
@@ -588,8 +598,17 @@ export class JMElement extends HTMLElement {
     });
 
     // Java → Bedrock 同步（按顺序映射）
-    this.#_java2bedrockBtn.addEventListener('click', () => {
+    this.#_java2bedrockBtn.addEventListener('click', async () => {
+      try {
+        await utils.askfor(
+          i18n.parseSafe('tooltip.tip'),
+          tr('sync_java_to_bedrock_confirm'),
+          i18n.parseSafe('tooltip.confirm'),
+          i18n.parseSafe('tooltip.cancel')
+        );
+      } catch (_) { return; }
       const javaArr = [];
+      if (this.#_data.java instanceof Map) {
       if (this.#_data.java instanceof Map) {
         // 将 Map 按 key 排序后转为有序数组
         const sortedKeys = Array.from(this.#_data.java.keys()).sort((a, b) => {
@@ -617,8 +636,16 @@ export class JMElement extends HTMLElement {
     });
 
     // Bedrock → Java 同步（按顺序映射到前 N 个格子）
-    this.#_bedrock2javaBtn.addEventListener('click', () => {
+    this.#_bedrock2javaBtn.addEventListener('click', async () => {
       if (!Array.isArray(this.#_data.bedrock)) return;
+      try {
+        await utils.askfor(
+          i18n.parseSafe('tooltip.tip'),
+          tr('sync_bedrock_to_java_confirm'),
+          i18n.parseSafe('tooltip.confirm'),
+          i18n.parseSafe('tooltip.cancel')
+        );
+      } catch (_) { return; }
       this.#_data.java.clear();
       const maxSlots = this.#_data.lines * 9;
       for (let i = 0; i < Math.min(this.#_data.bedrock.length, maxSlots); i++) {
@@ -721,6 +748,34 @@ export class JMElement extends HTMLElement {
       }
     });
 
+    // 删除按钮（Java 槽位）
+    this.#_javaDeleteBtn.addEventListener('click', async () => {
+      if (this.#edittingJslot == null) return;
+      try {
+        await utils.askfor(
+          i18n.parseSafe('tooltip.tip'),
+          tr('java_delete_confirm', { slot: this.#edittingJslot + 1 }),
+          tr('java_delete'),
+          i18n.parseSafe('tooltip.cancel')
+        );
+      } catch (_) { return; }
+      // 从数据中移除
+      const key = `${getRowColumn(this.#edittingJslot)[0]}${getRowColumn(this.#edittingJslot)[1]}`;
+      this.#_data.java.delete(key);
+      // 从箱子中移除
+      this.#_chestEl.setItem(this.#edittingJslot, null);
+      // 重置编辑状态
+      this.#edittingJbutton = null;
+      this.#edittingJitem = null;
+      this.#edittingJslot = null;
+      this.#_editBody.removeAttribute('visible');
+      this.#_unsaveCard.removeAttribute('visible');
+      try { this.#_chestEl.highlightIndex = -1; } catch (_) {}
+      this._commitJavaTitle(tr('title_idle'), 'set');
+      // 触发保存
+      try { commandServer.executeCommand("files.save"); } catch (e) { console.warn(e); }
+    });
+
     // 箱子大小改变
     this.#_shrinkBtn.addEventListener('click', () => {
       if (this.#_data.lines <= 1) return;
@@ -765,26 +820,94 @@ export class JMElement extends HTMLElement {
   // ═════════════════════════════════════════════
 
   _bindEvents_bedrock() {
-    // 添加新按钮
-    this.#_bedrockAddBtn.addEventListener('click', () => {
+    // 添加新按钮（Alt＋点击→末尾，Shift＋点击→中间，普通→末尾并打开编辑）
+    this.#_bedrockAddBtn.addEventListener('click', (e) => {
       const btn = new BedrockButton({
         display: { text: "新按钮", icon: "" },
         perm: "",
         action: "none",
         param: ""
       });
-      this.#_data.bedrock.push(btn);
-      this._commitBedrockUpdate(this.#_data.bedrock.length - 1, btn);
+      const total = this.#_data.bedrock.length;
+      let insertIndex;
+      if (e.altKey) {
+        // Alt：末尾
+        insertIndex = total;
+        this.#_data.bedrock.push(btn);
+      } else if (e.shiftKey) {
+        // Shift：正中间
+        insertIndex = Math.floor(total / 2);
+        this.#_data.bedrock.splice(insertIndex, 0, btn);
+      } else {
+        // 普通：末尾并打开编辑框
+        insertIndex = total;
+        this.#_data.bedrock.push(btn);
+      }
+      this._commitBedrockUpdate(insertIndex, btn);
+      // 非 Alt 模式自动打开编辑框
+      if (!e.altKey) {
+        // 等待一帧让渲染完成
+        requestAnimationFrame(() => { this._openBedrockEditDialog(insertIndex); });
+      }
     });
 
-    // 点击列表中的卡片 → 编辑对话框（使用事件委托）
+    // 卡片操作按钮事件委托
     this.#_bedrockList.addEventListener('click', (e) => {
       const card = e.target.closest('.bedrock-card');
       if (!card) return;
       const index = parseInt(card.dataset.index);
       if (Number.isNaN(index) || !this.#_data?.bedrock?.[index]) return;
-      this._openBedrockEditDialog(index);
+
+      // 判断点击的目标
+      const target = e.target.closest('s-icon-button');
+      if (!target) return;
+      const action = target.dataset.bedrockAction;
+      if (!action) return;
+
+      switch (action) {
+        case 'edit':
+          this._openBedrockEditDialog(index);
+          break;
+        case 'up':
+          this._moveBedrockButton(index, -1, e);
+          break;
+        case 'down':
+          this._moveBedrockButton(index, 1, e);
+          break;
+      }
     });
+  }
+
+  /**
+   * 移动基岩版按钮
+   * @param {number} fromIndex 当前索引
+   * @param {number} direction -1 上移, 1 下移
+   * @param {MouseEvent} e 原始事件
+   */
+  _moveBedrockButton(fromIndex, direction, e) {
+    const total = this.#_data.bedrock.length;
+    if (total <= 1) return;
+    let toIndex;
+    if (e.altKey) {
+      // Alt：移动到最顶端/最底端
+      toIndex = direction < 0 ? 0 : total - 1;
+    } else if (e.shiftKey) {
+      // Shift：移动按钮总长度的 1/8（向上取整）
+      const step = Math.ceil(total / 8);
+      toIndex = fromIndex + direction * step;
+    } else {
+      // 普通：移动 1 格
+      toIndex = fromIndex + direction;
+    }
+    // 钳制范围
+    toIndex = Math.max(0, Math.min(total - 1, toIndex));
+    if (toIndex === fromIndex) return;
+
+    // 执行移动
+    const [item] = this.#_data.bedrock.splice(fromIndex, 1);
+    this.#_data.bedrock.splice(toIndex, 0, item);
+    // 全量重渲染
+    this._scheduleRender();
   }
 
   // ═════════════════════════════════════════════
@@ -827,29 +950,24 @@ export class JMElement extends HTMLElement {
     iconField.value = btn.icon || '';
     textSlot.appendChild(iconField);
 
-    // 权限输入
+    // 权限输入（带模式切换按钮，参考 Java 版）
     const permField = document.createElement('s-text-field');
     permField.setAttribute('label', tr('permission_label'));
     permField.value = (btn.permission || '').replace(/^!/, '');
     textSlot.appendChild(permField);
 
-    // 权限模式切换（用按钮表示）
     let permMode = !btn.permission.startsWith('!') && btn.permission_when_and_have !== false;
-    const permToggleRow = document.createElement('div');
-    permToggleRow.style.display = 'flex';
-    permToggleRow.style.flexDirection = 'row';
-    permToggleRow.style.alignItems = 'center';
-    permToggleRow.style.gap = '.5em';
-    const permToggleBtn = document.createElement('s-button');
-    permToggleBtn.setAttribute('type', 'outlined');
-    permToggleBtn.textContent = permMode ? tr('permission_have') : tr('permission_miss');
+    const permToggleIcon = document.createElement('s-icon');
+    permToggleIcon.innerHTML = permMode ? SVG_ICONS.having : SVG_ICONS.missing;
+    const permToggleBtn = document.createElement('s-icon-button');
+    permToggleBtn.setAttribute('slot', 'end');
+    permToggleBtn.setAttribute('type', 'text');
+    permToggleBtn.appendChild(permToggleIcon);
     permToggleBtn.addEventListener('click', () => {
       permMode = !permMode;
-      permToggleBtn.textContent = permMode ? tr('permission_have') : tr('permission_miss');
+      permToggleIcon.innerHTML = permMode ? SVG_ICONS.having : SVG_ICONS.missing;
     });
-    permToggleRow.appendChild(document.createTextNode(tr('permission_label') + ':'));
-    permToggleRow.appendChild(permToggleBtn);
-    textSlot.appendChild(permToggleRow);
+    permField.appendChild(permToggleBtn);
 
     // 动作类型选择器
     const actionPicker = document.createElement('s-picker');
@@ -874,15 +992,24 @@ export class JMElement extends HTMLElement {
     paramField.value = btn.action_param || '';
     textSlot.appendChild(paramField);
 
-    // 删除按钮（危险操作）
+    // 删除按钮（危险操作，需确认）
     const deleteBtn = document.createElement('s-button');
     deleteBtn.setAttribute('type', 'filled-tonal');
     deleteBtn.style.backgroundColor = 'var(--s-color-error-container,#FFDAD6)';
     deleteBtn.textContent = tr('bedrock_delete');
-    deleteBtn.addEventListener('click', () => {
-      this.#_data.bedrock.splice(index, 1);
-      dialog.removeAttribute('showed');
-      this._scheduleRender();
+    deleteBtn.addEventListener('click', async () => {
+      try {
+        await utils.askfor(
+          i18n.parseSafe('tooltip.tip'),
+          tr('bedrock_delete_confirm', { index: index + 1 }),
+          tr('bedrock_delete'),
+          i18n.parseSafe('tooltip.cancel')
+        );
+        // 确认后执行删除
+        this.#_data.bedrock.splice(index, 1);
+        dialog.removeAttribute('showed');
+        this._scheduleRender();
+      } catch (_) { /* 用户取消，什么也不做 */ }
     });
     textSlot.appendChild(deleteBtn);
 
@@ -1102,15 +1229,13 @@ export class JMElement extends HTMLElement {
   _renderBedrockCard(index, btn) {
     const card = document.createElement('s-card');
     card.className = 'bedrock-card';
-    card.setAttribute('clickable', 'true');
     card.setAttribute('type', 'filled');
     card.dataset.index = index;
 
     // Headline: 按钮类型（文本|按钮→打开URL）
     const headline = document.createElement('div');
     headline.setAttribute('slot', 'headline');
-    const actionLabel = tr('action_type_' + (btn.action_type || 'none'));
-    headline.textContent = actionLabel;
+    headline.textContent = tr('action_type_' + (btn.action_type || 'none'));
     card.appendChild(headline);
 
     // Subhead: 权限信息
@@ -1131,29 +1256,35 @@ export class JMElement extends HTMLElement {
     textEl.innerHTML = MCColors.toHtml(MCColors.parse(btn.text || ''));
     card.appendChild(textEl);
 
-    // Tooltip: 显示参数信息
-    const tooltip = document.createElement('s-tooltip');
-    tooltip.setAttribute('align', 'bottom');
-    // 将图标按钮作为触发器
-    const infoBtn = document.createElement('s-icon-button');
-    infoBtn.setAttribute('slot', 'trigger');
-    infoBtn.setAttribute('type', 'text');
-    infoBtn.innerHTML = '<s-icon name="info"></s-icon>';
-    tooltip.appendChild(infoBtn);
-    // 参数信息（防止XSS）
-    const paramInfo = document.createElement('span');
-    const paramText = btn.action_param
-      ? i18n.parseSafe('bedrock_param_info', { param: btn.action_param })
-      : tr('bedrock_param_none');
-    paramInfo.textContent = paramText;
-    tooltip.appendChild(paramInfo);
+    // Action slot: 三个操作按钮
+    const actions = document.createElement('div');
+    actions.setAttribute('slot', 'action');
+    actions.className = 'bedrock-card-actions';
 
-    // 将 tooltip 放入 card 的 action slot
-    const actionSlot = document.createElement('div');
-    actionSlot.setAttribute('slot', 'action');
-    actionSlot.className = 'bedrock-card-actions';
-    actionSlot.appendChild(tooltip);
-    card.appendChild(actionSlot);
+    // 上移
+    const upBtn = document.createElement('s-icon-button');
+    upBtn.setAttribute('type', 'text');
+    upBtn.dataset.bedrockAction = 'up';
+    upBtn.innerHTML = '<s-icon name="arrow_upward"></s-icon>';
+    actions.appendChild(upBtn);
+
+    // 下移
+    const downBtn = document.createElement('s-icon-button');
+    downBtn.setAttribute('type', 'text');
+    downBtn.dataset.bedrockAction = 'down';
+    downBtn.innerHTML = '<s-icon name="arrow_downward"></s-icon>';
+    actions.appendChild(downBtn);
+
+    // 编辑（SVG 铅笔图标）
+    const editBtn = document.createElement('s-icon-button');
+    editBtn.setAttribute('type', 'text');
+    editBtn.dataset.bedrockAction = 'edit';
+    editBtn.innerHTML = `<s-icon><svg viewBox="0 -960 960 960">
+      <path d="M200-200h57l391-391-57-57-391 391v57Zm-80 80v-170l528-527q12-11 26.5-17t30.5-6q16 0 31 6t26 18l55 56q12 11 17.5 26t5.5 30q0 16-5.5 30.5T817-647L290-120H120Zm640-584-56-56 56 56Zm-141 85-28-29 57 57-29-28Z"></path>
+    </svg></s-icon>`;
+    actions.appendChild(editBtn);
+
+    card.appendChild(actions);
 
     this.#_bedrockList.appendChild(card);
   }
