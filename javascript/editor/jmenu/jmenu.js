@@ -984,7 +984,7 @@ export class JMElement extends HTMLElement {
     textSlot.classList.add("jm-bedrock-editor-popup-root");
     dialog.appendChild(textSlot);
 
-    // 文本输入
+    // 文本输入（附带渐变/文本编辑器快捷按钮）
     const textField = document.createElement('s-text-field');
     textField.setAttribute('label', tr('bedrock_text_label'));
     textField.setAttribute('type', 'multiline');
@@ -992,13 +992,51 @@ export class JMElement extends HTMLElement {
     textField.value = btn.text || '';
     textSlot.appendChild(textField);
 
+    // 在渐变色编辑器中打开
+    const mcgradientTip = document.createElement('s-tooltip');
+    mcgradientTip.setAttribute('align', 'bottom');
+    mcgradientTip.setAttribute('slot', 'end');
+    mcgradientTip.innerHTML += i18n.parseSafe('panel.mcgradient.astool') + '<br>' + i18n.parseSafe('panel.mcgradient.astool_tip');
+    const mcgradientBtn = document.createElement('s-icon-button');
+    mcgradientBtn.setAttribute('type', 'text');
+    mcgradientBtn.setAttribute('slot', 'trigger');
+    mcgradientBtn.innerHTML = `<s-icon><svg viewBox="0 -960 960 960"><path d="M176-120q-19-4-35.5-20.5T120-176l664-664q21 5 36 20.5t21 35.5L176-120Zm-56-252v-112l356-356h112L120-372Zm0-308v-80q0-33 23.5-56.5T200-840h80L120-680Zm720 92v112l-19 19q-20-10-42.5-15.5T732-480l108-108ZM372-120l108-108q2 24 7.5 46.5T503-139l-19 19H372Zm308-80H560v-80h120v-120h80v120h120v80H760v120h-80v-120Z"></path></svg></s-icon>`;
+    mcgradientBtn.addEventListener('click', () => {
+      commandServer.executeCommand('panel.mcgradient.open');
+    });
+    mcgradientTip.appendChild(mcgradientBtn);
+    textField.appendChild(mcgradientTip);
+
+    // 在文本组件编辑器中打开
+    const mctextTip = document.createElement('s-tooltip');
+    mctextTip.setAttribute('align', 'bottom');
+    mctextTip.setAttribute('slot', 'end');
+    const mctextBtn = document.createElement('s-icon-button');
+    mctextBtn.setAttribute('type', 'text');
+    mctextBtn.setAttribute('slot', 'trigger');
+    mctextBtn.innerHTML = `<s-icon><svg viewBox="0 -960 960 960"><path d="M200-200v-80h560v80H200Zm76-160 164-440h80l164 440h-76l-38-112H392l-40 112h-76Zm138-176h132l-64-182h-4l-64 182Z"></path></svg></s-icon>`;
+    mctextBtn.addEventListener('click', async () => {
+      try {
+        const mctextModule = await import('../../ui/panels/mctext.js');
+        const editor = mctextModule.default || mctextModule;
+        const editFn = editor.edit || editor.mctextEdit;
+        if (typeof editFn === 'function') {
+          const [result, newText] = await editFn(textField.value);
+          if (result) textField.value = newText;
+        }
+      } catch (e) { console.warn('Failed to open text editor:', e); }
+    });
+    mctextTip.appendChild(mctextBtn);
+    mctextTip.appendChild(document.createTextNode(i18n.parseSafe('panel.mctext.ascall')));
+    textField.appendChild(mctextTip);
+
     // 图标输入
     const iconField = document.createElement('s-text-field');
     iconField.setAttribute('label', tr('bedrock_icon_label'));
     iconField.value = btn.icon || '';
     textSlot.appendChild(iconField);
 
-    // 权限输入（带模式切换按钮，参考 Java 版）
+    // 权限输入（带模式切换按钮 + 悬浮提示 + 输入过滤，参考 Java 版）
     const permField = document.createElement('s-text-field');
     permField.setAttribute('label', tr('permission_label'));
     permField.value = (btn.permission || '').replace(/^!/, '');
@@ -1015,7 +1053,34 @@ export class JMElement extends HTMLElement {
       permMode = !permMode;
       permToggleIcon.innerHTML = permMode ? SVG_ICONS.having : SVG_ICONS.missing;
     });
-    permField.appendChild(permToggleBtn);
+    // 用 s-tooltip 包裹切换按钮以显示提示文本
+    const permTip = document.createElement('s-tooltip');
+    permTip.setAttribute('align', 'bottom');
+    permTip.setAttribute('slot', 'end');
+    permToggleBtn.setAttribute('slot', 'trigger');
+    permTip.appendChild(permToggleBtn);
+    permTip.appendChild(document.createTextNode(permMode ? tr('permission_have').replace(/<br>/g, ' ') : tr('permission_miss').replace(/<br>/g, ' ')));
+    // 点击时同步更新提示文本
+    permToggleBtn.addEventListener('click', () => {
+      setTimeout(() => {
+        permTip.lastChild.textContent = permMode ? tr('permission_have').replace(/<br>/g, ' ') : tr('permission_miss').replace(/<br>/g, ' ');
+      }, 0);
+    });
+    permField.appendChild(permTip);
+
+    // 输入过滤：自动去除 ! 字符，若开头有 ! 则反转模式（与 Java 版一致）
+    permField.addEventListener('input', () => {
+      const raw = permField.value;
+      if (raw.startsWith('!')) {
+        permField.value = raw.replace(/^!+/, '');
+        permMode = !permMode;
+        permToggleIcon.innerHTML = permMode ? SVG_ICONS.having : SVG_ICONS.missing;
+        permTip.lastChild.textContent = permMode ? tr('permission_have').replace(/<br>/g, ' ') : tr('permission_miss').replace(/<br>/g, ' ');
+      }
+      if (permField.value.includes('!')) {
+        permField.value = permField.value.replace(/!/g, '');
+      }
+    });
 
     // 动作类型选择器
     const actionPicker = document.createElement('s-picker');
