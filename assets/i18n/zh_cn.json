@@ -24,7 +24,10 @@
     "confirm": "确定",
     "cancel": "取消",
     "close": "关闭",
-    "tip": "提示"
+    "tip": "提示",
+    "copy": "复制",
+    "paste": "粘贴",
+    "cut": "剪切"
   },
   "about": {
     "title": "关于 Joyous 菜单编辑器",

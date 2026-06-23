@@ -33,12 +33,12 @@ if (!navigator.clipboard) {
  * @returns {string|null} 获取到的文本内容，获取失败或未授权时返回 null
  */
 export async function get(tip = true) {
-  const promise = await getAsync(tip);
-  promise.then((text) => {
+  try {
+    const text = await getAsync(tip);
     return text;
-  }).catch((err) => {
+  } catch (err) {
     return null;
-  });
+  }
 };
 
 /**
