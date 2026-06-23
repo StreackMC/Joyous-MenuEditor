@@ -191,6 +191,12 @@ mc-chest-display {
   gap: .3em;
   margin-left: auto;
 }
+
+s-card div[slot="subhead"] {
+  word-wrap: break-word;      /* 允许长单词换行 */
+  word-break: break-all;      /* 允许任意字符换行（包括长字符串） */
+  white-space: normal;        /* 默认值，允许换行（不是 nowrap） */
+}
 `;
 /** 权限模式按钮状态图标 */
 const SVG_ICONS = {
@@ -416,6 +422,7 @@ export class JMElement extends HTMLElement {
 
     // 编辑面板
     const editArea = document.createElement('s-card');
+    editArea.setAttribute('type', 'outlined');
     editArea.className = 'iteminfo-root';
     java.appendChild(editArea);
     this.#_editArea = editArea;
@@ -1235,31 +1242,28 @@ export class JMElement extends HTMLElement {
   _renderBedrockCard(index, btn) {
     const card = document.createElement('s-card');
     card.className = 'bedrock-card';
-    card.setAttribute('type', 'filled');
+    card.setAttribute('type', 'outlined');
     card.dataset.index = index;
 
     // Headline: 操作类型
     const headline = document.createElement('div');
-    headline.setAttribute('slot', 'headline');
-    headline.textContent = tr('action_type_' + (btn.action_type || 'none'));
-    card.appendChild(headline);
-
-    // Subhead: 操作参数
-    const subhead = document.createElement('div');
-    subhead.setAttribute('slot', 'subhead');
-    subhead.textContent = btn.action_param
-      ? i18n.parseSafe('bedrock_param_info', { param: btn.action_param })
+    const paramText = btn.action_param
+      ? tr('bedrock_param_info', { param: btn.action_param })
       : tr('bedrock_param_none');
-    card.appendChild(subhead);
-
+    headline.setAttribute('slot', 'subhead');
+    headline.textContent = tr('action_type_' + (btn.action_type || 'none')) + paramText;
+    headline.style = `border-top: 1px solid black; margin-top: 0.2em;`;
+    card.appendChild(headline);
+    
     // Text: 渲染后的 display.text（支持 § 格式）+ 权限指示器（小字带颜色）
     const textEl = document.createElement('div');
-    textEl.setAttribute('slot', 'text');
+    textEl.setAttribute('slot', 'headline');
     textEl.innerHTML = MCColors.toHtml(MCColors.parse(btn.text || ''));
+    card.appendChild(textEl);
+
     // 权限指示器
     const permEl = document.createElement('div');
-    permEl.style.fontSize = '0.8em';
-    permEl.style.marginTop = '0.3em';
+    permEl.setAttribute('slot', 'subhead');
     if (btn.permission) {
       if (btn.permission_when_and_have) {
         // 有权限才可见 → 黄色警告
@@ -1275,8 +1279,8 @@ export class JMElement extends HTMLElement {
       permEl.style.color = 'var(--s-color-success-container, #92f8b4)';
       permEl.textContent = tr('bedrock_perm_none');
     }
-    textEl.appendChild(permEl);
-    card.appendChild(textEl);
+    card.appendChild(permEl);
+    // textEl.appendChild(permEl);
 
     // Action slot: 三个操作按钮
     const actions = document.createElement('div');

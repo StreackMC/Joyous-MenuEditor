@@ -81,27 +81,43 @@
       <!-- 快速工具：文本组件编辑器 -->
       <s-tooltip data-i18n class="mobile-fold" slot="action">
         <s-icon-button slot="trigger" data-click="panel.mctext.open">
-          <s-icon name="text_fields"></s-icon>
+          <s-icon>
+            <svg viewBox="0 -960 960 960">
+              <path
+                d="M200-200v-80h560v80H200Zm76-160 164-440h80l164 440h-76l-38-112H392l-40 112h-76Zm138-176h132l-64-182h-4l-64 182Z">
+              </path>
+            </svg>
+          </s-icon>
         </s-icon-button>
         $panel.mctext.astool$
       </s-tooltip>
-
+      
       <!-- 快速工具：渐变色编辑器 -->
       <s-tooltip data-i18n class="mobile-fold" slot="action">
         <s-icon-button slot="trigger" data-click="panel.mcgradient.open">
-          <s-icon name="gradient"></s-icon>
+          <s-icon>
+            <svg viewBox="0 -960 960 960">
+              <path
+                d="M176-120q-19-4-35.5-20.5T120-176l664-664q21 5 36 20.5t21 35.5L176-120Zm-56-252v-112l356-356h112L120-372Zm0-308v-80q0-33 23.5-56.5T200-840h80L120-680Zm720 92v112l-19 19q-20-10-42.5-15.5T732-480l108-108ZM372-120l108-108q2 24 7.5 46.5T503-139l-19 19H372Zm308-80H560v-80h120v-120h80v120h120v80H760v120h-80v-120Z">
+              </path>
+            </svg>
+          </s-icon>
         </s-icon-button>
         $panel.mcgradient.astool$
       </s-tooltip>
-
+      
       <!-- 快速工具：新建文件 -->
       <s-tooltip data-i18n class="mobile-fold" slot="action">
         <s-icon-button slot="trigger" data-click="file.new">
-          <s-icon name="note_add"></s-icon>
+          <s-icon><svg viewBox="0 -960 960 960">
+              <path
+                d="M200-120q-33 0-56.5-23.5T120-200v-560q0-33 23.5-56.5T200-840h240v80H200v560h560v-240h80v240q0 33-23.5 56.5T760-120H200Zm440-400v-120H520v-80h120v-120h80v120h120v80H720v120h-80Z">
+              </path>
+            </svg></s-icon>
         </s-icon-button>
         $editor.actions.newFile$
       </s-tooltip>
-
+      
       <!-- 工具箱入口 -->
       <s-popup-menu slot="action">
         <!-- 显示在标题栏的按钮 -->
@@ -111,7 +127,7 @@
           </s-icon-button>
           $tooltip.appbarToolsFolded$
         </s-tooltip>
-
+      
         <!-- 移动端专属 -->
         <s-popup-menu-item data-i18n class="mobile-fold" mobile data-click="editor.revert">
           <s-icon slot="start">
@@ -131,18 +147,36 @@
           </s-icon>
           $tooltip.saveTo$
         </s-popup-menu-item>
-
+      
         <!-- 移动端专享：快速工具 -->
         <s-popup-menu-item data-i18n class="mobile-fold" mobile data-click="panel.mctext.open">
-          <s-icon slot="start" name="text_fields"></s-icon>
+          <s-icon slot="start">
+            <svg viewBox="0 -960 960 960">
+              <path
+                d="M200-200v-80h560v80H200Zm76-160 164-440h80l164 440h-76l-38-112H392l-40 112h-76Zm138-176h132l-64-182h-4l-64 182Z">
+              </path>
+            </svg>
+          </s-icon>
           $panel.mctext.astool$
         </s-popup-menu-item>
         <s-popup-menu-item data-i18n class="mobile-fold" mobile data-click="panel.mcgradient.open">
-          <s-icon slot="start" name="gradient"></s-icon>
+      
+          <s-icon slot="start">
+            <svg viewBox="0 -960 960 960">
+              <path
+                d="M176-120q-19-4-35.5-20.5T120-176l664-664q21 5 36 20.5t21 35.5L176-120Zm-56-252v-112l356-356h112L120-372Zm0-308v-80q0-33 23.5-56.5T200-840h80L120-680Zm720 92v112l-19 19q-20-10-42.5-15.5T732-480l108-108ZM372-120l108-108q2 24 7.5 46.5T503-139l-19 19H372Zm308-80H560v-80h120v-120h80v120h120v80H760v120h-80v-120Z">
+              </path>
+            </svg>
+          </s-icon>
+      
           $panel.mcgradient.astool$
         </s-popup-menu-item>
         <s-popup-menu-item data-i18n class="mobile-fold" mobile data-click="file.new">
-          <s-icon slot="start" name="note_add"></s-icon>
+          <s-icon slot="start"><svg viewBox="0 -960 960 960">
+              <path
+                d="M200-120q-33 0-56.5-23.5T120-200v-560q0-33 23.5-56.5T200-840h240v80H200v560h560v-240h80v240q0 33-23.5 56.5T760-120H200Zm440-400v-120H520v-80h120v-120h80v120h120v80H720v120h-80Z">
+              </path>
+            </svg></s-icon>
           $editor.actions.newFile$
         </s-popup-menu-item>
 
