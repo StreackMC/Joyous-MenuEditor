@@ -139,6 +139,10 @@ mc-chest-display {
   display: block;
 }
 
+.iteminfo-unsave s-button {
+  margin: 0 0 .5em 1em;
+}
+
 /* BEDROCK-AREA */
 .bedrock {}
 `;
@@ -361,7 +365,7 @@ export class JMElement extends HTMLElement {
     unsaveCard.appendChild(unsaveText);
     this.#_unsaveTextEl = unsaveText;
     const dismissBtn = document.createElement('s-button');
-    dismissBtn.setAttribute('slot', 'action');
+    // dismissBtn.setAttribute('slot', 'action');
     dismissBtn.style.backgroundColor = 'var(--s-color-error-container,#FFDAD6)';
     dismissBtn.setAttribute('type', 'filled-tonal');
     dismissBtn.textContent = tr('dismiss');
@@ -369,14 +373,14 @@ export class JMElement extends HTMLElement {
     this.#_unsaveDismissBtn = dismissBtn;
 
     const saveUnsBtn = document.createElement('s-button');
-    saveUnsBtn.setAttribute('slot', 'action');
+    // saveUnsBtn.setAttribute('slot', 'action');
     saveUnsBtn.setAttribute('type', 'filled-tonal');
     saveUnsBtn.textContent = i18n.parse('tooltip.save');
     unsaveCard.appendChild(saveUnsBtn);
     this.#_unsaveSaveBtn = saveUnsBtn;
 
     const cancelBtn = document.createElement('s-button');
-    cancelBtn.setAttribute('slot', 'action');
+    // cancelBtn.setAttribute('slot', 'action');
     cancelBtn.setAttribute('type', 'filled-tonal');
     cancelBtn.textContent = i18n.parse('tooltip.cancel');
     unsaveCard.appendChild(cancelBtn);
