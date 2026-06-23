@@ -78,6 +78,30 @@
         $tooltip.saveTo$
       </s-tooltip>
 
+      <!-- 快速工具：文本组件编辑器 -->
+      <s-tooltip data-i18n class="mobile-fold" slot="action">
+        <s-icon-button slot="trigger" data-click="panel.mctext.open">
+          <s-icon name="text_fields"></s-icon>
+        </s-icon-button>
+        $panel.mctext.astool$
+      </s-tooltip>
+
+      <!-- 快速工具：渐变色编辑器 -->
+      <s-tooltip data-i18n class="mobile-fold" slot="action">
+        <s-icon-button slot="trigger" data-click="panel.mcgradient.open">
+          <s-icon name="gradient"></s-icon>
+        </s-icon-button>
+        $panel.mcgradient.astool$
+      </s-tooltip>
+
+      <!-- 快速工具：新建文件 -->
+      <s-tooltip data-i18n class="mobile-fold" slot="action">
+        <s-icon-button slot="trigger" data-click="file.new">
+          <s-icon name="note_add"></s-icon>
+        </s-icon-button>
+        $editor.actions.newFile$
+      </s-tooltip>
+
       <!-- 工具箱入口 -->
       <s-popup-menu slot="action">
         <!-- 显示在标题栏的按钮 -->
