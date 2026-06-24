@@ -159,16 +159,14 @@ export class Item {
         return v;
       }
     }
-    // 3. 从 i18n 翻译表中查找物品本来的名字
+    // 3. 从 i18n 模块中查找物品本来的名字
     try {
       const key = (this.id || '').split(':').pop();
-      const translations = (typeof i18n.getCurrentTranslations === 'function') ? i18n.getCurrentTranslations() : {};
-      const itemsList = (translations && translations.minecraft && Array.isArray(translations.minecraft.items)) ? translations.minecraft.items : [];
-      const found = itemsList.find(it => it.key === key);
-      if (found && found.translation) return found.translation;
+      return i18n.parseMinecraft(key);
     } catch (_) { /* 静默 */ }
-    // 4. 终极回退：不带命名空间的物品 ID
-    return (this.id || '').split(':').pop() || 'unknown';
+    // 4. 回退：返回 item.minecraft.<id> 形式的键
+    const fallbackId = (this.id || '').split(':').pop() || 'unknown';
+    return `item.minecraft.${fallbackId}`;
   }
 
   /**

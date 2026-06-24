@@ -5,36 +5,84 @@
  * @module i18n
  */
 export default {
-  parse, parseSafe, load, refresh,
-  getCurrentUrl,
+  parse, parseSafe, parseMinecraft, load, refresh,
+  getCurrentUrl, getCurrentMcUrl,
   getCurrentTranslations: () => { return currentTranslations; },
+  getCurrentMcTranslations: () => { return currentMcTranslations; },
   getDefaultTranslations: () => { return defaultTranslations; },
+  getDefaultMcTranslations: () => { return defaultMcTranslations; },
 };
 
 /** 当前加载的翻译数据对象 */
 export let currentTranslations = {};
+export let currentMcTranslations = {};
 let currentTranslationsUrl = "";
+let currentMcTranslationsUrl = "";
 
 /**
  * 获取当前使用的翻译文件URL
- * @returns 
  */
 export function getCurrentUrl() {
   return currentTranslationsUrl;
 }
 
 /**
+ * 获取当前使用的 MC 翻译文件URL
+ */
+export function getCurrentMcUrl() {
+  return currentMcTranslationsUrl;
+}
+
+/**
  * 根据点号路径从翻译中获取值，自动查找默认值。
  * @param {string} path - 点号分隔的路径，如 "ui.title"
+ * @param {'main'|'mc'} [source='main'] 翻译来源
  * @returns {*} 路径对应的值，若不存在返回 undefined
  */
-function getValueByPath(path) {
-  let lookupCurrent = path.split('.').reduce((current, key) => {
-    return current && typeof current === 'object' && key in current ? current[key] : undefined;
-  }, currentTranslations);
-  return (lookupCurrent) ? lookupCurrent : path.split('.').reduce((current, key) => {
-    return current && typeof current === 'object' && key in current ? current[key] : undefined;
-  }, defaultTranslations);
+function getValueByPath(path, source = 'main') {
+  switch ((typeof source === 'string') ? source.toLowerCase() : 'main') {
+    case 'mc':
+      let lookupMcCurrent = path.split('.').reduce((current, key) => {
+        return current && typeof current === 'object' && key in current ? current[key] : undefined;
+      }, currentMcTranslations);
+      return (lookupCurrent) ? lookupCurrent : path.split('.').reduce((current, key) => {
+        return current && typeof current === 'object' && key in current ? current[key] : undefined;
+      }, defaultMcTranslations);
+
+    default:
+      let lookupCurrent = path.split('.').reduce((current, key) => {
+        return current && typeof current === 'object' && key in current ? current[key] : undefined;
+      }, currentTranslations);
+      return (lookupCurrent) ? lookupCurrent : path.split('.').reduce((current, key) => {
+        return current && typeof current === 'object' && key in current ? current[key] : undefined;
+      }, defaultTranslations);
+  }
+}
+
+/**
+ * 从翻译中获取值，自动查找默认值。
+ * @param {string} key - 键，不会处理 .
+ * @param {'main'|'mc'} [source='main'] 翻译来源
+ * @returns {*} 路径对应的值，若不存在返回 undefined
+ */
+function getValueDirectly(key, source = 'main') {
+  switch ((typeof source === 'string') ? source.toLowerCase() : 'main') {
+    case 'mc':
+      let lookupMcCurrent = key.reduce((current, key) => {
+        return current && typeof current === 'object' && key in current ? current[key] : undefined;
+      }, currentMcTranslations);
+      return (lookupCurrent) ? lookupCurrent : key.reduce((current, key) => {
+        return current && typeof current === 'object' && key in current ? current[key] : undefined;
+      }, defaultMcTranslations);
+
+    default:
+      let lookupCurrent = key.reduce((current, key) => {
+        return current && typeof current === 'object' && key in current ? current[key] : undefined;
+      }, currentTranslations);
+      return (lookupCurrent) ? lookupCurrent : key.reduce((current, key) => {
+        return current && typeof current === 'object' && key in current ? current[key] : undefined;
+      }, defaultTranslations);
+  }
 }
 
 /**
@@ -89,6 +137,19 @@ export async function load(url) {
     }
     currentTranslations = await response.json();
     currentTranslationsUrl = url;
+    // 同步加载对应的 Minecraft 物品翻译文件（按相同文件名）
+    try {
+      const langFile = url.split('/').pop();
+      currentMcTranslationsUrl = `./assets/minecraft/translations/${langFile}`;
+      const mcResp = await fetch(currentMcTranslationsUrl);
+      if (mcResp.ok) {
+        currentMcTranslations = await mcResp.json();
+      }
+    } catch (e) {
+      currentMcTranslations = {};
+      currentMcTranslationsUrl = "";
+      console.error(`加载 MC 翻译文件失败，将使用默认语言[zh_cn]: ${url}`, error);
+    }
   } catch (error) {
     console.error(`加载翻译文件失败，将使用默认语言[zh_cn]: ${url}`, error);
     currentTranslations = {};
@@ -196,7 +257,7 @@ export function refresh(root = document.body) {
  * parse("ui.title", { param1: "用户" })  // 返回 "欢迎用户"
  */
 export function parse(key, params = {}) {
-  const template = getValueByPath(key);
+  const template = getValueByPath(key, 'main');
   if (template === undefined || template === null) {
     return '';
   }
@@ -215,7 +276,7 @@ export function parse(key, params = {}) {
  * parseSafe("ui.title", { param1: "<script>alert(1)</script>" })  // 返回 "欢迎 &lt;script&gt;..."
  */
 export function parseSafe(key, params = {}) {
-  const template = getValueByPath(key);
+  const template = getValueByPath(key, 'main');
   if (template === undefined || template === null) {
     return '';
   }
@@ -224,11 +285,60 @@ export function parseSafe(key, params = {}) {
   return replaceParams(templateStr, params, escapeHtml);
 }
 
-let defaultLangResponse = await fetch(`./assets/i18n/zh_cn.json`);
-let defaultTranslations;
-if (!defaultLangResponse.ok) {
-  defaultTranslations = new JSON();
-  putErrorStatusOnLoading("无法加载默认语言文件");
-} else {
+/**
+ * 从 Minecraft 翻译表中查找物品名称。
+ * @param {string} itemId - 不含命名空间的物品 id（如 "apple" 或 "minecraft:apple"），非 string 直接返回 null
+ * @returns {string[]|null} 0: 翻译或回退键 | 1: 翻译键
+ */
+export function parseMinecraft(itemId) {
+  if (!(typeof itemId === 'string')) return null;
+  itemId = itemId.replace(/.*\:/g, "");
+  const lookup = [
+    /** 1. 看ID是否是 "_block" 结尾的，是就大概率要去 block 表查找 @param {string} id */
+    (id) => {
+      if (!(id.endsWith("_block"))) return null;
+      return getValueDirectly(`block.minecraft.${id.replace("_block", "")}`);
+    },
+    /** 2. 不是 block 结尾的先在 item 里面找 @param {string} id */
+    (id) => {
+      return getValueDirectly(`item.minecraft.${id}`);
+    },
+    /** 3. 回退 block 列表 @param {string} id */
+    (id) => {
+      return getValueDirectly(`block.minecraft.${id}`);
+    },
+  ];
+
+  // 声明式顺序查找
+  /** 译文 */
+  let rv = "";
+  /** 翻译键 */
+  let tk = "";
+  for (const func of lookup) {
+    rv = lookup.apply(itemId);
+    if (rv) break;
+  }
+  return (typeof rv === 'string' && rv)
+    ? [rv, tk]
+    : [`item.minecraft.${itemId}`, `item.minecraft.${itemId}`];
+}
+
+let defaultTranslations, defaultMcTranslations;
+try {
+  const defaultLangResponse = await fetch(`./assets/i18n/zh_cn.json`);
+  if (!defaultLangResponse.ok) throw new Error('default lang not found');
   defaultTranslations = await defaultLangResponse.json();
-};
+} catch (err) {
+  defaultTranslations = {};
+  try { putErrorStatusOnLoading("无法加载默认语言文件"); } catch (_) {}
+}
+// 同步加载默认语言对应的 Minecraft 物品翻译
+try {
+  const defaultMc = await fetch(`./assets/minecraft/translations/zh_cn.json`);
+  if (defaultMc.ok) {
+    defaultMcTranslations = await defaultMc.json();
+  }
+} catch (_) {
+  defaultMcTranslations = {};
+  try { putErrorStatusOnLoading("无法加载默认MC语言文件"); } catch (_) { }
+}

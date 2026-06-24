@@ -262,14 +262,12 @@ let _cachedItemList = null;
 
 function getItemList() {
   if (_cachedItemList) return _cachedItemList;
-  // 优先使用已加载的翻译，否则回退到默认翻译
-  const translations = i18n.getCurrentTranslations()?.minecraft?.items
-    || i18n.getDefaultTranslations()?.minecraft?.items;
-  if (!translations) {
-    _cachedItemList = [];
-    return _cachedItemList;
-  }
-  _cachedItemList = Object.values(translations).filter(v => v && v.key && v.translation);
+  // 优先使用已加载的 Minecraft 物品翻译（对象映射），回退到默认翻译
+  const translationsObj = i18n.getCurrentMcTranslations()
+    || i18n.getDefaultMcTranslations()
+    || {};
+  const entries = Object.keys(translationsObj).map(k => ({ key: k, translation: translationsObj[k] }));
+  _cachedItemList = entries.filter(v => v && v.key && v.translation);
   return _cachedItemList;
 }
 
@@ -308,7 +306,7 @@ function renderBrowserList(query = "") {
 
     const nameSpan = document.createElement("span");
     nameSpan.className = "mcitem-browser-item-name";
-    nameSpan.textContent = item.translation;
+    nameSpan.textContent = i18n.parseMinecraft(item.key);
     div.appendChild(nameSpan);
 
     div.addEventListener("click", () => selectItem(item.key));
