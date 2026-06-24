@@ -265,6 +265,8 @@ export class HTMLmcItemDisplay extends HTMLElement {
           margin: 0.125em 0.25em;
           color: #ffffff;
           text-shadow: 1px 1px 0 rgba(0,0,0,0.8);
+          /* 平滑四个角，模拟原版边角缺的1像素 */
+          border-radius: 3px;
         }
         .minetip-tooltip::-webkit-scrollbar {
           width: 6px;
@@ -612,13 +614,56 @@ export class HTMLmcItemDisplay extends HTMLElement {
     this._hideTooltip();
   }
 
-  /* wheel: 重定向滚动到悬浮框里面 */
+  /**
+   * 滚轮事件处理：只有 tooltip 内容可滚动时才拦截
+   * 否则放行让父容器（列表）滚动
+   */
   _onWheel(e) {
-    e.preventDefault();
-    e.stopPropagation();
-
     const el = this._tooltipEl;
     if (!el) return;
+
+    // 如果 tooltip 不可见，直接放行
+    if (!this._tooltipVisible || el.style.display === 'none') {
+      return;
+    }
+
+    // 检查 tooltip 内容是否可滚动
+    const canScrollY = el.scrollHeight > el.clientHeight;
+    const canScrollX = el.scrollWidth > el.clientWidth;
+
+    // 如果完全不可滚动，直接放行
+    if (!canScrollY && !canScrollX) {
+      return;
+    }
+
+    // 判断滚动方向
+    const isVerticalScroll = Math.abs(e.deltaY) >= Math.abs(e.deltaX);
+    const isHorizontalScroll = !isVerticalScroll;
+
+    // 检查当前滚动方向是否还有余量
+    if (isVerticalScroll && canScrollY) {
+      // 检查是否已经滚到边界
+      const atTop = el.scrollTop <= 0 && e.deltaY < 0;
+      const atBottom = el.scrollTop + el.clientHeight >= el.scrollHeight && e.deltaY > 0;
+
+      // 如果在边界且继续朝边界方向滚，放行
+      if (atTop || atBottom) {
+        return; // 让列表滚动
+      }
+    }
+
+    if (isHorizontalScroll && canScrollX) {
+      const atLeft = el.scrollLeft <= 0 && e.deltaX < 0;
+      const atRight = el.scrollLeft + el.clientWidth >= el.scrollWidth && e.deltaX > 0;
+
+      if (atLeft || atRight) {
+        return;
+      }
+    }
+
+    // 执行滚动：拦截事件，滚动 tooltip
+    e.preventDefault();
+    e.stopPropagation();
 
     if (e.shiftKey) {
       // Shift + 滚轮 → 横向滚动
@@ -626,7 +671,6 @@ export class HTMLmcItemDisplay extends HTMLElement {
     } else {
       // 普通滚轮 → 纵向滚动
       el.scrollTop += e.deltaY;
-      // 如果鼠标支持横向滚轮，也处理横向
       if (e.deltaX !== 0) {
         el.scrollLeft += e.deltaX;
       }
