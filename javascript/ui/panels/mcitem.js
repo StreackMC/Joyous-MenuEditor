@@ -259,63 +259,114 @@ mcitemPanel.root.addEventListener("closed", () => {
 // ──────────────────── 物品浏览器 ────────────────────
 
 let _cachedItemList = null;
+let _cachedVersion = null;
+let _cachedBrowserHTML = null;
+let _browserDebounceTimer = null;
 
-function getItemList() {
+/**
+ * 异步获取物品 ID 列表（带缓存）
+ * @returns {Promise<string[]>}
+ */
+async function getItemList() {
   if (_cachedItemList) return _cachedItemList;
-  // 优先使用已加载的 Minecraft 物品翻译（对象映射），回退到默认翻译
-  const translationsObj = i18n.getCurrentMcTranslations()
-    || i18n.getDefaultMcTranslations()
-    || {};
-  const entries = Object.keys(translationsObj).map(k => ({ key: k, translation: translationsObj[k] }));
-  _cachedItemList = entries.filter(v => v && v.key && v.translation);
+  const resp = await fetch("./assets/minecraft/items/list.json");
+  if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+  const data = await resp.json();
+  _cachedItemList = data.items || [];
+  _cachedVersion = data.version || "?";
   return _cachedItemList;
 }
 
-function renderBrowserList(query = "") {
-  const list = mcitemPanel.browse.list;
-  if (!list) return;
+/**
+ * 构建完整物品 HTML 列表字符串（惰性初始化并缓存）
+ * @returns {string}
+ */
+function buildBrowserHTML() {
+  if (_cachedBrowserHTML) return _cachedBrowserHTML;
+  const items = _cachedItemList;
+  if (!items || items.length === 0) return "";
 
-  const items = getItemList();
-  const q = query.trim().toLowerCase();
-  const filtered = q
-    ? items.filter(item =>
-        item.key.toLowerCase().includes(q) ||
-        item.translation.toLowerCase().includes(q)
-      )
-    : items;
-
-  list.innerHTML = "";
-
-  if (filtered.length === 0) {
-    const empty = document.createElement("div");
-    empty.textContent = i18n.parseSafe("panel.mcitem.browser.no_result");
-    empty.style.cssText = "width:100%;text-align:center;padding:2rem;color:var(--s-color-on-surface-variant,#40484C);";
-    list.appendChild(empty);
-    return;
+  const frags = [];
+  for (const id of items) {
+    const nameResult = i18n.parseMinecraft(id);
+    const displayName = nameResult ? nameResult[0] : id;
+    const escaped = displayName
+      .replace(/&/g, "&amp;")
+      .replace(/"/g, "&quot;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;");
+    frags.push(
+      `<div class="mcitem-browser-item" data-id="${id}">`,
+      `  <mc-item-display name="${escaped}" src="./assets/minecraft/items/${id}.png"></mc-item-display>`,
+      `  <span class="mcitem-browser-item-name">${escaped}</span>`,
+      `</div>`
+    );
   }
-
-  filtered.forEach(item => {
-    const div = document.createElement("div");
-    div.className = "mcitem-browser-item";
-    div.dataset.key = item.key;
-
-    const display = document.createElement("mc-item-display");
-    display.src = `./assets/minecraft/items/${item.key}.png`;
-    display.amount = "";
-    div.appendChild(display);
-
-    const nameSpan = document.createElement("span");
-    nameSpan.className = "mcitem-browser-item-name";
-    nameSpan.textContent = i18n.parseMinecraft(item.key);
-    div.appendChild(nameSpan);
-
-    div.addEventListener("click", () => selectItem(item.key));
-    list.appendChild(div);
-  });
+  _cachedBrowserHTML = frags.join("\n");
+  mcitemPanel.browse.search.setAttribute('placeholder', i18n.parse('panel.mcitem.browser.search_with_version', { version: _cachedVersion, amount: items.length }));
+  return _cachedBrowserHTML;
 }
 
+/**
+ * 渲染物品浏览器列表（支持搜索过滤）
+ * @param {string} [query=""]
+ */
+function renderBrowserList(query = "") {
+  getItemList()
+    .then(() => {
+      const listEl = mcitemPanel.browse.list;
+      if (!listEl) return;
+      const q = query.trim().toLowerCase();
+
+      // 无搜索词 → 直接使用缓存 HTML
+      if (!q) {
+        listEl.innerHTML = buildBrowserHTML();
+        return;
+      }
+
+      // 有搜索词 → 过滤后动态生成
+      const items = _cachedItemList;
+      const frags = [];
+      for (const id of items) {
+        let matched = id.includes(q);
+        if (!matched) {
+          const nameResult = i18n.parseMinecraft(id);
+          const displayName = nameResult ? nameResult[0] : id;
+          matched = displayName.toLowerCase().includes(q);
+        }
+        if (matched) {
+          const nameResult = i18n.parseMinecraft(id);
+          const displayName = nameResult ? nameResult[0] : id;
+          const escaped = displayName
+            .replace(/&/g, "&amp;")
+            .replace(/"/g, "&quot;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;");
+          frags.push(
+            `<div class="mcitem-browser-item" data-id="${id}">`,
+            `  <mc-item-display name="${escaped}" src="./assets/minecraft/items/${id}.png"></mc-item-display>`,
+            `  <span class="mcitem-browser-item-name">${escaped}</span>`,
+            `</div>`
+          );
+        }
+      }
+      listEl.innerHTML = frags.length
+        ? frags.join("\n")
+        : `<div class="mcitem-browser-empty">${i18n.parseSafe("panel.mcitem.browser.no_result")}</div>`;
+    })
+    .catch((err) => {
+      console.error("加载物品列表失败", err);
+      const listEl = mcitemPanel.browse.list;
+      if (!listEl) return;
+      listEl.innerHTML = `<div class="mcitem-browser-empty">${i18n.parseSafe("panel.mcitem.browser.failed_to_fetch")}</div>`;
+    });
+}
+
+/**
+ * 选择物品 → 填入 ID 字段并关闭浏览器
+ * @param {string} key - 物品 ID（无 minecraft: 前缀）
+ */
 function selectItem(key) {
-  if (!currentItem) return;
   mcitemPanel.fields.id.value = key;
   mcitemPanel.browse.dialog.showed = false;
   syncFieldsToItem();
@@ -323,7 +374,6 @@ function selectItem(key) {
 
 if (mcitemPanel.browse.btn) {
   mcitemPanel.browse.btn.addEventListener("click", () => {
-    _cachedItemList = null;
     renderBrowserList();
     mcitemPanel.browse.dialog.showed = true;
     setTimeout(() => {
@@ -334,9 +384,13 @@ if (mcitemPanel.browse.btn) {
   });
 }
 
+// 搜索输入 → 防抖渲染
 if (mcitemPanel.browse.search) {
   mcitemPanel.browse.search.addEventListener("input", () => {
-    renderBrowserList(mcitemPanel.browse.search.value);
+    clearTimeout(_browserDebounceTimer);
+    _browserDebounceTimer = setTimeout(() => {
+      renderBrowserList(mcitemPanel.browse.search.value);
+    }, 150);
   });
 }
 
@@ -349,6 +403,16 @@ if (mcitemPanel.browse.close) {
 if (mcitemPanel.browse.dialog) {
   mcitemPanel.browse.dialog.addEventListener("closed", () => {
     if (mcitemPanel.browse.search) mcitemPanel.browse.search.value = "";
+  });
+}
+
+// 列表容器事件代理 — 点击 data-id 物品条目
+if (mcitemPanel.browse.list) {
+  mcitemPanel.browse.list.addEventListener("click", (e) => {
+    const itemEl = e.target.closest(".mcitem-browser-item");
+    if (itemEl && itemEl.dataset.id) {
+      selectItem(itemEl.dataset.id);
+    }
   });
 }
 

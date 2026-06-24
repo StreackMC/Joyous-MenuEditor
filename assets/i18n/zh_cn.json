@@ -102,7 +102,7 @@
       }
     },
     "mcitem": {
-      "title": "MC物品编辑器",
+      "title": "物品编辑器",
       "astool": "工具：编辑MC物品",
       "astool_tip": "所作编辑将被复制到剪贴板内",
       "unsaved": "尚未保存！再次点击以舍弃更改",
@@ -121,7 +121,9 @@
       "browser": {
         "title": "物品浏览器",
         "search": "搜索物品……",
-        "no_result": "没有找到匹配的物品"
+        "search_with_version": "搜索 %version% 版本的 %amount% 个物品……",
+        "no_result": "没有找到匹配的物品",
+        "failed_to_fetch": "无法加载物品列表，请检查你的网络连接。"
       }
     }
   },

@@ -162,7 +162,7 @@ export class Item {
     // 3. 从 i18n 模块中查找物品本来的名字
     try {
       const key = (this.id || '').split(':').pop();
-      return i18n.parseMinecraft(key);
+      return i18n.parseMinecraft(key)[0];
     } catch (_) { /* 静默 */ }
     // 4. 回退：返回 item.minecraft.<id> 形式的键
     const fallbackId = (this.id || '').split(':').pop() || 'unknown';

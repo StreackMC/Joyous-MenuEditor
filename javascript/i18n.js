@@ -60,28 +60,26 @@ function getValueByPath(path, source = 'main') {
 }
 
 /**
- * 从翻译中获取值，自动查找默认值。
- * @param {string} key - 键，不会处理 .
+ * 从翻译中直接按完整键名取值（不按 . 拆分路径），自动查找默认值。
+ * @param {string} key - 完整键名，如 "block.minecraft.apple"，不会按 . 拆分
  * @param {'main'|'mc'} [source='main'] 翻译来源
- * @returns {*} 路径对应的值，若不存在返回 undefined
+ * @returns {*} 键对应的值，若不存在返回 undefined
  */
 function getValueDirectly(key, source = 'main') {
   switch ((typeof source === 'string') ? source.toLowerCase() : 'main') {
     case 'mc':
-      let lookupMcCurrent = key.reduce((current, key) => {
-        return current && typeof current === 'object' && key in current ? current[key] : undefined;
-      }, currentMcTranslations);
-      return (lookupCurrent) ? lookupCurrent : key.reduce((current, key) => {
-        return current && typeof current === 'object' && key in current ? current[key] : undefined;
-      }, defaultMcTranslations);
+      return (currentMcTranslations && typeof currentMcTranslations === 'object' && key in currentMcTranslations)
+        ? currentMcTranslations[key]
+        : (defaultMcTranslations && typeof defaultMcTranslations === 'object' && key in defaultMcTranslations
+          ? defaultMcTranslations[key]
+          : undefined);
 
     default:
-      let lookupCurrent = key.reduce((current, key) => {
-        return current && typeof current === 'object' && key in current ? current[key] : undefined;
-      }, currentTranslations);
-      return (lookupCurrent) ? lookupCurrent : key.reduce((current, key) => {
-        return current && typeof current === 'object' && key in current ? current[key] : undefined;
-      }, defaultTranslations);
+      return (currentTranslations && typeof currentTranslations === 'object' && key in currentTranslations)
+        ? currentTranslations[key]
+        : (defaultTranslations && typeof defaultTranslations === 'object' && key in defaultTranslations
+          ? defaultTranslations[key]
+          : undefined);
   }
 }
 
@@ -297,15 +295,15 @@ export function parseMinecraft(itemId) {
     /** 1. 看ID是否是 "_block" 结尾的，是就大概率要去 block 表查找 @param {string} id */
     (id) => {
       if (!(id.endsWith("_block"))) return null;
-      return getValueDirectly(`block.minecraft.${id.replace("_block", "")}`);
+      return getValueDirectly(`block.minecraft.${id.replace("_block", "")}`, 'mc');
     },
     /** 2. 不是 block 结尾的先在 item 里面找 @param {string} id */
     (id) => {
-      return getValueDirectly(`item.minecraft.${id}`);
+      return getValueDirectly(`item.minecraft.${id}`, 'mc');
     },
     /** 3. 回退 block 列表 @param {string} id */
     (id) => {
-      return getValueDirectly(`block.minecraft.${id}`);
+      return getValueDirectly(`block.minecraft.${id}`, 'mc');
     },
   ];
 
@@ -315,8 +313,11 @@ export function parseMinecraft(itemId) {
   /** 翻译键 */
   let tk = "";
   for (const func of lookup) {
-    rv = lookup.apply(itemId);
-    if (rv) break;
+    rv = func(itemId);
+    if (rv) {
+      tk = `item.minecraft.${itemId}`;
+      break;
+    }
   }
   return (typeof rv === 'string' && rv)
     ? [rv, tk]
