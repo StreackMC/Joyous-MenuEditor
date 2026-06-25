@@ -1575,7 +1575,7 @@ export function JavaButton2Item(btn) {
   if (!(btn instanceof JavaButton)) return;
   if (btn.tooltip.length == 0) btn.tooltip.push("");
   if (btn.tooltip.length > 1) {
-    const lores = btn.tooltip.slice(1, -1);
+    const lores = btn.tooltip.slice(1);
     return new Item(btn.id, btn.number, {
       enchantment_glint_override: !!btn.enchant_glint_override,
       item_name: btn.tooltip[0],
