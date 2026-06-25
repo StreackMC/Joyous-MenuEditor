@@ -308,6 +308,8 @@ export class JMElement extends HTMLElement {
   /** java: s-text-field for param @type {HTMLElement} */ #_paramField;
   /** java: reset btn for param @type {HTMLElement} */ #_paramClearBtn;
   /** java: delete btn @type {HTMLElement} */ #_javaDeleteBtn;
+  /** java: copy btn @type {HTMLElement} */ #_javaCopyBtn;
+  /** java: paste btn @type {HTMLElement} */ #_javaPasteBtn;
   /** bedrock: root container @type {HTMLElement} */ #_bedrockRoot;
   /** bedrock: list container @type {HTMLElement} */ #_bedrockList;
   /** bedrock: add button @type {HTMLElement} */ #_bedrockAddBtn;
@@ -482,6 +484,25 @@ export class JMElement extends HTMLElement {
     saveBtn.textContent = i18n.parse('tooltip.save');
     editBody.appendChild(saveBtn);
     this.#_saveBtn = saveBtn;
+
+    // ── Copy / Paste (Java) ──
+    const btnRow = document.createElement('div');
+    btnRow.style.display = 'flex';
+    btnRow.style.flexDirection = 'row';
+    btnRow.style.gap = '.5em';
+    editBody.appendChild(btnRow);
+
+    const copyBtn = document.createElement('s-button');
+    copyBtn.setAttribute('type', 'filled-tonal');
+    copyBtn.textContent = tr('java_copy');
+    btnRow.appendChild(copyBtn);
+    this.#_javaCopyBtn = copyBtn;
+
+    const pasteBtn = document.createElement('s-button');
+    pasteBtn.setAttribute('type', 'filled-tonal');
+    pasteBtn.textContent = tr('java_paste');
+    btnRow.appendChild(pasteBtn);
+    this.#_javaPasteBtn = pasteBtn;
 
     // ── Edit item ──
     const editItemBtn = document.createElement('s-button');
@@ -775,21 +796,47 @@ export class JMElement extends HTMLElement {
           i18n.parseSafe('tooltip.cancel')
         );
       } catch (_) { return; }
-      // 从数据中移除
-      const key = `${getRowColumn(this.#edittingJslot)[0]}${getRowColumn(this.#edittingJslot)[1]}`;
-      this.#_data.java.delete(key);
-      // 从箱子中移除
-      this.#_chestEl.setItem(this.#edittingJslot, null);
-      // 重置编辑状态
-      this.#edittingJbutton = null;
-      this.#edittingJitem = null;
-      this.#edittingJslot = null;
-      this.#_editBody.removeAttribute('visible');
-      this.#_unsaveCard.removeAttribute('visible');
-      try { this.#_chestEl.highlightIndex = -1; } catch (_) {}
-      this._commitJavaTitle(tr('title_idle'), 'set');
-      // 触发保存
-      try { commandServer.executeCommand("files.save"); } catch (e) { console.warn(e); }
+      this._deleteJavaSlot();
+    });
+
+    // 复制按钮（Java）
+    this.#_javaCopyBtn.addEventListener('click', () => {
+      if (!this.#edittingJbutton) return;
+      const raw = this.#edittingJbutton;
+      const obj = {
+        display: { id: raw.id, enchant: !!raw.enchant_glint_override, tooltip: raw.tooltip },
+        perm: raw.permission ? (raw.permission_when_and_have ? '' : '!') + raw.permission : '',
+        action: raw.action_type || 'none',
+        param: raw.action_param || ''
+      };
+      JClipboard.copy(JSON.stringify(obj, null, 2));
+    });
+
+    // 粘贴按钮（Java）
+    this.#_javaPasteBtn.addEventListener('click', async () => {
+      if (this.#edittingJslot == null) return;
+      const data = await this._pasteButtonData();
+      if (!data) return;
+      // 检查是否要覆盖
+      if (this.#edittingJitem && this.#edittingJitem.id !== 'minecraft:air' && this.#edittingJitem.getClearId() !== 'missingno') {
+        try {
+          await utils.askfor(
+            i18n.parseSafe('tooltip.tip'),
+            tr('java_paste_confirm', { slot: this.#edittingJslot + 1 }),
+            i18n.parseSafe('tooltip.confirm'),
+            i18n.parseSafe('tooltip.cancel')
+          );
+        } catch (_) { return; }
+      }
+      // 应用粘贴的按钮
+      const [row, column] = getRowColumn(this.#edittingJslot);
+      const key = `${row}${column}`;
+      const newBtn = new JavaButton(data);
+      this.#_data.java.set(key, newBtn);
+      this.#edittingJbutton = newBtn;
+      this.#edittingJitem = JavaButton2Item(newBtn);
+      this._commitJavaBtnUpdate(this.#edittingJslot, this.#edittingJitem, newBtn);
+      this._startJavaBtnEdit(this.#edittingJslot, row, column, this.#edittingJitem);
     });
 
     // 箱子大小改变
@@ -868,7 +915,7 @@ export class JMElement extends HTMLElement {
     });
 
     // 卡片操作按钮事件委托
-    this.#_bedrockList.addEventListener('click', (e) => {
+    this.#_bedrockList.addEventListener('click', async (e) => {
       const card = e.target.closest('.bedrock-card');
       if (!card) return;
       const index = parseInt(card.dataset.index);
@@ -889,6 +936,29 @@ export class JMElement extends HTMLElement {
           break;
         case 'down':
           this._moveBedrockButton(index, 1, e);
+          break;
+        case 'copy':
+          const btn = this.#_data.bedrock[index];
+          if (!btn) break;
+          JClipboard.copy(JSON.stringify({
+            display: { text: btn.text, icon: btn.icon || '' },
+            perm: btn.permission ? (btn.permission_when_and_have ? '' : '!') + btn.permission : '',
+            action: btn.action_type || 'none',
+            param: btn.action_param || ''
+          }, null, 2));
+          break;
+        case 'delete':
+          if (this.#_data.bedrock.length <= 1) break;
+          try {
+            await utils.askfor(
+              i18n.parseSafe('tooltip.tip'),
+              tr('bedrock_delete_confirm', { index: index + 1 }),
+              tr('bedrock_delete'),
+              i18n.parseSafe('tooltip.cancel')
+            );
+          } catch (_) { break; }
+          this.#_data.bedrock.splice(index, 1);
+          this._scheduleRender();
           break;
       }
     });
@@ -1125,6 +1195,37 @@ export class JMElement extends HTMLElement {
     paramField.value = btn.action_param || '';
     textSlot.appendChild(paramField);
 
+    // 粘贴按钮（从剪贴板读取按钮数据）
+    const bedrockPasteBtn = document.createElement('s-button');
+    bedrockPasteBtn.setAttribute('type', 'filled-tonal');
+    bedrockPasteBtn.textContent = i18n.parseSafe('tooltip.paste');
+    bedrockPasteBtn.addEventListener('click', async () => {
+      const data = await this._pasteButtonData();
+      if (!data) return;
+      // 检查是否要覆盖
+      if (btn.text !== '?' && btn.text !== '新按钮') {
+        try {
+          await utils.askfor(
+            i18n.parseSafe('tooltip.tip'),
+            tr('bedrock_paste_confirm', { index: index + 1 }),
+            i18n.parseSafe('tooltip.confirm'),
+            i18n.parseSafe('tooltip.cancel')
+          );
+        } catch (_) { return; }
+      }
+      // 应用粘贴的按钮数据
+      if (data.display) {
+        btn.text = data.display.text || data.display.id || '?';
+        btn.icon = data.display.icon || '';
+      }
+      btn.permission = data.perm || '';
+      btn.action_type = data.action || 'none';
+      btn.action_param = data.param || '';
+      this._commitBedrockUpdate(index, btn);
+      dialog.removeAttribute('showed');
+    });
+    textSlot.appendChild(bedrockPasteBtn);
+
     // 删除按钮（危险操作，需确认）
     const deleteBtn = document.createElement('s-button');
     deleteBtn.setAttribute('type', 'filled-tonal');
@@ -1287,6 +1388,57 @@ export class JMElement extends HTMLElement {
     }
   }
 
+  /** 删除当前 Java 槽位按钮 */
+  _deleteJavaSlot() {
+    if (this.#edittingJslot == null) return;
+    const [row, column] = getRowColumn(this.#edittingJslot);
+    const key = `${row}${column}`;
+    this.#_data.java.delete(key);
+    this.#_chestEl.setItem(this.#edittingJslot, null);
+    this.#edittingJbutton = null;
+    this.#edittingJitem = null;
+    this.#edittingJslot = null;
+    this.#_editBody.removeAttribute('visible');
+    this.#_unsaveCard.removeAttribute('visible');
+    try { this.#_chestEl.highlightIndex = -1; } catch (_) {}
+    this._commitJavaTitle(tr('title_idle'), 'set');
+    try { commandServer.executeCommand("files.save"); } catch (e) { console.warn(e); }
+  }
+
+  /**
+   * 从剪贴板读取按钮数据。
+   * 优先尝试解析为按钮 JSON（含 display / action 字段），
+   * 否则尝试作为 MC 物品读取。
+   * @returns {Object|null} 可用于 new JavaButton() 或 new BedrockButton() 的数据，无效则返回 null
+   */
+  async _pasteButtonData() {
+    const text = await JClipboard.get(false);
+    if (!text) return null;
+    try {
+      const parsed = JSON.parse(text);
+      // 检查是否像按钮数据（有 display 或 action 字段）
+      if (parsed && typeof parsed === 'object' && (parsed.display || parsed.action)) {
+        return parsed;
+      }
+      // 尝试作为 MC 物品读取
+      const item = getItemFromMC(text);
+      if (item && item instanceof Item && item.id !== 'minecraft:air') {
+        // 构建按钮数据
+        return {
+          display: {
+            id: item.getClearId(),
+            enchant: !!item.ISC?.enchantment_glint_override,
+            tooltip: [item.getDisplayName(), ...(item.ISC?.lore || [])]
+          },
+          perm: '',
+          action: 'none',
+          param: ''
+        };
+      }
+    } catch (_) { /* 无效 JSON，静默处理 */ }
+    return null;
+  }
+
   _rafId = null;
   /** 请求渲染，在下个帧完成，自动合并防抖 */
   _scheduleRender() {
@@ -1432,6 +1584,22 @@ export class JMElement extends HTMLElement {
       <path d="M200-200h57l391-391-57-57-391 391v57Zm-80 80v-170l528-527q12-11 26.5-17t30.5-6q16 0 31 6t26 18l55 56q12 11 17.5 26t5.5 30q0 16-5.5 30.5T817-647L290-120H120Zm640-584-56-56 56 56Zm-141 85-28-29 57 57-29-28Z"></path>
     </svg></s-icon>`;
     actions.appendChild(editBtn);
+
+    // 复制
+    const copyBtn = document.createElement('s-icon-button');
+    copyBtn.setAttribute('type', 'text');
+    copyBtn.dataset.bedrockAction = 'copy';
+    copyBtn.style.width = `stretch`;
+    copyBtn.innerHTML = `<s-icon><svg viewBox="0 -960 960 960"><path d="M360-240q-33 0-56.5-23.5T280-320v-480q0-33 23.5-56.5T360-880h360q33 0 56.5 23.5T800-800v480q0 33-23.5 56.5T720-240H360Zm0-80h360v-480H360v480ZM200-80q-33 0-56.5-23.5T120-160v-560h80v560h440v80H200Zm160-240v-480 480Z"></path></svg></s-icon>`;
+    actions.appendChild(copyBtn);
+    
+    // 删除（红色）
+    const delBtn = document.createElement('s-icon-button');
+    delBtn.setAttribute('type', 'text');
+    delBtn.dataset.bedrockAction = 'delete';
+    delBtn.style.width = `stretch`;
+    delBtn.innerHTML = `<s-icon style="color:var(--s-color-error,#ba1a1a)"><svg viewBox="0 -960 960 960"><path d="M280-120q-33 0-56.5-23.5T200-200v-520h-40v-80h200v-40h240v40h200v80h-40v520q0 33-23.5 56.5T680-120H280Zm400-600H280v520h400v-520ZM360-280h80v-360h-80v360Zm160 0h80v-360h-80v360ZM280-720v520-520Z"></path></svg></s-icon>`;
+    actions.appendChild(delBtn);
 
     card.appendChild(actions);
 

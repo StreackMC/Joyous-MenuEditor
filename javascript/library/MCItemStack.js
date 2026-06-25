@@ -268,7 +268,7 @@ export class Item {
  * 支持字符串（引号可选）、数字、布尔值、数组
  * 
  * @param {string} mcString - 原版格式的物品堆叠字符串
- * @returns {Item} 解析得到的物品堆叠实例
+ * @returns {Item} 解析得到的物品堆叠实例；如果解析失败返回的物品是 minecraft:missingno
  */
 export function getItemFromMC(mcString) {
   if (typeof mcString !== 'string' || mcString.trim() === '') {

@@ -182,6 +182,10 @@
       "bedrock_param_none": "无参数",
       "java_delete": "删除此按钮",
       "java_delete_confirm": "确定要删除 Java 版槽位 #%slot% 的按钮吗？",
+      "java_copy": "复制按钮到剪切板",
+      "java_paste": "从剪贴板粘贴",
+      "java_paste_confirm": "要覆盖 Java 版槽位 #%slot% 的现有按钮吗？",
+      "bedrock_paste_confirm": "要覆盖基岩版按钮 #%index% 吗？",
       "attach_to_tooltip": "&r&7——————————\n&r&b当点击后：\n&r&a✓ 无权限要求，任何人可见&r&f\n执行操作 [%action%]\n&r&f参数 [%param%]\n&r&7此段为按钮信息，不出现在游戏内。",
       "attach_to_tooltip_p": "&r&7——————————\n&r&b当点击后：\n&r&6⌘ 需求权限 &f[%perm%]&r&f\n执行操作 [%action%]\n&r&f参数 [%param%]\n&r&7此段为按钮信息，不出现在游戏内。",
       "attach_to_tooltip_np": "&r&7——————————\n&r&b当点击后：\n&r&c⚠ 需缺失权限 &f[%perm%]\n&r&f执行操作 [%action%]\n&r&f参数 [%param%]\n&r&7此段为按钮信息，不出现在游戏内。"
