@@ -1395,6 +1395,12 @@ export class JMElement extends HTMLElement {
     const key = `${row}${column}`;
     this.#_data.java.delete(key);
     this.#_chestEl.setItem(this.#edittingJslot, null);
+    // 清空渲染队列，防止残留条目重新渲染已删除的按钮
+    this.#javeBtnRenderQueue = [];
+    if (this.#javeBtnRenderQueueTOid) {
+      clearTimeout(this.#javeBtnRenderQueueTOid);
+      this.#javeBtnRenderQueueTOid = null;
+    }
     this.#edittingJbutton = null;
     this.#edittingJitem = null;
     this.#edittingJslot = null;
