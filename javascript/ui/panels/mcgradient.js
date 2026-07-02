@@ -435,6 +435,7 @@ commands.regisiterCommand("panel.mcgradient.color_swap", () => {
 commands.regisiterCommand("panel.mcgradient.insert.italic", () => { insertAtCursor("§o"); });
 commands.regisiterCommand("panel.mcgradient.insert.bold", () => { insertAtCursor("§l"); });
 commands.regisiterCommand("panel.mcgradient.insert.underline", () => { insertAtCursor("§n"); });
+commands.regisiterCommand("panel.mcgradient.insert.strikethrough", () => { insertAtCursor("§m"); });
 commands.regisiterCommand("panel.mcgradient.insert.reset", () => { insertAtCursor("§r"); });
 commands.regisiterCommand("panel.mcgradient.insert.format_code", () => { insertAtCursor("§"); });
 

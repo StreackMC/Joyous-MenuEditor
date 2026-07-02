@@ -153,6 +153,7 @@ mctPanel.root.addEventListener("closed", () => {
 commands.regisiterCommand("panel.mctext.insert.italic", () => { insertAtCursor("§o"); });
 commands.regisiterCommand("panel.mctext.insert.bold", () => { insertAtCursor("§l"); });
 commands.regisiterCommand("panel.mctext.insert.underline", () => { insertAtCursor("§n"); });
+commands.regisiterCommand("panel.mctext.insert.strikethrough", () => { insertAtCursor("§m"); });
 commands.regisiterCommand("panel.mctext.insert.reset", () => { insertAtCursor("§r"); });
 commands.regisiterCommand("panel.mctext.insert.format_code", () => { insertAtCursor("§"); });
 
