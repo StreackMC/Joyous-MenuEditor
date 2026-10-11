@@ -1,8 +1,9 @@
 import commands from "../backend/commandServer.js";
-import fileServer, {FileNode, FileSystemEvent, FolderNode} from "../backend/fileServer.js";
+import fileServer, {FileNode, FileSystemEvent, FolderNode, currentFileSystem} from "../backend/fileServer.js";
 import i18n from "../i18n.js";
 import commandServer from "../backend/commandServer.js";
-import { msg } from "./utils.js";
+import UI, { msg } from "./utils.js";
+import editorManager from "../backend/editorManager.js";
 
 export const rootEle = document.getElementById("explorer");
 
@@ -22,6 +23,328 @@ const renderedNodes = new Map();
  */
 const expandedFolders = new Set();
 
+/**
+ * 左侧栏空状态容器（未打开文件/工作区时显示快捷操作）。
+ * @type {HTMLElement|null}
+ */
+const explorerEmptyEle = document.getElementById("explorer-empty");
+
+/**
+ * 刷新左侧栏空状态：没有任何已渲染节点时显示「打开文件 / 打开工作区」按钮。
+ */
+function updateExplorerEmptyState() {
+  if (!explorerEmptyEle) return;
+  explorerEmptyEle.hidden = renderedNodes.size > 0;
+}
+
+// ==================== 右键菜单（新建文件 / 文件夹、复制 / 剪切 / 粘贴 / 重命名 / 删除） ====================
+
+/** 右键菜单（s-popup-menu）@type {HTMLElement|null} */
+const explorerMenu = document.getElementById("explorer-menu");
+/** 左侧栏容器（整片区域均可右键）@type {HTMLElement|null} */
+const leftSidebarEle = document.getElementById("left-sidebar");
+/** 当前右键目标的节点 ID @type {string|null} */
+let contextNodeId = null;
+/**
+ * 剪贴板：记录被复制/剪切的项目，等待粘贴。
+ * `mode` 为 "copy" 时粘贴为副本，"cut" 时粘贴为移动。
+ * @type {{ node: FileNode|FolderNode, mode: "copy"|"cut" }|null}
+ */
+let clipboard = null;
+
+/**
+ * 在指定坐标打开资源管理器右键菜单。
+ * @param {FileNode|FolderNode} node 目标节点
+ * @param {number} x
+ * @param {number} y
+ */
+function openExplorerMenu(node, x, y) {
+  if (!explorerMenu || !node) return;
+  contextNodeId = node.id;
+  updateExplorerMenuItems(node);
+  // s-popup-menu 支持坐标定位；点击菜单项会自动关闭
+  explorerMenu.show({ x, y, origin: "left top" });
+}
+
+/** 关闭资源管理器右键菜单。 */
+function closeExplorerMenu() {
+  if (explorerMenu && typeof explorerMenu.close === "function") {
+    try { explorerMenu.close(); } catch (ignore) { }
+  }
+  contextNodeId = null;
+}
+
+/**
+ * 右键菜单当前是否已展开。
+ * @returns {boolean}
+ */
+function isExplorerMenuOpen() {
+  const popup = explorerMenu?.shadowRoot?.querySelector("s-popup");
+  return !!popup && popup.hasAttribute("showed");
+}
+
+/**
+ * 从右键事件目标解析资源管理器节点。
+ * 命中具体条目时返回对应节点，否则回退为工作区根目录（空白区域右键）。
+ * @param {EventTarget|null} target
+ * @returns {FileNode|FolderNode|null}
+ */
+function nodeFromEventTarget(target) {
+  const item = (target instanceof Element) ? target.closest("s-menu-item[data-nodeid]") : null;
+  if (item) {
+    const node = fileServer.nodeMap.get(item.dataset.nodeid);
+    if (node) return node;
+  }
+  return currentFileSystem || null;
+}
+
+/**
+ * 在元素列表中穿透遮罩寻找光标下的资源管理器节点。
+ * @param {Element[]} elements
+ * @returns {FileNode|FolderNode|null}
+ */
+function nodeFromElementsPoint(elements) {
+  for (const el of elements) {
+    if (!(el instanceof Element)) continue;
+    const item = el.closest?.("s-menu-item[data-nodeid]");
+    if (item) {
+      const node = fileServer.nodeMap.get(item.dataset.nodeid);
+      if (node) return node;
+    }
+  }
+  return null;
+}
+
+// 资源管理器区域右键 → 唤起菜单（含空白区域）；
+// 菜单已展开时再次右键 → 抑制系统菜单（并尝试就地重新打开）
+document.addEventListener("contextmenu", (e) => {
+  const inExplorer = !!leftSidebarEle && e.target instanceof Node && leftSidebarEle.contains(e.target);
+  if (inExplorer && !isExplorerMenuOpen()) {
+    e.preventDefault();
+    openExplorerMenu(nodeFromEventTarget(e.target), e.clientX, e.clientY);
+    return;
+  }
+  if (isExplorerMenuOpen()) {
+    // 菜单展开时它自带遮罩层，需统一处理以防弹出系统菜单
+    e.preventDefault();
+    closeExplorerMenu();
+    // 尝试穿透遮罩：若光标仍在资源管理器上，就地重新打开
+    const under = document.elementsFromPoint(e.clientX, e.clientY);
+    const stillInSidebar = !!leftSidebarEle && under.some((el) => leftSidebarEle.contains(el));
+    if (stillInSidebar) {
+      const node = nodeFromElementsPoint(under) || currentFileSystem || null;
+      // 等待关闭动画结束再打开，避免动画竞态导致 show 被忽略
+      const { clientX: x, clientY: y } = e;
+      setTimeout(() => openExplorerMenu(node, x, y), 160);
+    }
+  }
+}, true);
+
+/**
+ * 依据目标节点与剪贴板状态刷新各菜单项的可见性。
+ * - 复制 / 剪切 / 重命名 / 删除：对非根节点可用
+ * - 粘贴：仅当目标是文件夹且剪贴板非空时可用
+ * @param {FileNode|FolderNode} node
+ */
+function updateExplorerMenuItems(node) {
+  if (!explorerMenu) return;
+  const isRoot = !fileServer.getParent(node);
+  const targetFolder = node.type === "dir" ? node : fileServer.getParent(node);
+  const setVisible = (action, visible) => {
+    const item = explorerMenu.querySelector(`s-popup-menu-item[data-action="${action}"]`);
+    if (item) item.style.display = visible ? "" : "none";
+  };
+  setVisible("newfile", !!targetFolder);
+  setVisible("newfolder", !!targetFolder);
+  setVisible("copy", !isRoot);
+  setVisible("cut", !isRoot);
+  setVisible("paste", node.type === "dir" && !!clipboard);
+  setVisible("rename", !isRoot);
+  setVisible("delete", !isRoot);
+}
+
+/**
+ * 包装 `UI.dialog`：用户点「取消」（Promise 被 reject）时返回 -1，
+ * 避免异常冒泡到上层而误报「命令失败」。
+ * @param {...*} args 与 `UI.dialog` 相同
+ * @returns {Promise<number>} 被点击按钮的索引；取消返回 -1
+ */
+async function safeDialog(...args) {
+  try {
+    return await UI.dialog(...args);
+  } catch (_) {
+    return -1;
+  }
+}
+
+/**
+ * 弹出「重命名」输入对话框。
+ * @param {FileNode|FolderNode} node
+ * @returns {Promise<string|null>} 新名称；取消或未修改返回 null
+ */
+async function promptNewName(node) {
+  const field = document.createElement("s-text-field");
+  field.label = i18n.parseSafe("explorer.rename.label");
+  field.value = node.name;
+  const choice = await safeDialog(i18n.parseSafe("explorer.action.rename"), field, true, [i18n.parseSafe("tooltip.confirm")]);
+  if (choice !== 0) return null;
+  const value = String(field.value ?? "").trim();
+  if (!value || value === node.name) return null;
+  return value;
+}
+
+/**
+ * 弹出「新建文件」对话框：文件名输入框 + 类型下拉菜单（s-picker）。
+ * @returns {Promise<{name: string, editorId: string}|null>}
+ */
+async function promptNewFile() {
+  const field = document.createElement("s-text-field");
+  field.label = i18n.parseSafe("explorer.newFile.nameLabel");
+  field.value = i18n.parseSafe("explorer.newFile.defaultName");
+
+  const picker = editorManager.buildNewFileTypePicker();
+
+  const wrap = document.createElement("div");
+  wrap.style = "display:flex;flex-direction:column;gap:.8em;min-width:16em;padding-top:.4em;";
+  wrap.appendChild(field);
+  wrap.appendChild(picker);
+
+  const choice = await safeDialog(i18n.parseSafe("explorer.action.newFile"), wrap, true, [i18n.parseSafe("tooltip.confirm")]);
+  if (choice !== 0) return null;
+  const name = String(field.value ?? "").trim();
+  const editorId = picker.value;
+  if (!name || !editorId) return null;
+  return { name, editorId };
+}
+
+/**
+ * 弹出「新建文件夹」对话框，用户名输入。
+ * @returns {Promise<string|null>}
+ */
+async function promptNewFolderName() {
+  const field = document.createElement("s-text-field");
+  field.label = i18n.parseSafe("explorer.newFolder.nameLabel");
+  field.value = i18n.parseSafe("explorer.newFolder.defaultName");
+  const choice = await safeDialog(i18n.parseSafe("explorer.action.newFolder"), field, true, [i18n.parseSafe("tooltip.confirm")]);
+  if (choice !== 0) return null;
+  const name = String(field.value ?? "").trim();
+  return name || null;
+}
+
+/**
+ * 解析「新建」操作的应放入的目标文件夹：
+ * 右键文件夹则为其自身，右键文件则为其父目录。
+ * @param {FileNode|FolderNode} node
+ * @returns {FolderNode|null}
+ */
+function resolveTargetFolder(node) {
+  const folder = node.type === "dir" ? node : fileServer.getParent(node);
+  return (folder && folder.type === "dir") ? folder : null;
+}
+
+/**
+ * 执行资源管理器右键菜单动作。
+ * @param {"copy"|"cut"|"paste"|"rename"|"delete"} action
+ * @param {FileNode|FolderNode} node
+ */
+async function runExplorerAction(action, node) {
+  const name = node.name;
+  try {
+    switch (action) {
+      case "newfile": {
+        const folder = resolveTargetFolder(node);
+        if (!folder) return;
+        const opts = await promptNewFile();
+        if (!opts) return;
+        await folder.loadChildren();
+        if (folder.resolve(opts.name)) {
+          msg(i18n.parseSafe("explorer.duplicate", { name: opts.name }), i18n.parseSafe("msg.done"), "warning", 3000);
+          return;
+        }
+        const newNode = await fileServer.createFile(folder, opts.name);
+        const newFileFn = editorManager.regEditorNewFile.get(opts.editorId);
+        if (typeof newFileFn === "function") await newNode.save(newFileFn());
+        await fileServer.openFileInTab(newNode, opts.editorId);
+        break;
+      }
+      case "newfolder": {
+        const folder = resolveTargetFolder(node);
+        if (!folder) return;
+        const name = await promptNewFolderName();
+        if (!name) return;
+        await folder.loadChildren();
+        if (folder.resolve(name)) {
+          msg(i18n.parseSafe("explorer.duplicate", { name: name }), i18n.parseSafe("msg.done"), "warning", 3000);
+          return;
+        }
+        await fileServer.createFolder(folder, name);
+        break;
+      }
+      case "copy":
+      case "cut": {
+        // 只把项目放入剪贴板，真正的复制/移动在「粘贴」时发生
+        clipboard = { node, mode: action };
+        msg(
+          i18n.parseSafe(action === "cut" ? "explorer.done.cut" : "explorer.done.copy", { target: name }),
+          i18n.parseSafe("msg.done"), "success", 2000
+        );
+        break;
+      }
+      case "paste": {
+        if (!clipboard) return;
+        const source = clipboard.node;
+        // 源可能已被删除/移出工作区
+        if (!fileServer.nodeMap.has(source.id)) { clipboard = null; return; }
+        if (clipboard.mode === "cut") {
+          await fileServer.moveNode(source, node);
+          clipboard = null;
+          msg(i18n.parseSafe("explorer.done.move", { target: source.name }), i18n.parseSafe("msg.done"), "success", 2000);
+        } else {
+          await fileServer.copyNode(source, node);
+          msg(i18n.parseSafe("explorer.done.paste", { target: source.name }), i18n.parseSafe("msg.done"), "success", 2000);
+        }
+        break;
+      }
+      case "rename": {
+        const newName = await promptNewName(node);
+        if (!newName) return;
+        await fileServer.renameNode(node, newName);
+        msg(i18n.parseSafe("explorer.done.rename", { target: name }), i18n.parseSafe("msg.done"), "success", 2000);
+        break;
+      }
+      case "delete": {
+        const ok = await UI.ask(
+          i18n.parseSafe("explorer.action.delete"),
+          i18n.parseSafe("explorer.deleteConfirm", { target: name })
+        );
+        if (!ok) return;
+        await fileServer.deleteNode(node, node.type === "dir");
+        // 若剪贴板引用的正是被删除的项，清空剪贴板
+        if (clipboard && clipboard.node.id === node.id) clipboard = null;
+        msg(i18n.parseSafe("explorer.done.delete", { target: name }), i18n.parseSafe("msg.done"), "success", 2000);
+        break;
+      }
+    }
+  } catch (error) {
+    msg(i18n.parseSafe("msg.command_failure", { msg: error?.message || String(error) }), i18n.parseSafe("msg.done"), "error");
+    console.error("资源管理器操作失败：", action, node, error);
+  }
+}
+
+// 菜单项点击 → 执行动作（s-popup-menu 会自动关闭菜单）
+if (explorerMenu) {
+  explorerMenu.addEventListener("click", (e) => {
+    const item = (e.target instanceof Element) ? e.target.closest("s-popup-menu-item") : null;
+    if (!item || !item.dataset.action) return;
+    const action = item.dataset.action;
+    const nodeId = contextNodeId;
+    closeExplorerMenu();
+    const node = nodeId ? fileServer.nodeMap.get(nodeId) : undefined;
+    if (!node) return;
+    runExplorerAction(action, node);
+  });
+}
+
 // ==================== 与 fileServer 的协作（全事件监听） ====================
 
 /** 取消订阅函数的数组，用于重新初始化时清理旧监听，防止内存泄漏 */
@@ -38,10 +361,11 @@ function setupEventListeners() {
 
   // ── 文件系统打开：全量渲染 ──
   unsubscribeFns.push(
-    fileServer.onFileSystemChange(FileSystemEvent.OPENED, () => {
+    fileServer.onFileSystemChange(FileSystemEvent.OPENED, async () => {
       renderedNodes.clear();
       expandedFolders.clear();
-      node2html(fileServer.resolvePath(), rootEle, true);
+      await node2html(currentFileSystem, rootEle, true);
+      updateExplorerEmptyState();
     })
   );
 
@@ -51,15 +375,14 @@ function setupEventListeners() {
       rootEle.innerHTML = "";
       renderedNodes.clear();
       expandedFolders.clear();
+      updateExplorerEmptyState();
     })
   );
 
-  // ── 创建（文件/文件夹）：若父级已展开则局部重绘 ──
-  const createHandler = (_eventType, detail) => {
-    const { parent } = detail;
-    if (parent && expandedFolders.has(parent.id)) {
-      rerenderFolderChildren(parent);
-    }
+  // ── 创建（文件/文件夹）：刷新父级视图 ──
+  const createHandler = async (_eventType, detail) => {
+    await refreshParentAfterChange(detail.parent);
+    updateExplorerEmptyState();
   };
   unsubscribeFns.push(
     fileServer.onFileSystemChange(
@@ -70,12 +393,10 @@ function setupEventListeners() {
 
   // ── 删除：清理追踪记录并重绘父级 ──
   unsubscribeFns.push(
-    fileServer.onFileSystemChange(FileSystemEvent.DELETED, (_eventType, detail) => {
+    fileServer.onFileSystemChange(FileSystemEvent.DELETED, async (_eventType, detail) => {
       unregisterNode(detail.nodeId);
-      const { parent } = detail;
-      if (parent && expandedFolders.has(parent.id)) {
-        rerenderFolderChildren(parent);
-      }
+      await refreshParentAfterChange(detail.parent);
+      updateExplorerEmptyState();
     })
   );
 
@@ -91,18 +412,17 @@ function setupEventListeners() {
 
   // ── 移动：原父级和新父级都需重绘 ──
   unsubscribeFns.push(
-    fileServer.onFileSystemChange(FileSystemEvent.MOVED, (_eventType, detail) => {
+    fileServer.onFileSystemChange(FileSystemEvent.MOVED, async (_eventType, detail) => {
       const { oldParent, newParent } = detail;
-      if (oldParent && expandedFolders.has(oldParent.id)) rerenderFolderChildren(oldParent);
-      if (newParent && expandedFolders.has(newParent.id)) rerenderFolderChildren(newParent);
+      await refreshParentAfterChange(oldParent);
+      await refreshParentAfterChange(newParent);
     })
   );
 
   // ── 复制：若目标父级已展开则重绘 ──
   unsubscribeFns.push(
-    fileServer.onFileSystemChange(FileSystemEvent.COPIED, (_eventType, detail) => {
-      const { parent } = detail;
-      if (parent && expandedFolders.has(parent.id)) rerenderFolderChildren(parent);
+    fileServer.onFileSystemChange(FileSystemEvent.COPIED, async (_eventType, detail) => {
+      await refreshParentAfterChange(detail.parent);
     })
   );
 
@@ -116,10 +436,11 @@ function setupEventListeners() {
 
   // ── 结构变更：全量重绘（安全兜底） ──
   unsubscribeFns.push(
-    fileServer.onFileSystemChange(FileSystemEvent.STRUCTURE_CHANGED, () => {
+    fileServer.onFileSystemChange(FileSystemEvent.STRUCTURE_CHANGED, async () => {
       renderedNodes.clear();
       expandedFolders.clear();
-      node2html(fileServer.resolvePath(), rootEle, true);
+      await node2html(currentFileSystem, rootEle, true);
+      updateExplorerEmptyState();
     })
   );
 }
@@ -185,6 +506,30 @@ async function rerenderFolderChildren(folderNode) {
   // 清空 DOM → 旧元素及绑定的事件监听器将随 GC 自动回收
   menuEl.innerHTML = "";
   await node2html(folderNode, menuEl, false);
+}
+
+/**
+ * 节点增删/移动后刷新受影响父文件夹的视图。
+ * 根目录不会被记入 `expandedFolders`，需要整体重绘根列表。
+ * @param {FolderNode|undefined} parent
+ */
+async function refreshParentAfterChange(parent) {
+  if (!parent) return;
+  const root = currentFileSystem;
+  if (root && parent.id === root.id) {
+    await rerenderRootList();
+  } else if (expandedFolders.has(parent.id)) {
+    await rerenderFolderChildren(parent);
+  }
+}
+
+/**
+ * 重绘根目录列表：清空全部已渲染记录后重新绘制。
+ */
+async function rerenderRootList() {
+  renderedNodes.clear();
+  expandedFolders.clear();
+  await node2html(currentFileSystem, rootEle, true);
 }
 
 // ==================== 前端元素绘制 ====================
@@ -307,5 +652,8 @@ async function node2html(node, parentElement = rootEle, reset = false) {
 
 // 模块加载时立即注册监听器
 setupEventListeners();
+
+// 初始同步一次空状态（未打开工作区时显示快捷操作）
+updateExplorerEmptyState();
 
 export default {}

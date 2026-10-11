@@ -1317,7 +1317,7 @@ export async function openFileInTab(fileNode, editorId = undefined) {
  *
  * @param {string|number} tabId 标签页 UUID 或索引
  */
-export async function saveToFile(tabId = tabs.getCurrentTabId()) {
+export async function saveToFile(tabId = tabs.getCurrentTabIndex()) {
   let tab;
   try {
     tab = tabs.getTab(tabId);
@@ -1424,7 +1424,7 @@ async function saveToNewFile(data, tabId, suggestedName = "untitled.txt") {
  * @param {string|number} [tabId] 标签页
  * @returns {Promise<FileNode|null>}
  */
-export async function saveAsToFile(fileName, targetFolder = null, tabId = tabs.getCurrentTabId()) {
+export async function saveAsToFile(fileName, targetFolder = null, tabId = tabs.getCurrentTabIndex()) {
   const tab = tabs.getTab(tabId);
   const data = tab.instance.getData();
   if (data === undefined || data === null) {

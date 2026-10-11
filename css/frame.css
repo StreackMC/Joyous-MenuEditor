@@ -107,6 +107,7 @@ s-drawer {
 #left-sidebar {
   display: flex;
   flex-direction: column;
+  position: relative;
 }
 
 #left-sidebar s-scroll-view, #left-sidebar > * > s-menu {
@@ -116,6 +117,42 @@ s-drawer {
 
 #explorer {
   border: none;
+}
+
+/* 工作区文件浏览器空状态 */
+#explorer-empty {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: .5em;
+  padding: 1.2em .8em;
+  text-align: center;
+  color: var(--s-color-outline, #6f7979);
+}
+
+#explorer-empty[hidden] {
+  display: none;
+}
+
+#explorer-empty .explorer-empty-label {
+  font-size: .85em;
+  line-height: 1.4;
+  margin-bottom: .2em;
+}
+
+#explorer-empty s-button {
+  width: 100%;
+}
+
+/* 资源管理器右键菜单 */
+#explorer-menu s-popup-menu-item {
+  min-width: 11em;
+  box-sizing: border-box;
+  margin: 0 4px;
 }
 
 /* editor frame */
@@ -165,6 +202,85 @@ s-tab::part(container) {
 
 .editor-frame[data-hidden="true"] {
   display: none;
+}
+
+/* 空状态（无标签页）—— 类 VSCode 空白界面 */
+#editor {
+  position: relative;
+}
+
+#editor-empty {
+  position: absolute;
+  inset: 48px 0 0 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2.2rem;
+  color: var(--s-color-outline, #6f7979);
+  pointer-events: none;
+  z-index: 1;
+}
+
+#editor-empty[hidden] {
+  display: none;
+}
+
+.editor-empty-watermark {
+  opacity: .1;
+  pointer-events: none;
+}
+
+.editor-empty-watermark svg {
+  width: min(30vw, 240px);
+  height: auto;
+}
+
+.editor-empty-hints {
+  display: flex;
+  flex-direction: column;
+  gap: .3rem;
+  pointer-events: auto;
+}
+
+.editor-empty-hint {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 3rem;
+  min-width: min(80vw, 320px);
+  padding: .35rem .6rem;
+  border: none;
+  border-radius: .5rem;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  opacity: .72;
+  cursor: pointer;
+}
+
+.editor-empty-hint:hover {
+  background: var(--s-color-surface-container, rgba(128, 128, 128, .12));
+  opacity: 1;
+}
+
+.editor-empty-keys {
+  display: inline-flex;
+  gap: .25rem;
+}
+
+.editor-empty-keys:empty {
+  display: none;
+}
+
+.editor-empty-keys kbd {
+  font-family: inherit;
+  font-size: .78em;
+  line-height: 1;
+  padding: .2em .45em;
+  border: 1px solid var(--s-color-outline-variant, #C0C8CC);
+  border-radius: .35em;
+  background: var(--s-color-surface-container-low, rgba(128, 128, 128, .08));
 }
 
 /* s-popup-menu */

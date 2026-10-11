@@ -9,17 +9,20 @@ div.ace-editor-joyous { height:100%; }
 
 export class EditorAce extends Editor {
   /**
-   * ACE 编辑器是兜底方案，`openEditor()` 在调用此构造器前**已预读文本**，
-   * 故 `content` 始终为 `string`，而非 `FileNode | MemFileNode`。
+   * ACE 既可作为兜底编辑器（`openEditor` 的 fallback 会**预读文本**，
+   * 于是 `content` 为 `string`），也可能被**强制指定**（如 `file.new` / 新建文件），
+   * 此时 `content` 为 `FileNode | MemFileNode`，需在 `init()` 中异步读取。
    *
-   * @param {string} content - 已预读的文件文本内容
+   * @param {string|import("../../backend/fileServer.js").FileNode|import("../../backend/editorManager.js").MemFileNode} content
+   *    预读的文本内容，或待读取的文件节点
    * @param {string} fileName - 文件名（用于检测语法高亮和显示标题）
    */
   constructor(content, fileName) {
-    // ACE 不走父类的 fileNode 存储逻辑，自行管理 content
-    super(null, fileName || "untitled");
-    this.content = (typeof content === 'string') ? content : String(content ?? '');
-    this.fileName = fileName || 'untitled';
+    const isFileNode = !!content && typeof content.read === 'function';
+    // 传入节点时交给父类存储，统一在 init() 中异步读取
+    super(isFileNode ? content : null, fileName || "untitled");
+    this.content = isFileNode ? '' : ((typeof content === 'string') ? content : String(content ?? ''));
+    this.fileName = this.filename;
     this.container = null;
     this.editorInstance = null;
     this.isInitialized = false;
@@ -61,6 +64,15 @@ export class EditorAce extends Editor {
     if (!this.container || !this.container.isConnected) {
       // 如果容器还未插入 DOM，等待一下
       await new Promise(resolve => setTimeout(resolve, 50));
+    }
+
+    // 强制指定编辑器时构造器拿到的是文件节点，在此异步读取内容
+    if (this.fileNode) {
+      try {
+        this.content = await this.fileNode.read();
+      } catch (error) {
+        console.warn("ACE 编辑器读取文件内容失败：", error);
+      }
     }
 
     if (typeof ace === 'undefined') {
@@ -126,10 +138,7 @@ export class EditorAce extends Editor {
 }
 
 // 注册编辑器
-editorManager.regisiterEditor(EditorId, (data, filename) => {
-  return "";
-  // ACE 作为兜底编辑器不主动竞争文件
-  // return (filename) ? filename : `Untitled-${editorManager.getUntitledId()}`;
-}, EditorAce, () => "");
+// ACE 作为兑底编辑器不主动竞争文件（验证始终返回 false）
+editorManager.regisiterEditor(EditorId, () => false, EditorAce, () => "");
 
 export default { EditorAce };

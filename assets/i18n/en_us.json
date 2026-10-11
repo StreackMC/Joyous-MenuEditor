@@ -32,8 +32,55 @@
       }
     }
   },
+  "explorer": {
+    "empty": "You have not yet opened a file or workspace.",
+    "action": {
+      "newFile": "New File",
+      "newFolder": "New Folder",
+      "copy": "Copy",
+      "cut": "Cut",
+      "paste": "Paste",
+      "rename": "Rename",
+      "delete": "Delete"
+    },
+    "newFile": {
+      "nameLabel": "File name",
+      "defaultName": "Untitled"
+    },
+    "newFolder": {
+      "nameLabel": "Folder name",
+      "defaultName": "New Folder"
+    },
+    "rename": {
+      "label": "New name"
+    },
+    "duplicate": "An item with the same name already exists: %name%",
+    "deleteConfirm": "Are you sure you want to delete %target%? This cannot be undone.",
+    "done": {
+      "copy": "Copied %target%",
+      "cut": "Cut %target%",
+      "paste": "Pasted %target%",
+      "move": "Moved %target%",
+      "rename": "Renamed %target%",
+      "delete": "Deleted %target%"
+    }
+  },
   
   "editor": {
+    "actions": {
+      "openFile": "Open File",
+      "openFolder": "Open Workspace",
+      "newFile": "New File",
+      "revert": "Undo",
+      "redo": "Redo"
+    },
+    "newFile": {
+      "prompt": "Select the new file type",
+      "types": {
+        "jmenu": "JMenu Menu File",
+        "ace": "ACE Text File"
+      }
+    },
     "jmenu": {
       "title_idle": "Click to start edit...",
       "title_hover": "Click to edit #%slot% in row %row%, column %column%",

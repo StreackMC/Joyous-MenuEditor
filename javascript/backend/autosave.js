@@ -29,7 +29,7 @@ export function backupOpened() {
     });
   });
   webstorage.Local.set("autosave.data", { e: data });
-  webstorage.Local.set("autosave.which", tabs.getCurrentTabId());
+  webstorage.Local.set("autosave.which", tabs.getCurrentTabIndex());
   webstorage.Local.set("autosave.untitledCount", editorManager.untitledCounts);
 
   // 同时持久化文件系统状态
@@ -77,7 +77,8 @@ export async function recoverOpened() {
       }
       func.push(function () {
         try {
-          tabs.openTab(new clazz(i.data, i.name), i.name, i.id);
+          // 标题统一取自编辑器文件名（i.name），无需再单独传入
+          tabs.openTab(new clazz(i.data, i.name), i.id);
         } catch (error) {
           console.error(`恢复标签页时遇到错误: `, error, `\n@ processData: `, i);
         }

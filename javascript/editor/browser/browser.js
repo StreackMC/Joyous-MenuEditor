@@ -63,13 +63,13 @@ import { Editor } from "../editor.js";
  * verify 函数 —— data 已归一化为 FileNode | MemFileNode，
  * 通过 `await data.read()` 获取 URL 文本。
  */
-editorManager.regisiterEditor(EditorId, async (fileNode, filename) => {
+editorManager.regisiterEditor(EditorId, async (fileNode) => {
   try {
     const text = (await fileNode.read()).trim();
     if (text.length > 2000) throw new Error("too long data");
-    const uri = new URL(text);
-    return uri.hostname;
+    new URL(text);
+    return true;
   } catch (ignore) {
-    return "";
+    return false;
   }
 }, EditorBrowser);

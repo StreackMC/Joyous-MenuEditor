@@ -3,7 +3,7 @@ import commands from './backend/commandServer.js'; // 通常情况下建议使�
 import { regisiteredCommands } from './backend/commandServer.js';
 import i18n from './i18n.js';
 // 虽然有些未使用，但需要确保加载
-import tabs, { getCurrentTabId, tabsMap } from "./ui/tabs.js";
+import tabs, { getCurrentTabIndex, tabsMap } from "./ui/tabs.js";
 import command_panel from "./ui/panels/command.js";
 import { regEditorsClazz } from "./backend/editorManager.js";
 import autosave from "./backend/autosave.js";
@@ -144,7 +144,7 @@ export function getVersionInfo() {
       "i18n.CurrentTranslation= " + JSON.stringify(i18n.getCurrentTranslations()),
       "commands.regisiteredCommands= " + [...regisiteredCommands.keys()],
       "editorManager.regisiteredEditors= " + [...regEditorsClazz.keys()],
-      "tabs.currentTabs= " + getCurrentTabId(),
+      "tabs.currentTabs= " + getCurrentTabIndex(),
       "tabs.Tabs.bindmap= " + [...tabsMap.keys()],
       "files.currentFileSystem= " + JSON.stringify(fileServer.currentFileSystem, null, 2),
     ].join("\n"));

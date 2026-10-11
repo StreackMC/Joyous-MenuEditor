@@ -24,7 +24,10 @@ export function getUntitledId() {
 export let regEditorsClazz = new Map();
 
 /**
- * 已注册的 Editor 验证函数集合
+ * 已注册的 Editor 验证函数集合。
+ * 每个验证函数签名：`async (fileNode, filename) => boolean`，
+ * 返回 `true` 表示接受该文件，`false`（或其他假值）表示拒绝。
+ * 验证函数**不参与标题决策**：标签页标题统一取自文件名。
  * @type {Map<string, Function>}
  */
 export let regEditorsVarify = new Map();
@@ -166,9 +169,9 @@ export function normalizeToFileNode(raw, name = "untitled") {
  * 注册一个编辑器类型。
  *
  * @param {string} id - 编辑器唯一标识符（如 `"ace"`, `"jmenu"`）
- * @param {Function} varify - 验证函数，签名 `async (data: FileNode|MemFileNode, filename: string) => string|false`
- *    接收归一化后的文件节点。返回**非空字符串**表示接受此文件，该字符串用作标签页标题；
- *    返回 `""` 或 `false` 表示拒绝。
+ * @param {Function} varify - 验证函数，签名 `async (fileNode: FileNode|MemFileNode, filename: string) => boolean`
+ *    接收归一化后的文件节点。返回 `true` 表示接受此文件，`false`（或其他假值）表示拒绝。
+ *    验证结果**不再作为标签页标题**，标题统一由文件名决定。
  * @param {typeof Editor} clazz - 编辑器类，构造器签名 `(fileNode: FileNode|MemFileNode, filename: string)`
  * @param {Function} [newFileFn] - 可选的新建文件函数，签名 `() => string`，返回空白文件内容。
  *    若提供，`file.new` 命令会将该编辑器类型列为可选的新建类型。
@@ -193,60 +196,48 @@ export function regisiterEditor(id, varify, clazz, newFileFn) {
  * constructor / init）看到的都是同一接口。编辑器在构造器中**惰性存储**
  * 文件节点引用，在 `init()` 中通过 `await this.fileNode.read()` 异步读取。
  *
+ * **标题规则：**
+ * 标签页标题**统一取文件名**（`fname` 或数据源自带的名字），编辑器无法指定标题。
+ *
  * **匹配逻辑：**
- * 1. 若指定 `editorId` → 强制使用对应编辑器，验证失败时回退 `fname` 作标题
- * 2. 否则遍历所有注册的 `varify(data, fname)`，**首个返回非空字符串**的胜出
+ * 1. 若指定 `editorId` → 强制使用对应编辑器（跳过验证）
+ * 2. 否则遍历所有注册的 `varify(fileNode, filename)`，**首个返回真值**的胜出
  * 3. 无匹配 → 降级使用 `ace` 编辑器（预读文本后传入构造器）
  *
  * @param {string|FileNode|MemFileNode|*} [data=""] - 原始数据，内部自动归一化
  * @param {string} [editorId] - 强制使用的编辑器 ID
- * @param {string} [fname] - 建议文件名/标题
+ * @param {string} [fname] - 文件名（同时作为标签页标题）
  * @returns {Promise<string|null>} 新标签页的 UUID，失败返回 null
  * @throws 若指定 `editorId` 且找不到对应注册类
  */
 export async function openEditor(data = "", editorId = undefined, fname = null) {
-  // ── 归一化 ──
+  // ── 归一化数据源 ──
   const normalized = normalizeToFileNode(data, fname || undefined);
-  fname = fname || normalized.name || `Untitled-${getUntitledId()}`;
+  const filename = fname || normalized.name || `Untitled-${getUntitledId()}`;
+  normalized.name = filename;
 
-  // ── 强制指定编辑器 ──
+  // ── 强制指定编辑器（跳过验证）──
   if (editorId) {
-    try {
-      const clazz = regEditorsClazz.get(editorId);
-      const func = regEditorsVarify.get(editorId);
-      if (!clazz) throw new Error(`未注册的编辑器：${editorId}`);
-
-      let title;
-      try {
-        title = await func.call(null, normalized, fname);
-        if (!title) title = `Untitled-${getUntitledId()}`;
-      } catch (error) {
-        console.warn(`强制使用编辑器 ${editorId} 时验证失败：`, error, "\n 数据：", normalized);
-        title = fname;
-      }
-      return tabs.openTab(new clazz(normalized, fname), title);
-    } catch (error) {
-      throw new Error(i18n.parseSafe("msg.unknownEditor", { editor: editorId }));
-    }
+    const clazz = regEditorsClazz.get(editorId);
+    if (!clazz) throw new Error(i18n.parseSafe("msg.unknownEditor", { editor: editorId }));
+    return tabs.openTab(new clazz(normalized, filename));
   }
 
-  // ── 自动匹配 ──
+  // ── 自动匹配：首个验证通过的编辑器胜出 ──
   for (const key of regEditorsVarify.keys()) {
+    const clazz = regEditorsClazz.get(key);
+    if (!clazz) continue;
     try {
-      const title = await regEditorsVarify.get(key).call(null, normalized, fname);
-      if (title) {
-        const clazz = regEditorsClazz.get(key);
-        if (!clazz) continue;
-        try {
-          return tabs.openTab(new clazz(normalized, fname), title);
-        } catch (error) {
-          console.warn(`编辑器 ${key} 验证通过但打开失败：`, error);
-          continue;
-        }
-      }
+      const accepted = await regEditorsVarify.get(key).call(null, normalized, filename);
+      if (!accepted) continue;
     } catch (error) {
       console.log(`编辑器 ${key} 验证异常：`, error);
       continue;
+    }
+    try {
+      return tabs.openTab(new clazz(normalized, filename));
+    } catch (error) {
+      console.warn(`编辑器 ${key} 验证通过但打开失败：`, error);
     }
   }
 
@@ -278,7 +269,7 @@ export async function openEditor(data = "", editorId = undefined, fname = null) 
 
     // ACE 期望构造器直接拿到字符串，故预读后传入
     const textContent = await normalized.read();
-    return tabs.openTab(new aceClazz(textContent, fname), fname);
+    return tabs.openTab(new aceClazz(textContent, filename));
   } catch (error) {
     return null;
   }
@@ -292,7 +283,7 @@ commands.regisiterCommand("editor.open", openEditor);
  */
 export function getCurrentEditor() {
   try {
-    const tab = tabs.getTab(tabs.getCurrentTabId());
+    const tab = tabs.getTab(tabs.getCurrentTabIndex());
     return tab.instance || null;
   } catch {
     return null;
@@ -343,31 +334,46 @@ export async function ensureText(data) {
 // ══════════════════════════════════════════════════════════
 
 /**
- * 新建文件命令。弹出类型选择对话框，创建对应编辑器类型的空白文件并打开标签页。
- * 使用 `utils.js` 的 `dialog` 完成类型选取。
+ * 构建「新建文件类型」下拉选择器（`s-picker`）。
+ *
+ * 选项来自所有通过 `regisiterEditor` 注册了 `newFileFn` 的编辑器，
+ * 标签使用 i18n 键 `editor.newFile.types.<id>`（缺省时回退为编辑器 ID）。
+ *
+ * @returns {HTMLElement} `s-picker` 元素
+ */
+export function buildNewFileTypePicker() {
+  const picker = document.createElement("s-picker");
+  picker.label = i18n.parseSafe("editor.newFile.prompt");
+  for (const id of regEditorNewFile.keys()) {
+    const item = document.createElement("s-picker-item");
+    item.value = id;
+    item.innerText = i18n.parseSafe(`editor.newFile.types.${id}`) || id;
+    picker.appendChild(item);
+  }
+  // 默认选中 jmenu（菜单文件）；否则取第一个
+  picker.value = regEditorNewFile.has("jmenu") ? "jmenu" : ([...regEditorNewFile.keys()][0] ?? "");
+  return picker;
+}
+
+/**
+ * 新建文件命令。弹出对话框，通过**下拉菜单**选择文件类型，
+ * 创建对应编辑器类型的空白文件并打开标签页。
  * 同时注册为 `files.new` 别名。
  */
 async function _fileNewHandler() {
-  // 使用 dialog 展示两个选项：JMenu 菜单编辑器 / ACE 文本编辑器
   try {
+    const picker = buildNewFileTypePicker();
     const choice = await UI.dialog(
       i18n.parseSafe("tooltip.tip"),
-      i18n.parseSafe("editor.newFile.prompt"),
+      picker,
       true,
-      [
-        "JMenu 菜单文件",                                // 索引 0：JMenu
-        "ACE 文本文件",                                 // 索引 1：ACE
-      ]
+      [i18n.parseSafe("tooltip.confirm")]
     );
-    if (choice === 0) {
-      // JMenu
-      const content = regEditorNewFile.get("jmenu")();
-      return openEditor(content, "jmenu", `Untitled-${getUntitledId()}`);
-    } else if (choice === 1) {
-      // ACE
-      const content = regEditorNewFile.get("ace")();
-      return openEditor(content, "ace", `Untitled-${getUntitledId()}`);
-    }
+    if (choice !== 0) return null;
+    const editorId = picker.value;
+    const newFileFn = regEditorNewFile.get(editorId);
+    if (!editorId || typeof newFileFn !== "function") return null;
+    return openEditor(newFileFn(), editorId, `Untitled-${getUntitledId()}`);
   } catch (_) {
     // 用户取消，不做任何事
     return null;
@@ -390,4 +396,5 @@ export default {
   getCurrentEditor,
   normalizeToFileNode,
   MemFileNode,
+  buildNewFileTypePicker,
 };

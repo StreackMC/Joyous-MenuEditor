@@ -2,101 +2,94 @@ import commands from "../backend/commandServer.js";
 import i18n from "../i18n.js";
 import { Editor } from "../editor/editor.js";
 import v4 from "../library/uuidjs/v4.js";
-import editorManager from "../backend/editorManager.js";
 import UI from "./utils.js";
 const uuidv4 = v4;
 
 /*
 ╔══════════════════════════════════════════════════════════╗
-║              编辑生命周期全流程                          ║
+║          标签页 / 编辑器生命周期                          ║
 ╚══════════════════════════════════════════════════════════╝
 
-### 1. 请求打开编辑器
-调用 `commands.executeCommand("editor.open", data, editorId?, filename?)`
-或直接 `editorManager.openEditor(data, editorId, fname)`。
+### 1. 打开（editorManager.openEditor）
+- 数据归一化为 `FileNode | MemFileNode`
+- 匹配或强制指定编辑器类型
+- `new EditorClass(fileNode, filename)` —— **同步构造**，只存引用
+- 调用 `tabs.openTab(instance)`，标签页标题**统一取 `instance.filename`**
+  （编辑器不再具备指定标题的能力）
 
-**数据归一化：**
-`openEditor` 入口处将所有 `data` 统一转为 `FileNode | MemFileNode`，
-之后所有路径（verify / constructor / init）看到的都是统一接口。
+### 2. 挂载（Tab.mount）
+- 构建 `switcher`（标签按钮 + 关闭按钮）与 `frame`（容器）
+- 将 `instance.getElement()` 挂入 `frame`
+- `switcher.root` → `#editor-tabs`，`frame` → `#editor-views`
+- `i18n.refresh` / `commands.hook` 做声明式绑定
 
-- `fname` 默认 `Untitled-N`，用于回退标题。
-- 若指定 `editorId` → 强制使用对应注册类；若验证失败则回退 `fname` 作为标题。
-- 否则遍历所有已注册编辑器的 `verifyFn(fileNode, fname)`，
-  **首个返回非空字符串**的编辑器胜出，返回值作为标签标题。
-- 无匹配 → 降级使用 `ace` 编辑器（预读文本后传入构造器；未注册则抛错）。
+### 3. 激活 / 失活（Tab.activate / Tab.deactivate）
+- `activate()` 显示 frame 并同步 `<s-tab>` 的 `value`
+- `deactivate()` 隐藏 frame
+- `switchTab(indexOrId)` 负责两者切换并维护 `currentTabIndex`
 
-### 2. 创建标签页与编辑器实例
-`tabs.openTab(new EditorClass(fileNode, fname), title)`：
+### 4. 后初始化（Tab.init → instance.init）
+- 编辑器在此异步 `await this.fileNode.read()` 并完成渲染
+- `openTab` **不等待** `init()` 完成，编辑器自行管理异步流程
 
-- 生成 UUID，构建 `Tab` 对象：
-  - `switcher`（标签按钮 + 关闭按钮）
-  - `frame`（容器，初始 `dataset.hidden = "true"`）
-  - 将 `editorInstance.getElement()` 挂载到 `frame` 中
-- 将 `switcher.root` 追加到 `#editor-tabs`，`frame` 追加到 `#editor-views`
-- 调用 `i18n.refresh` 和 `commands.hook` 做声明式绑定
-- 调用 `switchTab(uuid)` **显示该标签页**（隐藏当前，显示新 frame）
-- 调用 `editorInstance.init()` → 编辑器执行真正的初始化
-  （**可 async**：通过 `await this.fileNode.read()` 异步读取内容）
+### 5. 关闭（tabs.closeTab → Tab.destroy / Tab.unmount）
+1. `switchTab(target)` 临时显示目标标签页
+2. 保存检查（`requireFlush` 且数据与磁盘不一致时询问）
+3. 关闭动画
+4. `Tab.destroy()` → `instance.destroy()` 释放定时器 / 监听 / DOM
+5. `Tab.unmount()` 移除 DOM
+6. 从 `tabs` / `tabsMap` / `tab2File` 中删除
+7. 切换回合适的剩余标签页
 
-> ✅ 此时编辑器已可见且可交互。
+### 6. 全部关闭（closeAllTabs）
+对 `tabs` 的**快照副本**依次执行上述关闭流程，避免边遍历边删除
 
-### 3. 编辑与保存
-- 用户编辑操作由具体编辑器内部处理。
-- 保存由外部触发，调用 `commands.executeCommand("editor.save")`，
-  编辑器需实现 `getData()` 返回当前数据。
-- 自动备份通过 `autosave.backup` 在打开标签页后触发。
-
-### 4. 关闭标签页（资源清理）
-`commands.executeCommand("editor.close", indexOrId)` → `tabs.closeTab`：
-
-1. 切换到目标标签页（临时显示）。
-2. 调用 `commands.executeCommand("editor.save")`（可弹出保存确认，目前 todo）。
-3. 执行 UI 动画（更新 `<s-tabs>` 的 `value`）。
-4. 调用 `targetTab.instance.destroy()` → **编辑器清理自己的定时器、事件监听、DOM 引用等**。
-5. 移除 `switcher.root` 和 `frame` 的 DOM 节点。
-6. 从 `tabs` 数组和 `tabsMap` 中删除该标签页。
-7. 切换回合适的剩余标签页（如原活动页或最后一个）。
-
-### 5. 全局关闭
-`closeAllTabs` 遍历所有标签页依次执行上述关闭流程。
+### 7. 空状态（updateEmptyState）
+- 没有任何标签页时，`#editor-empty` 显示 VSCode 风格的空白水印界面
+- 在 `openTab` / `closeTab` / `switchTab` 后刷新
 
 ## 数据结构
 
 ### editorManager.js
-
-* `Map<String,class> regEditorsClazz` 存储编辑器ID和编辑器构造器的映射
-* `Map<String,function> regEditorsVarify` 存储编辑器ID和数据验证函数的映射
-
-这两个被 `openEditor` 使用，并用于打开编辑器。接下来会分配标签页
+* `Map<string, class> regEditorsClazz` —— 编辑器 ID → 构造器
+* `Map<string, function> regEditorsVarify` —— 编辑器 ID → 验证函数
+  （验证函数返回 `boolean`，仅表示是否接受该文件，不参与标题）
 
 ### tabs.js
-
-* `string[] tabs` 当前第几个标签页的标识符
-* `number currentTab` 现在是第几个标签页？（配合 tabs 使用）
-* `Map<string,Tab> tabsMap` 存储标识符到Tab实例的映射
+* `string[] tabs` —— 按标签页顺序存储的 UUID 列表
+* `number currentTabIndex` —— 当前活动标签页在 `tabs` 中的下标
+* `Map<string, Tab> tabsMap` —— UUID → Tab 实例
 
 #### Tab
-
-* id: "uuid-1" 标识符（反向绑定）
-* name: "index.html" （标题）
-* instance: 绑定到一个Editor实例
+* `id`：UUID 标识符
+* `name`：标题，**统一取自编辑器文件名**（`instance.filename`）
+* `instance`：绑定的 Editor 实例
+* `state`：生命周期状态（created / mounted / active / disposed）
 * switcher.root: <s-tab-item>  ──► 显示在 #editor-tabs，标签页按钮
 * frame: <div class="editor-frame"> ──► 挂在 #editor-views
   * instance.getElement() 返回的 DOM 插入到此 frame 
 
 */
 
-function newEditorWelcome(...arg) {
-  const clazz = editorManager.regEditorsClazz.get("welcome");
-  return new clazz(...arg);
-}
-
 const eTabs = document.getElementById("editor-tabs");
 const eView = document.getElementById("editor-views");
+/** 无标签页时的空状态水印容器 */
+const eEmpty = document.getElementById("editor-empty");
 //const eScroll = eTabs.ShadowRoot.querySelector("div.container");
+
+/**
+ * 刷新空状态：仅在没有任何标签页时显示 VSCode 风格的空白水印界面。
+ * 在会改变标签页数量或活动页的地方调用。
+ */
+export function updateEmptyState() {
+  if (!eEmpty) return;
+  eEmpty.hidden = getTabsLength() > 0;
+}
+
 /**
  * 存储标签页 UUID → FileNode 的映射关系。
  * 用于在保存时快速找到对应文件。
+ * 由 fileServer.js 通过 bindTabToFile / unbindTab 维护。
  * @type {Map<string, FileNode>}
  */
 export const tab2File = new Map();
@@ -110,44 +103,37 @@ export let tabsMap = new Map();
  * @type {string[]}
  */
 export let tabs = [];
-let currentTab = 0;
+let currentTabIndex = 0;
 
 export class Tab {
-  /**
-   * 标签页标识符
-   */
+  /** 标签页标识符 @type {string} */
   id = "";
-  /**
-   * 标签页名字
-   */
+  /** 标签页标题（统一取自编辑器文件名）@type {string} */
   name = "";
-  /**
-   * 当前标签页绑定的 Editor 实例
-   */
+  /** 绑定的 Editor 实例 @type {Editor} */
   instance;
-  /**
-   * 当前标签页按钮的HTML元素
-   */
+  /** 生命周期状态：created → mounted → active → disposed @type {string} */
+  state = "created";
+  /** 标签按钮 @type {{root: Element, content: Element, btn: Element}} */
   switcher = {
     root: document.createElement("s-tab-item"),
     content: document.createElement("div"),
     btn: document.createElement("s-icon-button"),
   };
-  /**
-   * 当前标签页对应的标签页框架
-  * @type {Element}
-  */
+  /** 标签页框架容器 @type {Element} */
   frame = document.createElement("div");
+
   /**
-   * 
-   * @param {Editor} editorInstance 
+   * @param {Editor} editorInstance 编辑器实例（其 `filename` 作为标题）
+   * @param {string} id Tab 标识符（UUID）
    */
-  constructor(editorInstance, name, id) {
+  constructor(editorInstance, id) {
     this.id = id;
     this.instance = editorInstance;
-    this.name = name;
+    // 标题统一来自编辑器文件名
+    this.name = editorInstance?.filename ?? "";
 
-    // 构建元素
+    // ── 构建按钮结构与容器 ──
     this.switcher.root.value = this.id;
     this.switcher.content.slot = "text";
     this.switcher.content.innerText = this.name;
@@ -156,7 +142,10 @@ export class Tab {
     this.frame.dataset.hidden = "true";
     this.frame.appendChild(this.instance.getElement());
 
-    // 添加事件绑定
+    this.switcher.content.appendChild(this.switcher.btn);
+    this.switcher.root.appendChild(this.switcher.content);
+
+    // ── 事件绑定 ──
     this.switcher.root.addEventListener("click", (e) => {
       e.stopImmediatePropagation();
       commands.executeCommand("editor.switch", this.id);
@@ -165,19 +154,49 @@ export class Tab {
       e.stopPropagation();
       commands.executeCommand("editor.close", this.id);
     });
-
-    // 构建元素结构
-    this.switcher.content.appendChild(this.switcher.btn);
-    this.switcher.root.appendChild(this.switcher.content);
-  };
-
-  setTitle(text) {
-    if (!text) return;
-    this.switcher.content.innerText = text;
   }
 
-  getTitle(text) {
-    return this.switcher.content.innerText;
+  // ─────────────────────────────────────────────
+  //  生命周期
+  // ─────────────────────────────────────────────
+
+  /** 挂载到页面 DOM */
+  mount() {
+    eTabs.appendChild(this.switcher.root);
+    eView.appendChild(this.frame);
+    this.state = "mounted";
+  }
+
+  /** 从页面 DOM 卸载 */
+  unmount() {
+    this.switcher.root.remove();
+    this.frame.remove();
+  }
+
+  /** 激活：显示此标签页并同步 <s-tab> 的 value */
+  activate() {
+    this.frame.dataset.hidden = "false";
+    eTabs.value = this.id;
+    this.state = "active";
+  }
+
+  /** 失活：隐藏此标签页 */
+  deactivate() {
+    this.frame.dataset.hidden = "true";
+  }
+
+  /** 后初始化：委托给编辑器实例 */
+  init() {
+    return this.instance.init();
+  }
+
+  /** 销毁：先让编辑器清理，再标记状态 */
+  destroy() {
+    try {
+      this.instance.destroy();
+    } finally {
+      this.state = "disposed";
+    }
   }
 }
 
@@ -205,33 +224,47 @@ eTabs.addEventListener("dblclick", (e) => {
 // });
 
 /**
- * 打开一个标签页，默认使用「欢迎」
+ * 打开一个标签页。
+ *
+ * 生命周期：创建 Tab → 挂载 → 激活 → 后初始化。
+ * 标题**统一取自 `editorInstance.filename`**；编辑器不再具备指定标题的能力。
+ *
  * @param {Editor} editorInstance 编辑器实例
- * @param {string} name 标签页名称
- * @param {string} uuid Tab的标识符，默认自动设置。不推荐手动覆写
- * @returns {string} Tab实例的UUID
+ * @param {string} [uuid] Tab 的标识符，默认自动生成。不推荐手动覆写
+ * @returns {string|undefined} 新标签页的 UUID；实例无效时返回 undefined
  */
-export function openTab(editorInstance = newEditorWelcome(), name = i18n.parseSafe("editor.welcome.headline"), uuid = uuidv4()) {
-  if (tabsMap.has(uuid)) { throw new Error("无法新建标签页，发现重复的UUID: ", uuid); };
+export function openTab(editorInstance, uuid = uuidv4()) {
+  if (tabsMap.has(uuid)) { throw new Error(`无法新建标签页，发现重复的UUID: ${uuid}`); };
   if (!editorInstance || !(editorInstance instanceof Editor)) {
     // 发现无效实例，不新建
     return;
   }
-  tabsMap.set(uuid, new Tab(editorInstance, name, uuid));
+
+  // 标题统一使用文件名；缺失时回退为 Untitled
+  if (!editorInstance.filename) {
+    editorInstance.filename = "Untitled";
+  }
+
+  // ── 创建并登记 ──
+  const tab = new Tab(editorInstance, uuid);
+  tabsMap.set(uuid, tab);
   tabs.push(uuid);
 
-  // 推送到前端渲染
-  eTabs.appendChild(tabsMap.get(uuid).switcher.root);
-  eView.appendChild(tabsMap.get(uuid).frame);
+  // ── 挂载并完成声明式绑定 ──
+  tab.mount();
   i18n.refresh(eView);
   commands.hook(eView);
 
-  // 完成创建并显示
+  // ── 激活新标签页 ──
   switchTab(uuid);
 
-  // 后初始化
-  editorInstance.init();
+  // ── 后初始化（不阻塞）──
+  tab.init();
 
+  // ── 更新空状态 ──
+  updateEmptyState();
+
+  // ── 自动备份 ──
   try {
     commands.executeCommandSlient("autosave.backup");
   } catch (ignore) { };
@@ -240,23 +273,26 @@ export function openTab(editorInstance = newEditorWelcome(), name = i18n.parseSa
 
 /**
  * 关闭全部标签页。注意异步。
+ * 遍历 `tabs` 的快照副本，避免边遍历边删除导致遗漏。
  */
 export async function closeAllTabs() {
-  for (const element of tabs) {
-    await closeTab(element);
+  for (const tabId of [...tabs]) {
+    await closeTab(tabId);
   }
 }
 
 /**
  * 关闭指定标签页。注意异步。
+ *
+ * 生命周期收尾：临时切换 → 保存检查 → 关闭动画 → 销毁编辑器 → 卸载 DOM → 清理索引 → 回切。
  * @param {number|string} index 以 0 开始为索引；使用文本时自动视作UUID
- * @throws
+ * @throws 标签页不存在
  */
-export async function closeTab(index = currentTab) {
+export async function closeTab(index = currentTabIndex) {
+  // ── 解析目标标签页与来源标签页 ──
   let target, origin;
-  // 解析并切换到目标标签页
   try {
-    origin = tabs[currentTab];
+    origin = tabs[currentTabIndex];
     if (typeof index === "string") {
       if (!tabsMap.has(index) || tabs.indexOf(index) < 0) { throw new Error(); };
       target = index;
@@ -268,52 +304,28 @@ export async function closeTab(index = currentTab) {
     throw new Error(i18n.parseSafe("msg.missing_tab", { index: index }));
   }
   const targetTab = tabsMap.get(target);
+
+  // ── 临时切换到目标标签页（保存询问时用户能看到内容）──
   switchTab(target);
+  await flushTabBeforeClose(targetTab);
 
-  // 保存数据
-  let fileNodeOfTheTab;
-  if (targetTab.instance.requireFlush) {
-    fileNodeOfTheTab = tab2File.get(target);
-  } else {
-    fileNodeOfTheTab = null;
-  }
-  if (fileNodeOfTheTab) {
-    // 对比当前编辑器数据和磁盘文件是否一致
-    const currentData = targetTab.instance.getData();
-    const diskData = await window.joyous.filesGetData(fileNodeOfTheTab);
-    if (currentData !== diskData) {
-      // 数据不一样，需要询问是否保存
-      const userRsp = await UI.dialog(
-        i18n.parseSafe("msg.unsaved.title"),
-        i18n.parseSafe("msg.unsaved.tip", { target: window.joyous.filesGetName(fileNodeOfTheTab) }),
-        true,
-        [i18n.parseSafe("tooltip.nosave"), i18n.parseSafe("tooltip.save")]
-      );
-      if (userRsp == 1) {
-        await commands.executeCommand("files.save");
-      }
-    }
-  } else if (targetTab.instance.requireFlush) {
-    // requireFlush 为 true 却找不到文件绑定 → 预期外情况，给出警告
-    console.warn("无法为标签页", targetTab, "找到对应的文件绑定，试图寻找时返回了", fileNodeOfTheTab);
-  }
-
-  // 先处理动画
+  // ── 关闭动画 ──
   if (target != origin) {
     eTabs.value = origin;
   } else {
     eTabs.value = tabs[getTabsLength() - 1];
   };
 
-  // 销毁标签页
-  targetTab.instance.destroy();
-  targetTab.switcher.root.remove();
+  // ── 销毁编辑器并卸载 DOM ──
+  targetTab.destroy();
+  targetTab.unmount();
+
+  // ── 清理索引 ──
   tabs.splice(tabs.indexOf(target), 1);
-  targetTab.frame.remove();
   tabsMap.delete(target);
   tab2File.delete(target);
 
-  // 切换回来
+  // ── 回切到合适的标签页 ──
   if (target != origin) {
     switchTab(origin);
   } else {
@@ -322,29 +334,63 @@ export async function closeTab(index = currentTab) {
 }
 
 /**
+ * 关闭前的保存检查。
+ *
+ * 仅当编辑器 `requireFlush` 且绑定到文件、且内存数据与磁盘不一致时才询问。
+ * @param {Tab} tab
+ */
+async function flushTabBeforeClose(tab) {
+  if (!tab.instance.requireFlush) return;
+
+  const fileNodeOfTheTab = tab2File.get(tab.id);
+  if (!fileNodeOfTheTab) {
+    // requireFlush 为 true 却找不到文件绑定 → 预期外情况，给出警告
+    console.warn("无法为标签页", tab, "找到对应的文件绑定，试图寻找时返回了", fileNodeOfTheTab);
+    return;
+  }
+
+  // 对比当前编辑器数据和磁盘文件是否一致
+  const currentData = tab.instance.getData();
+  const diskData = await window.joyous.filesGetData(fileNodeOfTheTab);
+  if (currentData === diskData) return;
+
+  // 数据不一样，需要询问是否保存
+  const userRsp = await UI.dialog(
+    i18n.parseSafe("msg.unsaved.title"),
+    i18n.parseSafe("msg.unsaved.tip", { target: window.joyous.filesGetName(fileNodeOfTheTab) }),
+    true,
+    [i18n.parseSafe("tooltip.nosave"), i18n.parseSafe("tooltip.save")]
+  );
+  if (userRsp == 1) {
+    await commands.executeCommand("files.save");
+  }
+}
+
+/**
  * 切换到指定标签页，如果标签页不存在抛出错误
  * @param {number|string} index 以 0 开始为索引；使用文本时自动视作UUID
  * @throws 标签页不存在
  */
-export function switchTab(index = currentTab) {
-  // 不存在活动标签页时创建一个
+export function switchTab(index = currentTabIndex) {
+  // 无标签页：清空选择并显示空状态（不再自动新建欢迎页）
   if (getTabsLength() == 0) {
-    openTab();
+    currentTabIndex = -1;
+    eTabs.value = "";
+    updateEmptyState();
     return;
   };
 
-  // 先隐藏旧的
+  // 先失活旧的（可能不存在，忽略）
   try {
-    const oldOne = getTab(getCurrentTabId());
-    oldOne.frame.dataset.hidden = "true";
+    getTab(currentTabIndex).deactivate();
   } catch (ignore) {
   }
 
-  // 显示新的
+  // 再激活新的
   const newOne = getTab(index);
-  eTabs.value = newOne.id;
-  newOne.frame.dataset.hidden = "false";
-  currentTab = tabs.indexOf(newOne.id);
+  newOne.activate();
+  currentTabIndex = tabs.indexOf(newOne.id);
+  updateEmptyState();
 };
 
 /**
@@ -353,7 +399,7 @@ export function switchTab(index = currentTab) {
  * @throws 标签页不存在
  * @returns {Tab}
  */
-export function getTab(index = currentTab) {
+export function getTab(index = currentTabIndex) {
   // 解析目标Tab
   if (typeof index === "number" && index >= 0 && index < getTabsLength()) { index = tabs[index]; };
   if (typeof index != "number" && !tabsMap.has(index)) {
@@ -369,19 +415,22 @@ export function getTab(index = currentTab) {
 export function getTabsLength() { return tabs.length; };
 
 /**
- * 获取当前位于哪个标签页
+ * 获取当前活动标签页在 `tabs` 中的下标
  * @returns {number}
  */
-export function getCurrentTabId() { return currentTab; };
+export function getCurrentTabIndex() { return currentTabIndex; };
 
 /* 注册命令 */
 commands.regisiterCommand("editor.openTab", openTab);
 commands.regisiterCommandWithHotkey("editor.switch", switchTab, "ctrl+shift+tab");
-commands.regisiterCommand("editor.which", getCurrentTabId);
+commands.regisiterCommand("editor.which", getCurrentTabIndex);
 commands.regisiterCommand("editor.howmany", getTabsLength);
 commands.regisiterCommandWithHotkey("editor.close", closeTab, "alt+w");
 commands.regisiterCommand("editor.closeAll", closeAllTabs);
 
+// 模块加载时同步一次空状态（初始无标签页时显示水印）
+updateEmptyState();
+
 export default {
-  eTabs, eView, openTab, switchTab, getTab, Tab, tabs, getTabsLength, tabsMap, getCurrentTabId, closeAllTabs, closeTab
+  eTabs, eView, openTab, switchTab, getTab, Tab, tabs, getTabsLength, tabsMap, getCurrentTabIndex, updateEmptyState, closeAllTabs, closeTab
 };

@@ -17,7 +17,7 @@ const EditorId = "example";
  *      ↓ 归一化：rawData → FileNode | MemFileNode
  * 2. new MyEditor(fileNode, filename)     ← 同步，只存引用
  *      ↓
- * 3. tabs.openTab(instance, title)
+ * 3. tabs.openTab(instance)               ← 标题统一取自 instance.filename
  *      ↓ 内部调用 instance.getElement()
  *      ↓ 挂载到 DOM
  *      ↓ 执行 i18n.refresh / commands.hook
@@ -99,11 +99,11 @@ export class Editor {
 //  注册示例（解除注释后可用）
 // ══════════════════════════════════════════════════════════
 //
-// 验证函数签名：async (fileNode, filename) => string | false
+// 验证函数签名：async (fileNode, filename) => boolean
 //   - fileNode : FileNode | MemFileNode（已归一化）
 //   - filename : string
-//   - 返回非空字符串 = 接受此文件，该字符串用作标签页标题
-//   - 返回 "" 或 false = 拒绝
+//   - 返回 true = 接受此文件；false（或其他假值）= 拒绝
+//   - 验证函数不参与标题：标签页标题统一由 filename 决定
 //
 // 构造器签名：(fileNode, filename)
 //   - fileNode : FileNode | MemFileNode（与 verify 收到的同一个）
@@ -114,8 +114,7 @@ export class Editor {
 // editorManager.regisiterEditor(EditorId,
 //   async (fileNode, filename) => {
 //     const text = await fileNode.read();
-//     if (text.startsWith("magic")) return filename || "Magic File";
-//     return "";
+//     return text.startsWith("magic");
 //   },
 //   Editor
 // );

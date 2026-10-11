@@ -252,17 +252,15 @@ export class EditorJmenu extends Editor {
  * verify 函数 —— data 已由 openEditor 归一化为 FileNode | MemFileNode，
  * 直接调用 `await data.read()` 获取文本内容即可。
  */
-editorManager.regisiterEditor(EditorId, async (fileNode, filename) => {
+editorManager.regisiterEditor(EditorId, async (fileNode) => {
   let content;
   try {
     content = JSON.parse(await fileNode.read());
   } catch (error) {
     content = {};
   }
-  if (content.jme === "menu") {
-    return (content.title) ? MCColors.remove(content.title) : "Untitled Menu";
-  }
-  return "";
+  // 仅表示是否接受该文件（返回 boolean）；标签页标题由文件名决定
+  return content.jme === "menu";
 }, EditorJmenu, () => {
   // 返回一个空 JMenu 的 JSON 字符串
   return JSON.stringify({
