@@ -8,6 +8,44 @@
     }
   },
   "panel": {
+    "mcgradient": {
+      "title": "Gradient Editor",
+      "ascall": "Open in gradient editor",
+      "asinsert": "Insert gradient text",
+      "astool": "Open MC Gradient Editor",
+      "astool_tip": "Your edits will be copied to the clipboard",
+      "unsaved": "Not saved! Click again to discard changes",
+      "placeholder": "Enter the raw text here...",
+      "onerror": {
+        "invaild_color": "Error: invalid color."
+      },
+      "default": "The quick brown fox jumps over the lazy dog.",
+      "settings": {
+        "stop_color": "Stop color",
+        "add_stop": "Add stop",
+        "remove_stop": "Remove stop",
+        "interp_mode": "Interpolation",
+        "mode_rgb": "RGB",
+        "mode_hsv": "HSV",
+        "presets": "Presets & tools",
+        "picker_label": "Color picker",
+        "color_placeholder": "Supports HEX, RGB and Minecraft color codes"
+      },
+      "areas": {
+        "settings": {
+          "title": "Settings"
+        }
+      },
+      "toolbar": {
+        "reset": "Insert [reset] code",
+        "color": "Toggle preview background",
+        "italic": "Insert [italic] code",
+        "bold": "Insert [bold] code",
+        "underline": "Insert [underline] code",
+        "strikethrough": "Insert [strikethrough] code",
+        "code": "Insert [formatting code] (§)"
+      }
+    },
     "mcitem": {
       "title": "MC Item Editor",
       "astool": "Tool: Edit MC Item",

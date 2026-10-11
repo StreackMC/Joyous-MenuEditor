@@ -114,9 +114,12 @@
       },
       "default": "云对雨来雪对风，鸿来燕去晚照对晴空；春对夏来秋对冬，对完了暮鼓对晨钟；写南北来对西东，鸣虫宿鸟柳绿对花红。年年桃符～岁岁春风～§r§o——泠鸢yousa、诺子喵呜、多多poi、祈Inory《年年对对》",
       "settings": {
-        "left_label": "左端颜色",
-        "right_label": "右端颜色",
-        "swap": "交换",
+        "stop_color": "停止点颜色",
+        "add_stop": "添加停止点",
+        "remove_stop": "删除停止点",
+        "interp_mode": "插值模式",
+        "mode_rgb": "RGB",
+        "mode_hsv": "HSV",
         "presets": "预设颜色与编辑工具",
         "picker_label": "颜色选择器",
         "color_placeholder": "支持 HEX、RGB 和 Minecraft 颜色代码"

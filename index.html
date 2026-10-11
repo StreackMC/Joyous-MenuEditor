@@ -307,39 +307,33 @@
         <s-field>
           <div slot="label" data-i18n>$panel.mcgradient.areas.settings.title$</div>
           <div class="mcgradient-panel-settings">
-            <div class="mcgradient-panel-color-row">
-              <div class="mcgradient-panel-color-box">
-                <label for="mcgradient-panel-color-left" data-i18n class="unselectable">$panel.mcgradient.settings.left_label$</label>
-                <div class="mcgradient-panel-color-input-row">
-                  <input id="mcgradient-panel-color-left" data-i18n type="text" autocomplete="off" autocorrect="off"
-                    placeholder="$panel.mcgradient.settings.color_placeholder$">
-                  <input id="mcgradient-panel-color-left-picker" data-i18n type="color"
-                    title="$panel.mcgradient.settings.picker_label$">
-                </div>
+            <!-- 渐变滑轨（多停止点） -->
+            <div class="mcgradient-track-wrap">
+              <div class="mcgradient-track" id="mcgradient-track">
+                <div class="mcgradient-track-stops" id="mcgradient-track-stops"></div>
               </div>
+            </div>
 
-              <s-tooltip data-i18n>
-                <s-icon-button data-click="panel.mcgradient.color_swap" slot="trigger">
-                  <s-icon>
-                    <svg viewBox="0 -960 960 960">
-                      <path
-                        d="M280-160 80-360l200-200 56 57-103 103h287v80H233l103 103-56 57Zm400-240-56-57 103-103H440v-80h287L624-743l56-57 200 200-200 200Z">
-                      </path>
-                    </svg>
-                  </s-icon>
-                </s-icon-button>
-                $panel.mcgradient.settings.swap$
-              </s-tooltip>
-
-              <div class="mcgradient-panel-color-box">
-                <label for="mcgradient-panel-color-right" data-i18n class="unselectable">$panel.mcgradient.settings.right_label$</label>
-                <div class="mcgradient-panel-color-input-row">
-                  <input id="mcgradient-panel-color-right" data-i18n type="text" autocomplete="off" autocorrect="off"
-                    placeholder="$panel.mcgradient.settings.color_placeholder$">
-                  <input id="mcgradient-panel-color-right-picker" data-i18n type="color"
-                    title="$panel.mcgradient.settings.picker_label$">
-                </div>
+            <!-- 选中停止点的颜色 -->
+            <div class="mcgradient-stop-row">
+              <span class="mcgradient-row-label unselectable" data-i18n>$panel.mcgradient.settings.stop_color$</span>
+              <div class="mcgradient-stop-color-input-row">
+                <input id="mcgradient-stop-color-text" data-i18n type="text" autocomplete="off" autocorrect="off"
+                  placeholder="$panel.mcgradient.settings.color_placeholder$">
+                <input id="mcgradient-stop-color-picker" data-i18n type="color"
+                  title="$panel.mcgradient.settings.picker_label$">
               </div>
+              <s-button id="mcgradient-stop-add" data-i18n type="text">$panel.mcgradient.settings.add_stop$</s-button>
+              <s-button id="mcgradient-stop-remove" data-i18n type="text">$panel.mcgradient.settings.remove_stop$</s-button>
+            </div>
+
+            <!-- 插值模式 -->
+            <div class="mcgradient-mode-row">
+              <span class="mcgradient-row-label unselectable" data-i18n>$panel.mcgradient.settings.interp_mode$</span>
+              <s-segmented-button id="mcgradient-mode">
+                <s-segmented-button-item value="rgb" selected data-i18n>$panel.mcgradient.settings.mode_rgb$</s-segmented-button-item>
+                <s-segmented-button-item value="hsv" data-i18n>$panel.mcgradient.settings.mode_hsv$</s-segmented-button-item>
+              </s-segmented-button>
             </div>
             
             <div class="mcgradient-panel-presets unselectable">
