@@ -143,6 +143,11 @@
       "action_param_reset": "Reset",
       "sync_java_to_bedrock": "Sync Java to Bedrock",
       "sync_bedrock_to_java": "Sync Bedrock to Java",
+      "sync_select_hint": "Select the Java buttons to sync to Bedrock:",
+      "sync_select_all": "Select all",
+      "sync_select_none": "Select none",
+      "sync_select_invert": "Invert",
+      "sync_no_buttons": "There are no Java buttons to sync.",
       "empty_slot": "Empty Slot"
     }
   },

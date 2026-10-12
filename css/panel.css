@@ -253,6 +253,47 @@ input.invalid {
   box-shadow: 0 0 0 3px rgba(211, 47, 47, .2);
 }
 
+/* JMenu 编辑器：同步选择对话框 */
+.jmenu-sync-hint {
+  font-size: .9rem;
+  color: var(--s-color-on-surface-variant, #40484C);
+  margin-bottom: .5em;
+  white-space: normal;
+}
+
+.jmenu-sync-scroll {
+  max-height: 40vh;
+  width: 100%;
+  border: 1px solid var(--s-color-outline-variant, #C0C8CC);
+  border-radius: .5rem;
+  box-sizing: border-box;
+}
+
+.jmenu-sync-row {
+  display: flex;
+  align-items: center;
+  gap: .5em;
+  padding: .3em .6em;
+  cursor: pointer;
+}
+
+.jmenu-sync-row:hover {
+  background: var(--s-color-surface-container-low, rgba(128, 128, 128, .08));
+}
+
+.jmenu-sync-row>span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.jmenu-sync-toolbar {
+  display: flex;
+  gap: .4em;
+  margin-top: .5em;
+  flex-wrap: wrap;
+}
+
 /* 窄屏移动端（真·手机宽度，非 1024px 断点）：
    所有对话框全屏显示，底部面板宽度占满整个视口 */
 @media (max-width: 600px) {

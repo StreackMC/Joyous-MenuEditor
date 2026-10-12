@@ -631,43 +631,39 @@ export class JMElement extends HTMLElement {
       }
     });
 
-    // Java → Bedrock 同步（按顺序映射）
+    // Java → Bedrock 同步（可选择同步哪些按钮，按顺序映射）
     this.#_java2bedrockBtn.addEventListener('click', async () => {
-      try {
-        await utils.askfor(
-          i18n.parseSafe('tooltip.tip'),
-          tr('sync_java_to_bedrock_confirm'),
-          i18n.parseSafe('tooltip.confirm'),
-          i18n.parseSafe('tooltip.cancel')
-        );
-      } catch (_) { return; }
-      const javaArr = [];
+      // 1. 收集有序的 Java 按钮
+      const entries = [];
       if (this.#_data.java instanceof Map) {
-        if (this.#_data.java instanceof Map) {
-          // 将 Map 按 key 排序后转为有序数组
-          const sortedKeys = Array.from(this.#_data.java.keys()).sort((a, b) => {
-            const [ar, ac] = [parseInt(a[0]), parseInt(a[1])];
-            const [br, bc] = [parseInt(b[0]), parseInt(b[1])];
-            return (ar - br) || (ac - bc);
-          });
-          for (const key of sortedKeys) {
-            const btn = this.#_data.java.get(key);
-            if (btn instanceof JavaButton) {
-              javaArr.push(new BedrockButton({
-                display: { text: btn.tooltip?.[0] || btn.id, icon: "" },
-                perm: btn.permission ? (btn.permission_when_and_have ? "" : "!") + btn.permission : "",
-                action: btn.action_type || "none",
-                param: btn.action_param || ""
-              }));
-            }
-          }
-        }
-        this.#_data.bedrock = javaArr;
-        // 提交全部重渲染
-        for (let i = 0; i < this.#_data.bedrock.length; i++) {
-          this._commitBedrockUpdate(i, this.#_data.bedrock[i]);
+        // 将 Map 按 key 排序后转为有序数组
+        const sortedKeys = Array.from(this.#_data.java.keys()).sort((a, b) => {
+          const [ar, ac] = [parseInt(a[0]), parseInt(a[1])];
+          const [br, bc] = [parseInt(b[0]), parseInt(b[1])];
+          return (ar - br) || (ac - bc);
+        });
+        for (const key of sortedKeys) {
+          const btn = this.#_data.java.get(key);
+          if (btn instanceof JavaButton) entries.push({ key, btn });
         }
       }
+      if (entries.length === 0) {
+        utils.msg(tr('sync_no_buttons'), i18n.parseSafe('msg.done'), 'warning');
+        return;
+      }
+
+      // 2. 让用户选择要同步哪些按钮
+      const selected = await pickButtonsForSync(entries, tr('sync_java_to_bedrock'));
+      if (!selected || selected.length === 0) return;
+
+      // 3. 依序生成基岩版按钮并覆盖
+      this.#_data.bedrock = selected.map(({ btn }) => new BedrockButton({
+        display: { text: btn.tooltip?.[0] || btn.id, icon: "" },
+        perm: btn.permission ? (btn.permission_when_and_have ? "" : "!") + btn.permission : "",
+        action: btn.action_type || "none",
+        param: btn.action_param || ""
+      }));
+      this._scheduleRender();
     });
 
     // Bedrock → Java 同步（按顺序映射到前 N 个格子）
@@ -1737,6 +1733,73 @@ customElements.define("jmenu-editor", JMElement);
 /** 创建元素 @returns {HTMLElement} */
 function ce(t, c) { const e = document.createElement(t); if (c) e.className = c; return e; }
 /** 获取基于本编辑器节点的翻译键，其他节点请使用正常方法 */
+/**
+ * 弹出「选择要同步的按钮」对话框，用于选择将哪些 Java 按钮同步到基岩版。
+ * @param {Array<{key:string, btn:JavaButton}>} entries 已排序的 Java 按钮
+ * @param {string} title 对话框标题
+ * @returns {Promise<Array<{key:string, btn:JavaButton}>|null>} 选中的条目；取消或无选中返回 null
+ */
+async function pickButtonsForSync(entries, title) {
+  const scroll = document.createElement('s-scroll-view');
+  scroll.className = 'jmenu-sync-scroll';
+
+  /** @type {HTMLElement[]} */
+  const checkboxes = [];
+  entries.forEach(({ key, btn }, i) => {
+    const row = document.createElement('div');
+    row.className = 'jmenu-sync-row';
+
+    const cb = document.createElement('s-checkbox');
+    cb.checked = true;
+
+    const rowNo = key.length >= 2 ? key[0] : '?';
+    const colNo = key.length >= 2 ? key[1] : '?';
+    const text = (btn.tooltip && btn.tooltip[0]) ? btn.tooltip[0] : (btn.id || '');
+
+    const span = document.createElement('span');
+    span.textContent = `#${i + 1} [${rowNo}行 ${colNo}列] ${text}`;
+
+    row.appendChild(cb);
+    row.appendChild(span);
+    // 点击行（复选框以外区域）切换勾选
+    row.addEventListener('click', (e) => {
+      if (e.target === cb || cb.contains(e.target)) return;
+      cb.checked = !cb.checked;
+    });
+
+    scroll.appendChild(row);
+    checkboxes.push(cb);
+  });
+
+  const toolbar = document.createElement('div');
+  toolbar.className = 'jmenu-sync-toolbar';
+  const mkBtn = (label, onclick) => {
+    const b = document.createElement('s-button');
+    b.type = 'text';
+    b.textContent = label;
+    b.addEventListener('click', (e) => { e.preventDefault(); onclick(); });
+    return b;
+  };
+  toolbar.appendChild(mkBtn(tr('sync_select_all'), () => checkboxes.forEach((cb) => { cb.checked = true; })));
+  toolbar.appendChild(mkBtn(tr('sync_select_none'), () => checkboxes.forEach((cb) => { cb.checked = false; })));
+  toolbar.appendChild(mkBtn(tr('sync_select_invert'), () => checkboxes.forEach((cb) => { cb.checked = !cb.checked; })));
+
+  const hint = document.createElement('div');
+  hint.className = 'jmenu-sync-hint';
+  hint.textContent = tr('sync_select_hint');
+
+  let choice;
+  try {
+    choice = await utils.dialog(title, [hint, scroll, toolbar], true, [i18n.parseSafe('tooltip.confirm')]);
+  } catch (_) {
+    return null; // 用户取消
+  }
+  if (choice !== 0) return null;
+
+  const selected = entries.filter((_, i) => checkboxes[i].checked);
+  return selected.length > 0 ? selected : null;
+}
+
 function tr(key, params = {}) { return i18n.parseSafe(`editor.jmenu.${key}`, params); }
 /**
  * 将按钮转换为物品
