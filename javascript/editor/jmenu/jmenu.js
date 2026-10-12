@@ -33,7 +33,7 @@ const JMeleSTYLE = `
   height: 100%;
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(max(var(--jm-accept-min-width, 400px), 50%), 1fr));
-  grid-template-rows: calc(48px + var(--jm-actionbar-padding-y, 4px) + var(--jm-actionbar-padding-y, 4px)) auto;
+  grid-template-rows: calc(48px + var(--jm-actionbar-padding-y, 4px) + var(--jm-actionbar-padding-y, 4px)) auto 1fr;
   overflow: auto;
 }
 
@@ -76,13 +76,59 @@ const JMeleSTYLE = `
   flex: auto;
 }
 
+/* 权限模拟横幅 */
+.perm-sim-banner {
+  grid-column: 1 / -1;
+  grid-row-start: 2;
+  width: calc(100% - var(--jm-actionbar-padding-x, min(5%, 16px)) - var(--jm-actionbar-padding-x, min(5%, 16px)));
+  margin: 0 var(--jm-actionbar-padding-x, min(5%, 16px));
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: .5em;
+  padding: .35em .8em;
+  background: var(--s-color-warning-container, #ffe7ba);
+  color: var(--s-color-on-warning-container, #4a3400);
+  border-radius: .35em;
+  font-size: .9em;
+  z-index: 1;
+}
+
+.perm-sim-banner[hidden] {
+  display: none;
+}
+
+.perm-sim-banner-text {
+  flex: 1;
+  min-width: 0;
+}
+
+/* 编辑对象（主按钮 / 回退按钮） */
+.jm-else-row {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: .5em;
+}
+
+.jm-else-switch {
+  flex: 1;
+  min-width: 0;
+}
+
+.jm-else-hint {
+  font-size: .85em;
+  opacity: .8;
+}
+
 /* JAVA-AREA */
 .java {
   display: flex;
   flex-direction: column;
   align-items: center;
   padding-top: 1em;
-  grid-row-start: 2;
+  grid-row-start: 3;
 }
 
 .chest {
@@ -154,7 +200,7 @@ mc-chest-display {
   flex-direction: column;
   gap: .5em;
   padding: 1em;
-  grid-row-start: 2;
+  grid-row-start: 3;
 }
 
 .bedrock-header {
@@ -207,6 +253,9 @@ const SVG_ICONS = {
   having: `<svg viewBox="0 -960 960 960"><path d="M280-280v-400h400v400H280Zm80-80h240v-240H360v240Zm-240 80v-80h80v80h-80Zm0-320v-80h80v80h-80Zm160 480v-80h80v80h-80Zm0-640v-80h80v80h-80Zm320 640v-80h80v80h-80Zm0-640v-80h80v80h-80Zm160 480v-80h80v80h-80Zm0-320v-80h80v80h-80ZM480-480Z"/></svg>`,
   missing: `<svg viewBox="0 -960 960 960"><path d="M280-280v-400h400v400H280Zm-160 0v-80h80v80h-80Zm0-320v-80h80v80h-80Zm160 480v-80h80v80h-80Zm0-640v-80h80v80h-80Zm320 640v-80h80v80h-80Zm0-640v-80h80v80h-80Zm160 480v-80h80v80h-80Zm0-320v-80h80v80h-80Z"/></svg>`,
 };
+
+/** 「模拟权限」按钮图标 */
+const SVG_PERM_SIM = `<svg viewBox="0 -960 960 960"><path d="M160-80v-240q0-33 23.5-56.5T240-400h480q33 0 56.5 23.5T800-320v240H160Zm80-160h480v-80H240v80Zm240-160L280-680q0-83 58.5-141.5T480-880q83 0 141.5 58.5T680-680L480-400Zm0-112 120-168q0-50-35-85t-85-35q-50 0-85 35t-35 85l120 168Zm0-144Z"></path></svg>`;
 
 // ───────────────────── EditorJmenu ─────────────────────
 
@@ -282,6 +331,7 @@ export class JMElement extends HTMLElement {
   /** java: save btn @type {HTMLElement} */ #_saveBtn;
   /** java: item edit btn @type {HTMLElement} */ #_editItemBtn;
   /** actionbar: title @type {HTMLElement} */ #_titleEl; 
+  /** actionbar: switch perm status @type {HTMLElement} */ #_switchPermBtn; 
   /** actionbar: title rename btn @type {HTMLElement} */ #_renameTitleBtn; 
   /** actionbar: java2bedrock @type {HTMLElement} */ #_java2bedrockBtn; 
   /** actionbar: bedrock2java @type {HTMLElement} */ #_bedrock2javaBtn; 
@@ -313,6 +363,17 @@ export class JMElement extends HTMLElement {
   /** bedrock: add button @type {HTMLElement} */ #_bedrockAddBtn;
   /** bedrock render queue @type {Array<[number, BedrockButton]>} */ #_bedrockRenderQueue = [];
   /** bedrock render queue timeout @type {number|null} */ #_bedrockRenderQueueTOid = null;
+  /** 是否正在模拟权限 @type {boolean} */ #_simulatePerm = false;
+  /** 模拟中玩家拥有的权限节点 @type {Set<string>} */ #_permSimOwned = new Set();
+  /** actionbar: 权限模拟横幅 @type {HTMLElement} */ #_permSimBanner;
+  /** 权限模拟横幅的重新配置按钮 @type {HTMLElement} */ #_permSimBannerConfig;
+  /** 权限模拟横幅的关闭按钮 @type {HTMLElement} */ #_permSimBannerClose;
+  /** 权限模拟按钮的 tooltip 文本 @type {HTMLElement|null} */ #_switchPermTipText;
+  /** 当前编辑对象：'main' 主按钮 / 'else' 回退按钮 @type {'main'|'else'} */ #edittingTarget = 'main';
+  /** java: 切换编辑对象的分段按钮 @type {HTMLElement} */ #_editTargetSwitch;
+  /** java: 移除回退按钮的按钮 @type {HTMLElement} */ #_elseRemoveBtn;
+  /** java: 当前编辑对象为回退按钮时的提示 @type {HTMLElement} */ #_elseHintEl;
+  /** java: 编辑对象/移除回退按钮所在行 @type {HTMLElement} */ #_elseRowEl;
 
   constructor() {
     super();
@@ -331,6 +392,11 @@ export class JMElement extends HTMLElement {
   setData(data) {
     if (!(data instanceof JMenu)) throw new Error("Unrecognized Data Type: " + data);
     this.#_data = data;
+    // 切换文件时重置权限模拟与编辑对象
+    this.#_simulatePerm = false;
+    this.#_permSimOwned = new Set();
+    this.#edittingTarget = 'main';
+    this._updatePermSimUI();
     // 更新 UI：菜单标题、箱子名称与行数、以及格子物品
     // actionbar title must be plain text (remove formatting codes)
     this.#_titleEl.textContent = MCColors.remove(this.#_data.title || "");
@@ -401,19 +467,50 @@ export class JMElement extends HTMLElement {
     actionbar.appendChild(title);
     this.#_titleEl = title;
 
-    // 重命名按钮
-    [this.#_renameTitleBtn, this.#_java2bedrockBtn, this.#_bedrock2javaBtn,] = [
+    [this.#_renameTitleBtn, this.#_java2bedrockBtn, this.#_bedrock2javaBtn, this.#_switchPermBtn] = [
       this._buildTipBtn(
         '<svg viewBox="0 -960 960 960"><path d="m490-527 37 37 217-217-37-37-217 217ZM200-200h37l233-233-37-37-233 233v37Zm355-205L405-555l167-167-29-29-219 219-56-56 218-219q24-24 56.5-24t56.5 24l29 29 50-50q12-12 28.5-12t28.5 12l93 93q12 12 12 28.5T828-678L555-405ZM270-120H120v-150l285-285 150 150-285 285Z"></path></svg>',
         tr('rename_title'), true
       ),
       this._buildTipBtn('arrow_forward', tr('sync_java_to_bedrock')),
       this._buildTipBtn('arrow_back', tr('sync_bedrock_to_java')),
+      this._buildTipBtn(
+        SVG_PERM_SIM,
+        tr('switch_perm_mode'),
+        true
+      ),
     ]
+    actionbar.appendChild(this.#_switchPermBtn);
     actionbar.appendChild(this.#_renameTitleBtn);
     actionbar.appendChild(this.#_java2bedrockBtn);
     actionbar.appendChild(this.#_bedrock2javaBtn);
 
+    // 记录权限模拟按钮的 tooltip 文本，便于切换到「退出模拟」文案
+    this.#_switchPermTipText = this.#_switchPermBtn.querySelector('span') || null;
+
+    // ─── 权限模拟横幅 ────────────────────────────
+    const permSimBanner = ce('div', 'perm-sim-banner');
+    permSimBanner.setAttribute('hidden', '');
+    const permSimBannerText = ce('span', 'perm-sim-banner-text');
+    permSimBannerText.textContent = tr('perm_sim_banner');
+    // 重新配置模拟权限
+    const permSimBannerConfig = document.createElement('s-icon-button');
+    permSimBannerConfig.setAttribute('type', 'text');
+    permSimBannerConfig.title = tr('perm_sim_config');
+    permSimBannerConfig.innerHTML = `<s-icon>${SVG_PERM_SIM}</s-icon>`;
+    // 关闭模拟
+    const permSimBannerClose = document.createElement('s-icon-button');
+    permSimBannerClose.setAttribute('type', 'text');
+    permSimBannerClose.title = tr('perm_sim_close');
+    permSimBannerClose.innerHTML = '<s-icon name="close"></s-icon>';
+    permSimBanner.appendChild(permSimBannerText);
+    permSimBanner.appendChild(permSimBannerConfig);
+    permSimBanner.appendChild(permSimBannerClose);
+    root.appendChild(permSimBanner);
+    this.#_permSimBanner = permSimBanner;
+    this.#_permSimBannerConfig = permSimBannerConfig;
+    this.#_permSimBannerClose = permSimBannerClose;
+    
     // ─── Java 区域 ──────────────────────────────
     const java = ce('div', 'java');
     root.appendChild(java);
@@ -474,6 +571,35 @@ export class JMElement extends HTMLElement {
     cancelBtn.textContent = i18n.parse('tooltip.cancel');
     unsaveCard.appendChild(cancelBtn);
     this.#_unsaveCancelBtn = cancelBtn;
+
+    // ── 编辑对象：主按钮 / 回退按钮 ──
+    const elseRow = ce('div', 'jm-else-row');
+    const targetSwitch = document.createElement('s-segmented-button');
+    targetSwitch.className = 'jm-else-switch';
+    const mainSwitchItem = document.createElement('s-segmented-button-item');
+    mainSwitchItem.setAttribute('value', 'main');
+    mainSwitchItem.setAttribute('selected', '');
+    mainSwitchItem.textContent = tr('edit_target_main');
+    const elseSwitchItem = document.createElement('s-segmented-button-item');
+    elseSwitchItem.setAttribute('value', 'else');
+    elseSwitchItem.textContent = tr('edit_target_else');
+    targetSwitch.appendChild(mainSwitchItem);
+    targetSwitch.appendChild(elseSwitchItem);
+    elseRow.appendChild(targetSwitch);
+    // 移除回退按钮（仅编辑回退按钮时显示）
+    const elseRemoveTip = this._buildTipBtn('close', tr('else_remove'), false, '');
+    elseRemoveTip.classList.add('jm-else-remove');
+    elseRemoveTip.style.display = 'none';
+    elseRow.appendChild(elseRemoveTip);
+    editBody.appendChild(elseRow);
+    this.#_editTargetSwitch = targetSwitch;
+    this.#_elseRowEl = elseRow;
+    this.#_elseRemoveBtn = elseRemoveTip;
+    // 回退按钮说明（常显）
+    const elseHint = ce('div', 'jm-else-hint');
+    elseHint.textContent = tr('else_perm_invalid');
+    editBody.appendChild(elseHint);
+    this.#_elseHintEl = elseHint;
 
     // ── Save ──
     const saveBtn = document.createElement('s-button');
@@ -618,6 +744,33 @@ export class JMElement extends HTMLElement {
 
   /** 挂载 ACTIONBAR 事件 */
   _bindEvents_actionbar() {
+    // 切换权限模拟：开启时先询问玩家拥有哪些权限
+    this.#_switchPermBtn.addEventListener('click', () => {
+      try {
+        if (this.#_simulatePerm) {
+          this._setPermSimulation(false);
+        } else {
+          this._startPermSimulation();
+        }
+      } catch (error) {
+        console.error("Failed to switch permission simulation for", this.#_data, " : ", error);
+      }
+    });
+
+    // 横幅：重新配置模拟权限
+    if (this.#_permSimBannerConfig) {
+      this.#_permSimBannerConfig.addEventListener('click', () => {
+        this._startPermSimulation();
+      });
+    }
+
+    // 横幅关闭按钮 → 退出模拟
+    if (this.#_permSimBannerClose) {
+      this.#_permSimBannerClose.addEventListener('click', () => {
+        this._setPermSimulation(false);
+      });
+    }
+
     // 修改 MenuTitle
     this.#_renameTitleBtn.addEventListener('click', () => {
       try {
@@ -637,11 +790,7 @@ export class JMElement extends HTMLElement {
       const entries = [];
       if (this.#_data.java instanceof Map) {
         // 将 Map 按 key 排序后转为有序数组
-        const sortedKeys = Array.from(this.#_data.java.keys()).sort((a, b) => {
-          const [ar, ac] = [parseInt(a[0]), parseInt(a[1])];
-          const [br, bc] = [parseInt(b[0]), parseInt(b[1])];
-          return (ar - br) || (ac - bc);
-        });
+        const sortedKeys = Array.from(this.#_data.java.keys()).sort(compareSlotKeys);
         for (const key of sortedKeys) {
           const btn = this.#_data.java.get(key);
           if (btn instanceof JavaButton) entries.push({ key, btn });
@@ -661,7 +810,12 @@ export class JMElement extends HTMLElement {
         display: { text: btn.tooltip?.[0] || btn.id, icon: "" },
         perm: btn.permission ? (btn.permission_when_and_have ? "" : "!") + btn.permission : "",
         action: btn.action_type || "none",
-        param: btn.action_param || ""
+        param: btn.action_param || "",
+        else: btn.else_button ? {
+          display: { text: btn.else_button.tooltip?.[0] || btn.else_button.id, icon: "" },
+          action: btn.else_button.action_type || "none",
+          param: btn.else_button.action_param || "",
+        } : undefined,
       }));
       this._scheduleRender();
     });
@@ -689,7 +843,12 @@ export class JMElement extends HTMLElement {
           display: { id: "paper", tooltip: [btn.text || "", ""] },
           perm: btn.permission,
           action: btn.action_type || "none",
-          param: btn.action_param || ""
+          param: btn.action_param || "",
+          else: btn.else_button ? {
+            display: { id: "paper", tooltip: [btn.else_button.text || "", ""] },
+            action: btn.else_button.action_type || "none",
+            param: btn.else_button.action_param || "",
+          } : undefined,
         });
         this.#_data.java.set(key, jBtn);
         this._commitJavaBtnUpdate(i, JavaButton2Item(jBtn), jBtn);
@@ -793,20 +952,33 @@ export class JMElement extends HTMLElement {
       this._deleteJavaSlot();
     });
 
-    // 复制按钮（Java）
+    // 复制按钮（Java）—— 针对当前编辑对象
     this.#_javaCopyBtn.addEventListener('click', () => {
-      if (!this.#edittingJbutton) return;
-      const raw = this.#edittingJbutton;
+      const raw = this._getTargetBtn();
+      if (!raw) return;
+      const isElse = this.#edittingTarget === 'else';
       const obj = {
         display: { id: raw.id, enchant: !!raw.enchant_glint_override, tooltip: raw.tooltip },
-        perm: raw.permission ? (raw.permission_when_and_have ? '' : '!') + raw.permission : '',
+        perm: isElse ? '' : (raw.permission ? (raw.permission_when_and_have ? '' : '!') + raw.permission : ''),
         action: raw.action_type || 'none',
         param: raw.action_param || ''
       };
+      // 回退按钮内部不允许再嵌套回退按钮
+      if (!isElse && raw.else_button) {
+        obj.else = {
+          display: {
+            id: raw.else_button.id,
+            enchant: !!raw.else_button.enchant_glint_override,
+            tooltip: raw.else_button.tooltip,
+          },
+          action: raw.else_button.action_type || 'none',
+          param: raw.else_button.action_param || '',
+        };
+      }
       JClipboard.copy(JSON.stringify(obj, null, 2));
     });
 
-    // 粘贴按钮（Java）
+    // 粘贴按钮（Java）—— 针对当前编辑对象
     this.#_javaPasteBtn.addEventListener('click', async () => {
       if (this.#edittingJslot == null) return;
       const data = await this._pasteButtonData();
@@ -822,15 +994,27 @@ export class JMElement extends HTMLElement {
           );
         } catch (_) { return; }
       }
-      // 应用粘贴的按钮
       const [row, column] = getRowColumn(this.#edittingJslot);
       const key = `${row}${column}`;
       const newBtn = new JavaButton(data);
-      this.#_data.java.set(key, newBtn);
-      this.#edittingJbutton = newBtn;
-      this.#edittingJitem = JavaButton2Item(newBtn);
-      this._commitJavaBtnUpdate(this.#edittingJslot, this.#edittingJitem, newBtn);
-      this._startJavaBtnEdit(this.#edittingJslot, row, column, this.#edittingJitem);
+      if (this.#edittingTarget === 'else') {
+        // 粘贴到回退按钮：其内部 perm / else 判定无效，一律剥除
+        newBtn.permission = "";
+        newBtn.else_button = null;
+        if (!this.#edittingJbutton) return;
+        this.#edittingJbutton.else_button = newBtn;
+        this.#edittingJitem = JavaButton2Item(newBtn);
+        this._loadJavaEditFields();
+        this._commitJavaBtnUpdate(this.#edittingJslot, JavaButton2Item(this.#edittingJbutton), this.#edittingJbutton);
+      } else {
+        // 应用粘贴的按钮
+        this.#_data.java.set(key, newBtn);
+        this.#edittingJbutton = newBtn;
+        this.#edittingJitem = JavaButton2Item(newBtn);
+        this._commitJavaBtnUpdate(this.#edittingJslot, this.#edittingJitem, newBtn);
+        this._startJavaBtnEdit(this.#edittingJslot, row, column, this.#edittingJitem);
+      }
+      this._scheduleRender();
     });
 
     // 箱子大小改变
@@ -870,6 +1054,21 @@ export class JMElement extends HTMLElement {
     this.#_paramClearBtn.addEventListener('click', () => {
       this.#_paramField.value = "";
     })
+
+    // 切换编辑对象（主按钮 / 回退按钮）
+    this.#_editTargetSwitch.addEventListener('change', () => {
+      this._setEditTarget(this.#_editTargetSwitch.value === 'else' ? 'else' : 'main');
+    });
+
+    // 移除回退按钮
+    this.#_elseRemoveBtn.querySelector('s-icon-button').addEventListener('click', () => {
+      if (!this.#edittingJbutton || this.#edittingJslot == null) return;
+      this.#edittingJbutton.else_button = null;
+      this._setEditTarget('main');
+      this._commitJavaBtnUpdate(this.#edittingJslot, JavaButton2Item(this.#edittingJbutton), this.#edittingJbutton);
+      this._scheduleRender();
+      try { commandServer.executeCommand("files.save"); } catch (e) { console.warn(e); }
+    });
   }
 
   // ═════════════════════════════════════════════
@@ -1001,6 +1200,9 @@ export class JMElement extends HTMLElement {
   _openBedrockEditDialog(index) {
     const btn = this.#_data.bedrock[index];
     if (!btn) return;
+    // 当前编辑对象（主按钮 / 回退按钮）
+    let isElse = false;
+    let target = btn;
 
     // 构建对话框内容
     const dialog = document.createElement('s-dialog');
@@ -1052,12 +1254,37 @@ export class JMElement extends HTMLElement {
     textSlot.classList.add("jm-bedrock-editor-popup-root");
     dialog.appendChild(textSlot);
 
+    // ── 编辑对象：主按钮 / 回退按钮 ──
+    const targetRow = ce('div', 'jm-else-row');
+    targetRow.classList.add('jm-bedrock-editor-popup-displaytext');
+    const targetSwitch = document.createElement('s-segmented-button');
+    targetSwitch.className = 'jm-else-switch';
+    const mainSwitchItem = document.createElement('s-segmented-button-item');
+    mainSwitchItem.setAttribute('value', 'main');
+    mainSwitchItem.setAttribute('selected', '');
+    mainSwitchItem.textContent = tr('edit_target_main');
+    const elseSwitchItem = document.createElement('s-segmented-button-item');
+    elseSwitchItem.setAttribute('value', 'else');
+    elseSwitchItem.textContent = tr('edit_target_else');
+    targetSwitch.appendChild(mainSwitchItem);
+    targetSwitch.appendChild(elseSwitchItem);
+    targetRow.appendChild(targetSwitch);
+    const elseRemoveTip = this._buildTipBtn('close', tr('else_remove'), false, '');
+    elseRemoveTip.classList.add('jm-else-remove');
+    elseRemoveTip.style.display = 'none';
+    targetRow.appendChild(elseRemoveTip);
+    textSlot.appendChild(targetRow);
+    // 回退按钮说明（常显）
+    const elseHint = ce('div', 'jm-else-hint');
+    elseHint.textContent = tr('else_perm_invalid');
+    textSlot.appendChild(elseHint);
+
     // 文本输入（附带渐变/文本编辑器快捷按钮）
     const textField = document.createElement('s-text-field');
     textField.setAttribute('label', tr('bedrock_text_label'));
     textField.setAttribute('type', 'multiline');
     textField.classList.add('jm-bedrock-editor-popup-displaytext');
-    textField.value = btn.text || '';
+    textField.value = target.text || '';
     textSlot.appendChild(textField);
 
     // 从剪贴板粘贴
@@ -1117,16 +1344,16 @@ export class JMElement extends HTMLElement {
     // 图标输入
     const iconField = document.createElement('s-text-field');
     iconField.setAttribute('label', tr('bedrock_icon_label'));
-    iconField.value = btn.icon || '';
+    iconField.value = target.icon || '';
     textSlot.appendChild(iconField);
 
     // 权限输入（带模式切换按钮 + 悬浮提示 + 输入过滤，参考 Java 版）
     const permField = document.createElement('s-text-field');
     permField.setAttribute('label', tr('permission_label'));
-    permField.value = (btn.permission || '').replace(/^!/, '');
+    permField.value = (target.permission || '').replace(/^!/, '');
     textSlot.appendChild(permField);
 
-    let permMode = !btn.permission.startsWith('!') && btn.permission_when_and_have !== false;
+    let permMode = !target.permission.startsWith('!') && target.permission_when_and_have !== false;
     const permToggleIcon = document.createElement('s-icon');
     permToggleIcon.innerHTML = permMode ? SVG_ICONS.having : SVG_ICONS.missing;
     const permToggleBtn = document.createElement('s-icon-button');
@@ -1169,7 +1396,7 @@ export class JMElement extends HTMLElement {
     // 动作类型选择器
     const actionPicker = document.createElement('s-picker');
     actionPicker.setAttribute('label', tr('action_type'));
-    actionPicker.setAttribute('value', btn.action_type || 'none');
+    actionPicker.setAttribute('value', target.action_type || 'none');
     const types = [
       ['menu', 'action_type_menu'], ['cmd', 'action_type_cmd'],
       ['op', 'action_type_op'], ['con', 'action_type_con'],
@@ -1186,8 +1413,57 @@ export class JMElement extends HTMLElement {
     // 参数输入
     const paramField = document.createElement('s-text-field');
     paramField.setAttribute('label', tr('action_param'));
-    paramField.value = btn.action_param || '';
+    paramField.value = target.action_param || '';
     textSlot.appendChild(paramField);
+
+    /** 刷新权限模式 UI（图标 + 提示文字） */
+    const refreshPermModeUI = () => {
+      permToggleIcon.innerHTML = permMode ? SVG_ICONS.having : SVG_ICONS.missing;
+      permTip.lastChild.textContent = permMode ? tr('permission_have').replace(/<br>/g, ' ') : tr('permission_miss').replace(/<br>/g, ' ');
+    };
+
+    /** 切换/重新载入编辑对象 */
+    const applyTarget = (nextIsElse) => {
+      if (nextIsElse && !btn.else_button) {
+        // 以主按钮为模板创建回退按钮
+        btn.else_button = new BedrockButton({
+          display: { text: btn.text || '?', icon: btn.icon || '' },
+          action: btn.action_type || 'none',
+          param: btn.action_param || '',
+        });
+      }
+      isElse = !!nextIsElse;
+      target = isElse ? btn.else_button : btn;
+      textField.value = target.text || '';
+      iconField.value = target.icon || '';
+      permField.value = (target.permission || '').replace(/^!/, '');
+      permMode = target.permission_when_and_have !== false;
+      refreshPermModeUI();
+      actionPicker.value = target.action_type || 'none';
+      paramField.value = target.action_param || '';
+      // 回退按钮不支持权限要求
+      permField.disabled = isElse;
+      permField.toggleAttribute('disabled', isElse);
+      permTip.style.display = isElse ? 'none' : '';
+      elseRemoveTip.style.display = isElse ? '' : 'none';
+      targetSwitch.value = isElse ? 'else' : 'main';
+      headline.textContent = isElse
+        ? tr('bedrock_edit_title_else', { index: index + 1 })
+        : tr('bedrock_edit_title', { index: index + 1 });
+    };
+
+    // 切换编辑对象
+    targetSwitch.addEventListener('change', () => {
+      applyTarget(targetSwitch.value === 'else');
+    });
+
+    // 移除回退按钮
+    elseRemoveTip.querySelector('s-icon-button').addEventListener('click', () => {
+      btn.else_button = null;
+      applyTarget(false);
+      this._commitBedrockUpdate(index, btn);
+      this._scheduleRender();
+    });
 
     // 粘贴按钮（从剪贴板读取按钮数据）
     const bedrockPasteBtn = document.createElement('s-button');
@@ -1197,7 +1473,7 @@ export class JMElement extends HTMLElement {
       const data = await this._pasteButtonData();
       if (!data) return;
       // 检查是否要覆盖
-      if (btn.text !== '?' && btn.text !== '新按钮') {
+      if (target.text !== '?' && target.text !== '新按钮') {
         try {
           await utils.askfor(
             i18n.parseSafe('tooltip.tip'),
@@ -1209,12 +1485,14 @@ export class JMElement extends HTMLElement {
       }
       // 应用粘贴的按钮数据
       if (data.display) {
-        btn.text = data.display.text || data.display.id || '?';
-        btn.icon = data.display.icon || '';
+        target.text = data.display.text || data.display.id || '?';
+        target.icon = data.display.icon || '';
       }
-      btn.permission = data.perm || '';
-      btn.action_type = data.action || 'none';
-      btn.action_param = data.param || '';
+      target.permission = isElse ? "" : (data.perm || '');
+      target.action_type = data.action || 'none';
+      target.action_param = data.param || '';
+      // 回退按钮内部不允许再嵌套回退按钮
+      if (isElse) target.else_button = null;
       this._commitBedrockUpdate(index, btn);
       dialog.removeAttribute('showed');
     });
@@ -1254,13 +1532,14 @@ export class JMElement extends HTMLElement {
     saveBtn.setAttribute('type', 'text');
     saveBtn.textContent = i18n.parse('tooltip.save');
     saveBtn.addEventListener('click', () => {
-      // 保存修改
+      // 保存修改（回退按钮不支持权限要求）
       const rawPerm = permField.value.replace(/!/g, '');
-      btn.text = textField.value || '?';
-      btn.icon = iconField.value || '';
-      btn.permission = permMode ? rawPerm : '!' + rawPerm;
-      btn.action_type = actionPicker.value;
-      btn.action_param = paramField.value || '';
+      target.text = textField.value || '?';
+      target.icon = iconField.value || '';
+      target.permission = isElse ? "" : (permMode ? rawPerm : '!' + rawPerm);
+      target.action_type = actionPicker.value;
+      target.action_param = paramField.value || '';
+      if (isElse) target.else_button = null;
       this._commitBedrockUpdate(index, btn);
       dialog.removeAttribute('showed');
     });
@@ -1348,12 +1627,61 @@ export class JMElement extends HTMLElement {
   #edittingJslot = null;
   /** 正在编辑的按钮物品 @type {Item|null} */
   #edittingJitem = null;
+  /** 当前编辑对象对应的按钮（主按钮或回退按钮） @returns {JavaButton|null} */
+  _getTargetBtn() {
+    const main = this.#edittingJbutton;
+    if (!main) return null;
+    return this.#edittingTarget === 'else' ? main.else_button : main;
+  }
+
+  /** 载入当前编辑对象的字段到编辑面板，并同步「编辑对象」相关 UI */
+  _loadJavaEditFields() {
+    const btn = this._getTargetBtn();
+    if (!btn || this.#edittingJslot == null) return;
+    const isElse = this.#edittingTarget === 'else';
+    // 标题
+    const [row, column] = getRowColumn(this.#edittingJslot);
+    this._commitJavaTitle(tr(isElse ? 'title_edit_else' : 'title_edit', { slot: this.#edittingJslot + 1, column, row }), 'set');
+    // 权限节点：去除 ! 前缀后再显示（! 用于标记权限模式，不存入输入框）
+    this.#_permField.value = (btn.permission || '').replace(/^!/, '');
+    this.#_actionPicker.value = btn.action_type;
+    this.#_paramField.value = btn.action_param;
+    // 权限模式：若原数据以 ! 开头，表示「无权限时可见」
+    const rawPerm = btn.permission || '';
+    const permMode = rawPerm.startsWith('!') ? !btn.permission_when_and_have : !!btn.permission_when_and_have;
+    this._putAndGetPermBool(permMode);
+    // 回退按钮不支持权限要求，因此禁用权限输入
+    this.#_permField.disabled = isElse;
+    this.#_permField.toggleAttribute('disabled', isElse);
+    this.#_permField.querySelectorAll('s-tooltip').forEach((t) => { t.style.display = isElse ? 'none' : ''; });
+    if (this.#_elseRemoveBtn) this.#_elseRemoveBtn.style.display = isElse ? '' : 'none';
+    if (this.#_editTargetSwitch) this.#_editTargetSwitch.value = isElse ? 'else' : 'main';
+  }
+
+  /**
+   * 切换 Java 编辑对象（主按钮 / 回退按钮）。
+   * 若回退按钮尚不存在，则以主按钮为模板创建。
+   * @param {'main'|'else'} target
+   */
+  _setEditTarget(target) {
+    if (this.#edittingJslot == null || !this.#edittingJbutton) return;
+    const main = this.#edittingJbutton;
+    if (target === 'else' && !main.else_button) {
+      main.else_button = cloneJavaButtonAsElse(main);
+    }
+    this.#edittingTarget = (target === 'else') ? 'else' : 'main';
+    const btn = this._getTargetBtn();
+    if (btn) this.#edittingJitem = JavaButton2Item(btn);
+    this._loadJavaEditFields();
+  }
+
   /** 立即渲染JavaButton编辑，无条件替换正在进行的编辑 @type {Item} item */
   _startJavaBtnEdit(index, row, column, item) {
     // 替换正在编辑的
     this.#edittingJbutton = this.#_data.java.get(`${row}${column}`);
     this.#edittingJitem = item;
     this.#edittingJslot = index;
+    this.#edittingTarget = 'main';
     if (!this.#edittingJbutton) {
       // 空槽位：默认使用 air 作为物品 ID
       this.#edittingJbutton = new JavaButton({ display: { id: "air" } });
@@ -1362,15 +1690,7 @@ export class JMElement extends HTMLElement {
       this.#edittingJitem = JavaButton2Item(this.#edittingJbutton);
     }
     // 载入信息
-    this._commitJavaTitle(tr('title_edit', { slot: index + 1, column: column, row: row }), 'set');
-    // 权限节点：去除 ! 前缀后再显示（! 用于标记权限模式，不存入输入框）
-    this.#_permField.value = (this.#edittingJbutton.permission || '').replace(/^!/, '');
-    this.#_actionPicker.value = this.#edittingJbutton.action_type;
-    this.#_paramField.value = this.#edittingJbutton.action_param;
-    // 权限模式：若原数据以 ! 开头，表示「无权限时可见」
-    const rawPerm = this.#edittingJbutton.permission || '';
-    const permMode = rawPerm.startsWith('!') ? !this.#edittingJbutton.permission_when_and_have : !!this.#edittingJbutton.permission_when_and_have;
-    this._putAndGetPermBool(permMode);
+    this._loadJavaEditFields();
     // 显示这个元素
     this.#_editBody.setAttribute("visible", true);
     // 标记当前正在编辑的格子（突出显示）
@@ -1398,6 +1718,7 @@ export class JMElement extends HTMLElement {
     this.#edittingJbutton = null;
     this.#edittingJitem = null;
     this.#edittingJslot = null;
+    this.#edittingTarget = 'main';
     this.#_editBody.removeAttribute('visible');
     this.#_unsaveCard.removeAttribute('visible');
     try { this.#_chestEl.highlightIndex = -1; } catch (_) {}
@@ -1439,6 +1760,125 @@ export class JMElement extends HTMLElement {
     return null;
   }
 
+  // ═════════════════════════════════════════════
+  //  权限模拟
+  // ═════════════════════════════════════════════
+
+  /**
+   * 收集菜单中所有按钮声明的权限节点（去重，按 Java 槽位顺序、再按基岩版顺序）。
+   * 回退按钮的 perm 判定无效，因此不参与收集。
+   * @returns {string[]}
+   */
+  _collectPermissions() {
+    /** @type {string[]} */
+    const list = [];
+    const seen = new Set();
+    const push = (btn) => {
+      const perm = btn?.permission;
+      if (!perm || seen.has(perm)) return;
+      seen.add(perm);
+      list.push(perm);
+    };
+    if (this.#_data?.java instanceof Map) {
+      const keys = Array.from(this.#_data.java.keys()).sort(compareSlotKeys);
+      for (const key of keys) push(this.#_data.java.get(key));
+    }
+    if (Array.isArray(this.#_data?.bedrock)) this.#_data.bedrock.forEach(push);
+    return list;
+  }
+
+  /**
+   * 依据按钮权限与当前模拟状态判断其是否应显示。
+   *
+   * 未开启模拟时忽略一切权限要求（总是显示）；
+   * 开启模拟时按「玩家拥有 #_permSimOwned 中列出的权限」来判定：
+   * - 需要拥有权限的按钮（permission_when_and_have === true）→ 拥有才显示
+   * - 需要缺失该权限的按钮（permission_when_and_have === false）→ 缺失才显示
+   * - 无权限要求的按钮 → 始终显示
+   *
+   * @param {JavaButton|BedrockButton} btn
+   * @returns {boolean}
+   */
+  _isBtnVisibleWithPerm(btn) {
+    if (!btn) return true;
+    if (!this.#_simulatePerm) return true;
+    if (!btn.permission) return true;
+    const owned = this.#_permSimOwned.has(btn.permission);
+    return btn.permission_when_and_have ? owned : !owned;
+  }
+
+  /**
+   * 解析实际应渲染的按钮：主按钮可见则用主按钮，
+   * 否则回退到 else（回退按钮不再判定权限）；都没有则返回 null（该位置不渲染）。
+   * @param {JavaButton|BedrockButton} btn
+   * @returns {{btn: JavaButton|BedrockButton|null, isElse: boolean}}
+   */
+  _resolveVisibleBtn(btn) {
+    if (!btn) return { btn: null, isElse: false };
+    if (this._isBtnVisibleWithPerm(btn)) return { btn, isElse: false };
+    if (btn.else_button) return { btn: btn.else_button, isElse: true };
+    return { btn: null, isElse: false };
+  }
+
+  /**
+   * 开启/关闭权限模拟并刷新界面。
+   * @param {boolean} on
+   */
+  _setPermSimulation(on) {
+    this.#_simulatePerm = !!on;
+    this._updatePermSimUI();
+    this._recommitAllJava();
+    this._scheduleRender();
+  }
+
+  /**
+   * 开始（或重新配置）权限模拟：收集权限 → 询问玩家拥有哪些 → 应用。
+   */
+  async _startPermSimulation() {
+    const perms = this._collectPermissions();
+    if (perms.length === 0) {
+      utils.msg(tr('perm_sim_no_perms'), i18n.parseSafe('msg.done'), 'warning');
+      return;
+    }
+    const owned = await pickSimulatedPermissions(perms, this.#_permSimOwned);
+    if (!owned) return; // 用户取消
+    this.#_permSimOwned = owned;
+    this._setPermSimulation(true);
+  }
+
+  /** 刷新模拟相关的 UI（横幅、按钮状态与 tooltip 文案）。 */
+  _updatePermSimUI() {
+    const on = this.#_simulatePerm;
+    if (this.#_permSimBanner) {
+      this.#_permSimBanner.hidden = !on;
+      if (on) {
+        const total = this._collectPermissions().length;
+        const textEl = this.#_permSimBanner.querySelector('.perm-sim-banner-text');
+        if (textEl) textEl.textContent = tr('perm_sim_banner', { owned: this.#_permSimOwned.size, total: total });
+      }
+    }
+    const innerBtn = this.#_switchPermBtn ? this.#_switchPermBtn.querySelector('s-icon-button') : null;
+    if (innerBtn) innerBtn.setAttribute('type', on ? 'filled' : 'outlined');
+    if (this.#_switchPermTipText) {
+      this.#_switchPermTipText.textContent = on ? tr('switch_perm_mode_exit') : tr('switch_perm_mode');
+    }
+  }
+
+  /** 重新提交所有 Java 槽位渲染（切换模拟时用于刷新整箱物品）。 */
+  _recommitAllJava() {
+    if (!(this.#_data?.java instanceof Map)) return;
+    for (const [slot, btn] of this.#_data.java.entries()) {
+      if (!(btn instanceof JavaButton)) continue;
+      if (!slot || slot.length < 2) continue;
+      const line = parseInt(slot[0]);
+      const column = parseInt(slot[1]);
+      if (Number.isNaN(line) || Number.isNaN(column)) continue;
+      const index = (line - 1) * 9 + (column - 1);
+      if (index < 0 || index >= 54) continue;
+      this._commitJavaBtnUpdate(index, JavaButton2Item(btn), btn);
+    }
+  }
+
   _rafId = null;
   /** 请求渲染，在下个帧完成，自动合并防抖 */
   _scheduleRender() {
@@ -1458,19 +1898,33 @@ export class JMElement extends HTMLElement {
       
       // JavaChest 物品渲染
       this.#javeBtnRenderQueue.forEach(([index, item, btn]) => {
-        if (!Array.isArray(item.ISC?.lore)) { item.ISC.lore = []; }
+        // 解析实际应显示的按钮（主按钮或其回退按钮；都没则清空槽位）
+        const { btn: shownBtn, isElse } = this._resolveVisibleBtn(btn);
+        if (!shownBtn) {
+          this.#_chestEl.setItem(index, null);
+          return;
+        }
+        const shownItem = isElse ? JavaButton2Item(shownBtn) : item;
+        if (!Array.isArray(shownItem.ISC?.lore)) { shownItem.ISC.lore = []; }
         // 构建镜像物品，并显示附加信息
-        const mirror = item.clone();
-        if (btn.permission) {
+        const mirror = shownItem.clone();
+        if (shownBtn.permission && !isElse) {
           // 有权限需求，就计算权限模式
-          if (btn.permission_when_and_have) {
-            mirror.ISC.lore.push(MCColors.parse(tr("attach_to_tooltip_p", { perm: btn.permission, action: btn.action_type, param: btn.action_param })));
+          if (shownBtn.permission_when_and_have) {
+            mirror.ISC.lore.push(MCColors.parse(tr("attach_to_tooltip_p", { perm: shownBtn.permission, action: shownBtn.action_type, param: shownBtn.action_param })));
           } else {
-            mirror.ISC.lore.push(MCColors.parse(tr("attach_to_tooltip_np", { perm: btn.permission, action: btn.action_type, param: btn.action_param })));
+            mirror.ISC.lore.push(MCColors.parse(tr("attach_to_tooltip_np", { perm: shownBtn.permission, action: shownBtn.action_type, param: shownBtn.action_param })));
           }
         } else {
-          // 没有权限需求
-          mirror.ISC.lore.push(MCColors.parse(tr("attach_to_tooltip", { action: btn.action_type, param: btn.action_param })));
+          // 没有权限需求（或当前显示的是回退按钮）
+          mirror.ISC.lore.push(MCColors.parse(tr("attach_to_tooltip", { action: shownBtn.action_type, param: shownBtn.action_param })));
+        }
+        if (isElse) {
+          // 说明这是因权限不可见而显示的替代按钮
+          mirror.ISC.lore.push(MCColors.parse(tr("attach_to_tooltip_else", { perm: btn.permission })));
+        } else if (btn.else_button) {
+          // 主按钮显示时提醒它配置了回退按钮
+          mirror.ISC.lore.push(MCColors.parse(tr("attach_to_tooltip_else_idle")));
         }
         // 附加并显示
         this.#_chestEl.setItem(index, mirror);
@@ -1489,16 +1943,20 @@ export class JMElement extends HTMLElement {
       const processedIndexes = new Set();
       this.#_bedrockRenderQueue.forEach(([index, btn]) => {
         if (!(btn instanceof BedrockButton)) return;
+        const resolved = this._resolveVisibleBtn(btn);
+        if (!resolved.btn) return;
         processedIndexes.add(index);
-        this._renderBedrockCard(index, btn);
+        this._renderBedrockCard(index, resolved.btn, resolved.isElse, btn);
       });
 
       // 确保所有未在队列中的已有按钮也渲染
       if (Array.isArray(this.#_data?.bedrock)) {
         for (let i = 0; i < this.#_data.bedrock.length; i++) {
-          if (!processedIndexes.has(i) && this.#_data.bedrock[i] instanceof BedrockButton) {
-            this._renderBedrockCard(i, this.#_data.bedrock[i]);
-          }
+          const btn = this.#_data.bedrock[i];
+          if (processedIndexes.has(i) || !(btn instanceof BedrockButton)) continue;
+          const resolved = this._resolveVisibleBtn(btn);
+          if (!resolved.btn) continue;
+          this._renderBedrockCard(i, resolved.btn, resolved.isElse, btn);
         }
       }
 
@@ -1510,9 +1968,11 @@ export class JMElement extends HTMLElement {
   /**
    * 渲染单个基岩版按钮卡片
    * @param {number} index
-   * @param {BedrockButton} btn
+   * @param {BedrockButton} btn 实际要渲染的按钮（可能是回退按钮）
+   * @param {boolean} [isElse=false] 当前渲染的是否为回退按钮
+   * @param {BedrockButton} [originBtn] 原始按钮（用于展示权限判定信息）
    */
-  _renderBedrockCard(index, btn) {
+  _renderBedrockCard(index, btn, isElse = false, originBtn = btn) {
     const card = document.createElement('s-card');
     card.className = 'bedrock-card';
     card.setAttribute('type', 'outlined');
@@ -1539,7 +1999,11 @@ export class JMElement extends HTMLElement {
     // 权限指示器
     const permEl = document.createElement('div');
     permEl.setAttribute('slot', 'subhead');
-    if (btn.permission) {
+    if (isElse) {
+      // 当前显示的是回退按钮
+      permEl.style.color = 'var(--s-color-warning-container, #ffe169)';
+      permEl.textContent = tr('bedrock_perm_else', { perm: originBtn.permission });
+    } else if (btn.permission) {
       if (btn.permission_when_and_have) {
         // 有权限才可见 → 黄色警告
         permEl.style.color = 'var(--s-color-warning-container, #ffe169)';
@@ -1555,6 +2019,15 @@ export class JMElement extends HTMLElement {
       permEl.textContent = tr('bedrock_perm_none');
     }
     card.appendChild(permEl);
+
+    // 回退按钮提示（仅主按钮可见时提示存在性，避免误导）
+    if (!isElse && btn.else_button) {
+      const elseEl = document.createElement('div');
+      elseEl.setAttribute('slot', 'subhead');
+      elseEl.style.color = 'var(--s-color-primary, #415f91)';
+      elseEl.textContent = tr('bedrock_else_info', { text: btn.else_button.text || '' });
+      card.appendChild(elseEl);
+    }
     // textEl.appendChild(permEl);
 
     // Action slot: 三个操作按钮
@@ -1610,22 +2083,40 @@ export class JMElement extends HTMLElement {
   async _doSaveEditting() {
     if (this.#edittingJslot == null) return;
     try {
-      // 构建 permission：输入框已过滤 !，只需根据权限模式添加前缀
+      const isElse = this.#edittingTarget === 'else';
+      // 构建 permission：输入框已过滤 !，只需根据权限模式添加前缀（回退按钮不支持权限）
       let permission = this.#_permField.value.replace(/!/g, "");
       if (!this._putAndGetPermBool()) { permission = "!" + permission; };
-      this.#edittingJbutton = Item2JavaButton(this.#edittingJitem, this.#_actionPicker.value, permission, this.#_paramField.value);
-      this._commitJavaBtnUpdate(this.#edittingJslot, this.#edittingJitem, this.#edittingJbutton);
-      // 同步回数据模型
+      const candidate = Item2JavaButton(this.#edittingJitem, this.#_actionPicker.value, isElse ? "" : permission, this.#_paramField.value);
+      const [row, column] = getRowColumn(this.#edittingJslot);
+      const key = `${row}${column}`;
+      if (isElse) {
+        // 回退按钮：只更新嵌套按钮，不动主按钮
+        if (!this.#edittingJbutton) return;
+        this.#edittingJbutton.else_button = candidate;
+      } else {
+        // 保留原有的回退按钮（它不在本面板的字段中）
+        candidate.else_button = this.#edittingJbutton ? this.#edittingJbutton.else_button : null;
+        this.#edittingJbutton = candidate;
+        // 同步回数据模型
+        try {
+          if (this.#_data && this.#_data.java instanceof Map) {
+            this.#_data.java.set(key, this.#edittingJbutton);
+          }
+        } catch (err) { console.warn("Failed to sync edited button to JMenu data:", err); }
+      }
+      // 确保主按钮已存在于数据中，否则回退按钮会随临时对象一起丢失
       try {
-        const [row, column] = getRowColumn(this.#edittingJslot);
-        const key = `${row}${column}`;
-        if (this.#_data && this.#_data.java instanceof Map) {
+        if (this.#_data && this.#_data.java instanceof Map && this.#_data.java.get(key) !== this.#edittingJbutton) {
           this.#_data.java.set(key, this.#edittingJbutton);
         }
       } catch (err) { console.warn("Failed to sync edited button to JMenu data:", err); }
+      // 提交渲染：始终以主按钮 + 主按钮的物品渲染，回退按钮由渲染阶段按权限解析
+      this._commitJavaBtnUpdate(this.#edittingJslot, JavaButton2Item(this.#edittingJbutton), this.#edittingJbutton);
+      this._scheduleRender();
       // 调用保存命令
       try { commandServer.executeCommand("files.save"); } catch (e) { console.warn(e); }
-      utils.msg(i18n.parseSafe("msg.savedTo", { path: `#${this.#edittingJslot + 1}` }), i18n.parseSafe("msg.done"), 'success');
+      utils.msg(i18n.parseSafe("msg.savedTo", { path: `#${this.#edittingJslot + 1}${isElse ? ' (else)' : ''}` }), i18n.parseSafe("msg.done"), 'success');
     } catch (e) {
       console.warn("Failed to save editing button:", e);
     }
@@ -1635,11 +2126,12 @@ export class JMElement extends HTMLElement {
   _isCurrentEditDirty() {
     if (this.#edittingJslot == null) return false;
     try {
+      const isElse = this.#edittingTarget === 'else';
       // 构建将在保存时生成的 JavaButton（输入框已过滤 !）
       let permission = this.#_permField.value.replace(/!/g, "");
       if (!this._putAndGetPermBool()) { permission = "!" + permission; };
-      const candidate = Item2JavaButton(this.#edittingJitem, this.#_actionPicker.value, permission, this.#_paramField.value);
-      const original = this.#edittingJbutton;
+      const candidate = Item2JavaButton(this.#edittingJitem, this.#_actionPicker.value, isElse ? "" : permission, this.#_paramField.value);
+      const original = this._getTargetBtn();
       if (!original) return true;
       // 对比关键字段
       const fieldsEqual = (
@@ -1699,7 +2191,9 @@ export class JMElement extends HTMLElement {
     else iconEl.setAttribute('name', icon);
     btn.appendChild(iconEl);
     tipEl.appendChild(btn);
-    tipEl.appendChild(document.createTextNode(tip));
+    const tipText = document.createElement('span');
+    tipText.textContent = tip;
+    tipEl.appendChild(tipText);
     return tipEl;
   }
 
@@ -1801,6 +2295,80 @@ async function pickButtonsForSync(entries, title) {
 }
 
 function tr(key, params = {}) { return i18n.parseSafe(`editor.jmenu.${key}`, params); }
+/** 以主按钮为模板创建回退按钮（回退按钮的 perm / else 无效，因此不继承） */
+function cloneJavaButtonAsElse(btn) {
+  return new JavaButton({
+    display: {
+      id: btn.id,
+      enchant: !!btn.enchant_glint_override,
+      tooltip: Array.isArray(btn.tooltip) ? [...btn.tooltip] : [],
+    },
+    action: btn.action_type || 'none',
+    param: btn.action_param || '',
+  });
+}
+/** 比较 Java 槽位键（如 "12"），按先行后列排序 */
+function compareSlotKeys(a, b) {
+  const [ar, ac] = [parseInt(a[0]), parseInt(a[1])];
+  const [br, bc] = [parseInt(b[0]), parseInt(b[1])];
+  if (Number.isNaN(ar) || Number.isNaN(br)) return String(a).localeCompare(String(b));
+  return (ar - br) || (ac - bc);
+}
+/**
+ * 弹出「模拟权限」对话框，用于选择模拟的玩家拥有哪些权限。
+ * @param {string[]} perms 菜单中出现的全部权限节点
+ * @param {Set<string>} [owned] 当前已勾选的权限
+ * @returns {Promise<Set<string>|null>} 勾选结果；取消返回 null
+ */
+async function pickSimulatedPermissions(perms, owned = new Set()) {
+  const scroll = ce('s-scroll-view', 'jmenu-sync-scroll');
+
+  /** @type {HTMLElement[]} */
+  const checkboxes = [];
+  perms.forEach((perm) => {
+    const row = ce('div', 'jmenu-sync-row');
+    const cb = document.createElement('s-checkbox');
+    cb.checked = owned.has(perm);
+    const span = document.createElement('span');
+    span.textContent = perm;
+    row.appendChild(cb);
+    row.appendChild(span);
+    // 点击行（复选框以外区域）切换勾选
+    row.addEventListener('click', (e) => {
+      if (e.target === cb || cb.contains(e.target)) return;
+      cb.checked = !cb.checked;
+    });
+    scroll.appendChild(row);
+    checkboxes.push(cb);
+  });
+
+  const toolbar = ce('div', 'jmenu-sync-toolbar');
+  const mkBtn = (label, onclick) => {
+    const b = document.createElement('s-button');
+    b.type = 'text';
+    b.textContent = label;
+    b.addEventListener('click', (e) => { e.preventDefault(); onclick(); });
+    return b;
+  };
+  toolbar.appendChild(mkBtn(tr('sync_select_all'), () => checkboxes.forEach((cb) => { cb.checked = true; })));
+  toolbar.appendChild(mkBtn(tr('sync_select_none'), () => checkboxes.forEach((cb) => { cb.checked = false; })));
+  toolbar.appendChild(mkBtn(tr('sync_select_invert'), () => checkboxes.forEach((cb) => { cb.checked = !cb.checked; })));
+
+  const hint = ce('div', 'jmenu-sync-hint');
+  hint.textContent = tr('perm_sim_select_hint');
+
+  let choice;
+  try {
+    choice = await utils.dialog(tr('perm_sim_dialog_title'), [hint, scroll, toolbar], true, [i18n.parseSafe('tooltip.confirm')]);
+  } catch (_) {
+    return null; // 用户取消
+  }
+  if (choice !== 0) return null;
+
+  const result = new Set();
+  perms.forEach((perm, i) => { if (checkboxes[i].checked) result.add(perm); });
+  return result;
+}
 /**
  * 将按钮转换为物品
  * @param {JavaButton} btn 源JAVA按钮

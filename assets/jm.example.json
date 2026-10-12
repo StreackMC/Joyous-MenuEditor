@@ -13,6 +13,17 @@
         ]
       },
       "perm": "joyous.menu",
+      "else": {
+        "display": {
+          "id": "minecraft:apple",
+          "enchant": false,
+          "tooltip": [
+            "&f回退按钮"
+          ]
+        },
+        "action": "menu",
+        "param": "example"
+      },
       "action": "menu",
       "param": "example"
     }

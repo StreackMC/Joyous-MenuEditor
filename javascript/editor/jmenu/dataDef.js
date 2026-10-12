@@ -38,30 +38,36 @@ export class JMenu {
     // java buttons
     for (const [slot, btn] of this.java.entries()) {
       const perm = (btn.permission_when_and_have === false && btn.permission) ? `!${btn.permission}` : (btn.permission || "");
-      obj["java-buttons"][slot] = {
+      const entry = {
         display: {
           id: btn.id,
           enchant: !!btn.enchant_glint_override,
           tooltip: Array.isArray(btn.tooltip) ? btn.tooltip : [],
         },
         perm: perm,
-        action: btn.action_type || "none",
-        param: btn.action_param || "",
       };
+      const elseRaw = elseButtonToRaw(btn.else_button);
+      if (elseRaw) entry.else = elseRaw;
+      entry.action = btn.action_type || "none";
+      entry.param = btn.action_param || "";
+      obj["java-buttons"][slot] = entry;
     }
 
     // bedrock buttons
     for (const btn of this.bedrock) {
       const perm = (btn.permission_when_and_have === false && btn.permission) ? `!${btn.permission}` : (btn.permission || "");
-      obj["bedrock-buttons"].push({
+      const entry = {
         display: {
           text: btn.text,
           icon: btn.icon || "",
         },
         perm: perm,
-        action: btn.action_type || "none",
-        param: btn.action_param || "",
-      });
+      };
+      const elseRaw = elseButtonToRaw(btn.else_button);
+      if (elseRaw) entry.else = elseRaw;
+      entry.action = btn.action_type || "none";
+      entry.param = btn.action_param || "";
+      obj["bedrock-buttons"].push(entry);
     }
 
     return JSON.stringify(obj, null, 2);
@@ -167,6 +173,17 @@ export class JavaButton {
     }
   }
 
+  #_else_button = null;
+  /** 回退按钮：当本按钮不可见时取而代之的按钮；null 表示未设置 @type {JavaButton|null} */
+  get else_button() { return this.#_else_button; }
+  set else_button(v) {
+    if (v instanceof JavaButton) {
+      this.#_else_button = v;
+      return;
+    }
+    this.#_else_button = parseElseJavaButton(v);
+  }
+
   action_param = "";
   tooltip = [];
 
@@ -179,6 +196,8 @@ export class JavaButton {
     this.permission = rawBtn.perm;
     this.action_param = rawBtn.param || ""; // 简写
     this.action_type = rawBtn.action;
+    // 回退按钮（其自身的 perm / else 判定无效，会被剥除）
+    this.else_button = rawBtn.else;
 
     // tooltip 处理
     this.tooltip = (Array.isArray(rawBtn.display.tooltip) && rawBtn.display.tooltip.length > 0)
@@ -243,6 +262,17 @@ export class BedrockButton {
   /** 动作参数 @type {String} */
   action_param = "";
 
+  #_else_button = null;
+  /** 回退按钮：当本按钮不可见时取而代之的按钮；null 表示未设置 @type {BedrockButton|null} */
+  get else_button() { return this.#_else_button; }
+  set else_button(v) {
+    if (v instanceof BedrockButton) {
+      this.#_else_button = v;
+      return;
+    }
+    this.#_else_button = parseElseBedrockButton(v);
+  }
+
   // ---------- 构造函数 ----------
   constructor(rawBtn) {
     // 校验：必须存在 display 且包含 text
@@ -256,7 +286,74 @@ export class BedrockButton {
     this.permission = rawBtn.perm;
     this.action_param = rawBtn.param || "";
     this.action_type = rawBtn.action;
+    // 回退按钮（其自身的 perm / else 判定无效，会被剥除）
+    this.else_button = rawBtn.else;
   }
+}
+
+/**
+ * 解析 Java 回退按钮。
+ * 回退按钮的 perm / else 属性判定无效，因此会被丢弃；
+ * 并且必须提供合法的 display，否则视为无效（等同未设置）。
+ * @param {Object} raw
+ * @returns {JavaButton|null}
+ */
+function parseElseJavaButton(raw) {
+  if (!raw?.display?.id) return null;
+  try {
+    return new JavaButton({ display: raw.display, action: raw.action, param: raw.param });
+  } catch (e) {
+    console.warn("JMenu 初始化时发现了非法的 Java 回退按钮：", raw, " -> ", e);
+    return null;
+  }
+}
+
+/**
+ * 解析基岩版回退按钮。
+ * 回退按钮的 perm / else 属性判定无效，因此会被丢弃；
+ * 并且必须提供合法的 display，否则视为无效（等同未设置）。
+ * @param {Object} raw
+ * @returns {BedrockButton|null}
+ */
+function parseElseBedrockButton(raw) {
+  if (!raw?.display?.text) return null;
+  try {
+    return new BedrockButton({ display: raw.display, action: raw.action, param: raw.param });
+  } catch (e) {
+    console.warn("JMenu 初始化时发现了非法的基岩版回退按钮：", raw, " -> ", e);
+    return null;
+  }
+}
+
+/**
+ * 将回退按钮序列化为原始数据。
+ * perm / else 在回退按钮中无效，因此不写入。
+ * @param {JavaButton|BedrockButton|null} btn
+ * @returns {Object|null}
+ */
+function elseButtonToRaw(btn) {
+  if (btn instanceof JavaButton) {
+    return {
+      display: {
+        id: btn.id,
+        enchant: !!btn.enchant_glint_override,
+        tooltip: Array.isArray(btn.tooltip) ? btn.tooltip : [],
+      },
+      action: btn.action_type || "none",
+      param: btn.action_param || "",
+    };
+  }
+  if (btn instanceof BedrockButton) {
+    return {
+      display: {
+        text: btn.text,
+        icon: btn.icon || "",
+      },
+      action: btn.action_type || "none",
+      param: btn.action_param || "",
+    };
+  }
+  return null;
 }
 
 export default {
