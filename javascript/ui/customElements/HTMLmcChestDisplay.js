@@ -22,6 +22,10 @@ import { HTMLmcItemDisplay } from "./HTMLmcItemDisplay.js";
  * @apiNote 第几个是 0-index ，行列是 1-index
  * @attr {number} line - 显示的行数（1~6）
  * @attr {string} name - 箱子名称（支持 § 格式代码）
+ *
+ * 另有 `itemClick` 与 `itemContextMenu` 事件，detail 均为
+ * `{ row, column, index, item }`（`itemContextMenu` 额外带 `clientX/clientY`）。
+ * `itemContextMenu` 已经阻止了系统右键菜单，只在右键命中槽位时触发。
  */
 export class HTMLmcChestDisplay extends HTMLElement {
   /** @type {Array<Item|null>} */
@@ -36,6 +40,7 @@ export class HTMLmcChestDisplay extends HTMLElement {
     this.attachShadow({ mode: 'open' });
     this._buildShadowDOM();
     this._onClick = this._onClick.bind(this);
+    this._onContextMenu = this._onContextMenu.bind(this);
     this._renderPending = false;
     this._renderId = null;
     this.#_items = new Array(54).fill(null);
@@ -154,6 +159,8 @@ export class HTMLmcChestDisplay extends HTMLElement {
   connectedCallback() {
     // 捕获click
     this._grid.addEventListener('click', this._onClick);
+    // 捕获右键（捕获阶段，避免被槽位内部的 mc-item-display 拦下）
+    this._grid.addEventListener('contextmenu', this._onContextMenu, true);
     // 捕获hover
     const clazz = this;
     this.#hoverHandler = [
@@ -169,6 +176,7 @@ export class HTMLmcChestDisplay extends HTMLElement {
   disconnectedCallback() {
     // 移除捕获
     this._grid.removeEventListener('click', this._onClick);
+    this._grid.removeEventListener('contextmenu', this._onContextMenu, true);
     this._grid.removeEventListener('mouseenter', this.#hoverHandler[0], true);
     this._grid.removeEventListener('mouseleave', this.#hoverHandler[1], true);
     // 取消待处理的动画帧
@@ -470,6 +478,32 @@ export class HTMLmcChestDisplay extends HTMLElement {
       composed: true,
     });
     this.dispatchEvent(event);
+  }
+
+  // ---------- 右键事件 ----------
+
+  _onContextMenu(e) {
+    const slot = e.target.closest?.('.slot');
+    // 未命中槽位时不拦截，保留浏览器默认菜单
+    if (!slot) return;
+    e.preventDefault();
+
+    const row = parseInt(slot.dataset.row);
+    const column = parseInt(slot.dataset.column);
+    const index = row * 9 + column;
+
+    this.dispatchEvent(new CustomEvent('itemContextMenu', {
+      detail: {
+        row: row + 1,      // 转为 1-indexed
+        column: column + 1,
+        index: index,
+        item: this.#_items[index] || null,
+        clientX: e.clientX,
+        clientY: e.clientY,
+      },
+      bubbles: true,
+      composed: true,
+    }));
   }
 }
 

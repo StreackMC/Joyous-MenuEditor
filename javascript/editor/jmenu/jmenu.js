@@ -374,6 +374,11 @@ export class JMElement extends HTMLElement {
   /** java: 移除回退按钮的按钮 @type {HTMLElement} */ #_elseRemoveBtn;
   /** java: 当前编辑对象为回退按钮时的提示 @type {HTMLElement} */ #_elseHintEl;
   /** java: 编辑对象/移除回退按钮所在行 @type {HTMLElement} */ #_elseRowEl;
+  /** java: 槽位右键菜单 @type {HTMLElement} */ #_slotMenu;
+  /** java: 槽位右键菜单的上下文 @type {{index:number,row:number,column:number}|null} */ #_slotMenuCtx = null;
+  /** java: 槽位右键菜单的外部关闭监听 @type {Function|null} */ #_slotMenuOutsideHandler = null;
+  /** java: 本次右键事件中菜单已被外部处理器关闭（需要延迟重开）@type {boolean} */ #_slotMenuPendingReopen = false;
+  /** java: 最近一次打开请求（用于作废过期的重试）@type {{ctx:Object,x:number,y:number}|null} */ #_slotMenuRequest = null;
 
   constructor() {
     super();
@@ -736,6 +741,19 @@ export class JMElement extends HTMLElement {
     const bedrockList = ce('div', 'bedrock-list');
     bedrockRoot.appendChild(bedrockList);
     this.#_bedrockList = bedrockList;
+
+    // ─── 槽位右键菜单 ───────────────────────────
+    const slotMenu = document.createElement('s-popup-menu');
+    slotMenu.className = 'jm-slot-menu';
+    [['copy', 'slot_menu_copy'], ['paste', 'slot_menu_paste'], ['edit', 'slot_menu_edit']]
+      .forEach(([action, key]) => {
+        const item = document.createElement('s-popup-menu-item');
+        item.dataset.slotAction = action;
+        item.textContent = tr(key);
+        slotMenu.appendChild(item);
+      });
+    root.appendChild(slotMenu);
+    this.#_slotMenu = slotMenu;
   }
 
   // ═════════════════════════════════════════════
@@ -873,29 +891,34 @@ export class JMElement extends HTMLElement {
     
     // click 点击事件
     this.#_chestEl.addEventListener('itemClick', (e) => {
-      const { row, column, /* 注意此处item的tooltip已经被污染了 */item, index } = e.detail;
-      // 若没有正在编辑或编辑的是同一格，则直接开始/切换
-      if (!this.#edittingJbutton || this.#edittingJslot === index) {
-        this._startJavaBtnEdit(index, row, column, null);
-        return;
-      }
-      // 有正在进行的编辑且目标不同，先判断是否有未保存的改动
-      if (!this._isCurrentEditDirty()) {
-        // 无改动，直接切换
-        this._startJavaBtnEdit(index, row, column, null);
-        return;
-      }
-      // 若当前编辑的物品 ID 为 air，则静默丢弃，不提示
-      if (this.#edittingJitem && (this.#edittingJitem.id === 'minecraft:air' || this.#edittingJitem.getClearId() === 'air')) {
-        this.#_unsaveCard.removeAttribute('visible');
-        this._startJavaBtnEdit(index, row, column, null);
-        return;
-      }
-      // 有未保存改动，弹出未保存提示
-      this.#_pendingSwitch = { index, row, column, item };
-      this.#_unsaveTextEl.innerHTML = i18n.parseSafe("editor.jmenu.unsave_text", { slot: this.#edittingJslot + 1, row: getRowColumn(this.#edittingJslot)[0], column: getRowColumn(this.#edittingJslot)[1] });
-      this.#_unsaveCard.setAttribute('visible', 'true');
+      this._handleChestItemClick(e.detail);
     });
+
+    // 右键槽位 → 槽位菜单
+    this.#_chestEl.addEventListener('itemContextMenu', (e) => {
+      const { row, column, index, clientX, clientY } = e.detail;
+      this._openSlotMenu({ index, row, column }, clientX, clientY);
+    });
+
+    // 槽位菜单项点击（s-popup-menu 会自动关闭菜单）
+    this.#_slotMenu.addEventListener('click', (e) => {
+      const item = (e.target instanceof Element) ? e.target.closest('s-popup-menu-item') : null;
+      if (!item) return;
+      const action = item.dataset.slotAction;
+      if (!action) return;
+      this._runSlotMenuAction(action);
+    });
+
+    // 菜单展开时右键任意位置：先关掉菜单，避免系统菜单与遮罩冲突
+    this.#_slotMenuOutsideHandler = (e) => {
+      if (!this._isSlotMenuOpen()) return;
+      const path = e.composedPath ? e.composedPath() : [];
+      if (path.includes(this.#_slotMenu)) return;
+      // 标记本次事件已关闭菜单，让后续的槽位处理器知道需要延迟重开
+      this.#_slotMenuPendingReopen = true;
+      this._closeSlotMenu();
+    };
+    document.addEventListener('contextmenu', this.#_slotMenuOutsideHandler, true);
 
     // save 保存按钮
     this.#_saveBtn.addEventListener('click', e => {
@@ -956,26 +979,7 @@ export class JMElement extends HTMLElement {
     this.#_javaCopyBtn.addEventListener('click', () => {
       const raw = this._getTargetBtn();
       if (!raw) return;
-      const isElse = this.#edittingTarget === 'else';
-      const obj = {
-        display: { id: raw.id, enchant: !!raw.enchant_glint_override, tooltip: raw.tooltip },
-        perm: isElse ? '' : (raw.permission ? (raw.permission_when_and_have ? '' : '!') + raw.permission : ''),
-        action: raw.action_type || 'none',
-        param: raw.action_param || ''
-      };
-      // 回退按钮内部不允许再嵌套回退按钮
-      if (!isElse && raw.else_button) {
-        obj.else = {
-          display: {
-            id: raw.else_button.id,
-            enchant: !!raw.else_button.enchant_glint_override,
-            tooltip: raw.else_button.tooltip,
-          },
-          action: raw.else_button.action_type || 'none',
-          param: raw.else_button.action_param || '',
-        };
-      }
-      JClipboard.copy(JSON.stringify(obj, null, 2));
+      this._copyBtnToClipboard(raw, this.#edittingTarget === 'else');
     });
 
     // 粘贴按钮（Java）—— 针对当前编辑对象
@@ -1577,6 +1581,10 @@ export class JMElement extends HTMLElement {
   disconnectedCallback() {
     if (this._rafId) cancelAnimationFrame(this._rafId);
     if (this.#_bedrockRenderQueueTOid) clearTimeout(this.#_bedrockRenderQueueTOid);
+    if (this.#_slotMenuOutsideHandler) {
+      document.removeEventListener('contextmenu', this.#_slotMenuOutsideHandler, true);
+      this.#_slotMenuOutsideHandler = null;
+    }
   }
 
   // ═════════════════════════════════════════════
@@ -1673,6 +1681,214 @@ export class JMElement extends HTMLElement {
     const btn = this._getTargetBtn();
     if (btn) this.#edittingJitem = JavaButton2Item(btn);
     this._loadJavaEditFields();
+  }
+
+  /**
+   * 处理槽位左键点击（含未保存改动的切换确认）
+   * @param {{index:number,row:number,column:number,item?:Item|null}} detail
+   */
+  _handleChestItemClick(detail) {
+    const { row, column, item, index } = detail;
+    // 若没有正在编辑或编辑的是同一格，则直接开始/切换
+    if (!this.#edittingJbutton || this.#edittingJslot === index) {
+      this._startJavaBtnEdit(index, row, column, null);
+      return;
+    }
+    // 有正在进行的编辑且目标不同，先判断是否有未保存的改动
+    if (!this._isCurrentEditDirty()) {
+      // 无改动，直接切换
+      this._startJavaBtnEdit(index, row, column, null);
+      return;
+    }
+    // 若当前编辑的物品 ID 为 air，则静默丢弃，不提示
+    if (this.#edittingJitem && (this.#edittingJitem.id === 'minecraft:air' || this.#edittingJitem.getClearId() === 'air')) {
+      this.#_unsaveCard.removeAttribute('visible');
+      this._startJavaBtnEdit(index, row, column, null);
+      return;
+    }
+    // 有未保存改动，弹出未保存提示
+    this.#_pendingSwitch = { index, row, column, item };
+    this.#_unsaveTextEl.innerHTML = i18n.parseSafe("editor.jmenu.unsave_text", { slot: this.#edittingJslot + 1, row: getRowColumn(this.#edittingJslot)[0], column: getRowColumn(this.#edittingJslot)[1] });
+    this.#_unsaveCard.setAttribute('visible', 'true');
+  }
+
+  // ═════════════════════════════════════════════
+  //  槽位右键菜单
+  // ═════════════════════════════════════════════
+
+  /** 槽位右键菜单当前是否已展开 @returns {boolean} */
+  _isSlotMenuOpen() {
+    const popup = this.#_slotMenu?.shadowRoot?.querySelector('s-popup');
+    return !!popup && popup.hasAttribute('showed');
+  }
+
+  /** 关闭槽位右键菜单 */
+  _closeSlotMenu() {
+    if (this.#_slotMenu && typeof this.#_slotMenu.close === 'function') {
+      try { this.#_slotMenu.close(); } catch (ignore) { /* 忽略关闭异常 */ }
+    }
+    this.#_slotMenuCtx = null;
+    this.#_slotMenuRequest = null;
+  }
+
+  /**
+   * 在指定坐标打开槽位右键菜单
+   * @param {{index:number,row:number,column:number}} ctx
+   * @param {number} x
+   * @param {number} y
+   */
+  _openSlotMenu(ctx, x, y) {
+    if (!this.#_slotMenu || !ctx) return;
+    // 菜单已展开、或已被本次事件的 document 处理器关掉，都需先关闭再重新定位
+    // （s-popup 的 show() 在已展开/动画中时是空操作，不会重新定位）
+    const wasOpen = this.#_slotMenuPendingReopen || this._isSlotMenuOpen();
+    this.#_slotMenuPendingReopen = false;
+    if (wasOpen) {
+      try { this.#_slotMenu.close(); } catch (ignore) { /* 忽略关闭异常 */ }
+    }
+    this.#_applySlotMenuItems(ctx);
+    this.#_showSlotMenuAt({ ctx, x, y });
+  }
+
+  /** 根据上下文刷新菜单项可见性（无按钮时不可复制） */
+  #_applySlotMenuItems(ctx) {
+    if (!this.#_slotMenu) return;
+    this.#_slotMenuCtx = ctx;
+    const key = `${ctx.row}${ctx.column}`;
+    const btn = this.#_data?.java instanceof Map ? this.#_data.java.get(key) : null;
+    const hasBtn = btn instanceof JavaButton;
+    const copyItem = this.#_slotMenu.querySelector('s-popup-menu-item[data-slot-action="copy"]');
+    if (copyItem) copyItem.style.display = hasBtn ? '' : 'none';
+  }
+
+  /**
+   * 打开菜单（带重试）：popup 在关闭动画未结束时 show() 会被忽略，
+   * 因此轮询重试，直到真的展开或次数用尽。
+   * @param {{ctx:Object,x:number,y:number}} request
+   * @param {number} [attempt=0]
+   */
+  #_showSlotMenuAt(request, attempt = 0) {
+    if (!this.#_slotMenu) return;
+    this.#_slotMenuRequest = request;
+    const tryShow = () => {
+      // 已被更新的请求取代则放弃
+      if (this.#_slotMenuRequest !== request) return;
+      this.#_slotMenu.show({ x: request.x, y: request.y, origin: 'left top' });
+      if (!this._isSlotMenuOpen() && attempt < 6) {
+        attempt++;
+        setTimeout(tryShow, 120);
+      }
+    };
+    tryShow();
+  }
+
+  /**
+   * 执行槽位菜单动作
+   * @param {string} action copy | paste | edit
+   */
+  async _runSlotMenuAction(action) {
+    const ctx = this.#_slotMenuCtx;
+    this.#_slotMenuCtx = null;
+    if (!ctx) return;
+    const { index, row, column } = ctx;
+    switch (action) {
+      case 'copy': {
+        const btn = this.#_data?.java instanceof Map ? this.#_data.java.get(`${row}${column}`) : null;
+        if (btn instanceof JavaButton) this._copyBtnToClipboard(btn, false);
+        break;
+      }
+      case 'paste':
+        await this._pasteBtnIntoSlot(index, row, column);
+        break;
+      case 'edit':
+      default:
+        this._handleChestItemClick({ index, row, column, item: null });
+        break;
+    }
+  }
+
+  /**
+   * 构建供剪贴板使用的按钮数据。
+   * 回退按钮自身的 perm / else 判定无效，因此需剥除。
+   * @param {JavaButton} btn
+   * @param {boolean} [isElse=false]
+   * @returns {Object|null}
+   */
+  _buildClipboardPayload(btn, isElse = false) {
+    if (!(btn instanceof JavaButton)) return null;
+    const obj = {
+      display: { id: btn.id, enchant: !!btn.enchant_glint_override, tooltip: btn.tooltip },
+      perm: isElse ? '' : (btn.permission ? (btn.permission_when_and_have ? '' : '!') + btn.permission : ''),
+      action: btn.action_type || 'none',
+      param: btn.action_param || '',
+    };
+    // 回退按钮内部不允许再嵌套回退按钮
+    if (!isElse && btn.else_button) {
+      obj.else = {
+        display: {
+          id: btn.else_button.id,
+          enchant: !!btn.else_button.enchant_glint_override,
+          tooltip: btn.else_button.tooltip,
+        },
+        action: btn.else_button.action_type || 'none',
+        param: btn.else_button.action_param || '',
+      };
+    }
+    return obj;
+  }
+
+  /**
+   * 复制按钮到剪贴板
+   * @param {JavaButton} btn
+   * @param {boolean} [isElse=false]
+   */
+  _copyBtnToClipboard(btn, isElse = false) {
+    const payload = this._buildClipboardPayload(btn, isElse);
+    if (!payload) return;
+    JClipboard.copy(JSON.stringify(payload, null, 2));
+  }
+
+  /**
+   * 将剪贴板中的按钮粘贴到指定槽位
+   * @param {number} index 0-indexed
+   * @param {number} row 1-indexed
+   * @param {number} column 1-indexed
+   */
+  async _pasteBtnIntoSlot(index, row, column) {
+    if (!(this.#_data?.java instanceof Map)) return;
+    const data = await this._pasteButtonData();
+    if (!data) {
+      utils.msg(tr('slot_paste_invalid'), i18n.parseSafe('msg.done'), 'warning');
+      return;
+    }
+    const key = `${row}${column}`;
+    const existed = this.#_data.java.get(key);
+    // 已有按钮时确认覆盖
+    if (existed instanceof JavaButton && existed.id !== 'air' && existed.id !== 'missingno') {
+      try {
+        await utils.askfor(
+          i18n.parseSafe('tooltip.tip'),
+          tr('java_paste_confirm', { slot: index + 1 }),
+          i18n.parseSafe('tooltip.confirm'),
+          i18n.parseSafe('tooltip.cancel')
+        );
+      } catch (_) { return; }
+    }
+    let newBtn;
+    try {
+      newBtn = new JavaButton(data);
+    } catch (e) {
+      console.warn('Failed to paste button data:', data, e);
+      utils.msg(tr('slot_paste_invalid'), i18n.parseSafe('msg.done'), 'warning');
+      return;
+    }
+    this.#_data.java.set(key, newBtn);
+    this._commitJavaBtnUpdate(index, JavaButton2Item(newBtn), newBtn);
+    // 正在编辑该槽位时同步刷新编辑面板，避免面板与数据不一致
+    if (this.#edittingJslot === index) {
+      this._startJavaBtnEdit(index, row, column, null);
+    }
+    this._scheduleRender();
   }
 
   /** 立即渲染JavaButton编辑，无条件替换正在进行的编辑 @type {Item} item */

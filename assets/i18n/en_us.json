@@ -164,6 +164,10 @@
       "bedrock_perm_else": "↩ Permission [%perm%] failed, showing the fallback button",
       "bedrock_else_info": "↩ Fallback button: %text%",
       "bedrock_edit_title_else": "Edit the fallback button of bedrock button #%index%",
+      "slot_menu_copy": "Copy",
+      "slot_menu_paste": "Paste",
+      "slot_menu_edit": "Edit",
+      "slot_paste_invalid": "No usable button data in the clipboard.",
       "empty_slot": "Empty Slot"
     }
   },
