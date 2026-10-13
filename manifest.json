@@ -12,16 +12,22 @@
   "background_color": "#bec9c8",
   "icons": [
     {
-      "src": "./assets/icons/icon-192.png",
-      "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "unset"
-    },
-    {
-      "src": "./assets/icons/icon-512.png",
+      "src": "./assets/icons/JME-monochrome.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "unset"
+      "purpose": "monochrome"
+    },
+    {
+      "src": "./assets/icons/JME-maskable.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "./assets/icons/JME-ico_mutilple_sized-maskable.ico",
+      "sizes": "16x16 24x24 32x32 48x48 64x64 72x72 80x80 96x96 128x128 256x256",
+      "type": "image/ico",
+      "purpose": "any"
     }
   ]
 }

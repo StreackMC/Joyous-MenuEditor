@@ -12,7 +12,7 @@
   <meta name="description" content="适用于Minecraft的插件Joyous的菜单编辑器，提供工作区模式、可视化MC物品编辑、可视化MC格式化文本与颜色代码字符的编辑，并可轻松保存编辑结果。">
   <meta name="robots" content="index, nofollow">
   <meta name="renderer" content="webkit">
-  <link rel="canonical" href="https://example.com/page/">
+  <link rel="canonical" href="https://streack.top/Joyous-MenuEditor/">
   <!-- import js -->
   <script src="./javascript/library/sober@1.1.8.min.js"></script>
   <script src="./javascript/library/hotkeys-js@4.0.2.min.js"></script>
@@ -29,6 +29,7 @@
   <link rel="stylesheet" href="https://rs.kdxiaoyi.top/res/fonts/MiSans/result.css" />
   <!-- PWA -->
   <link rel="manifest" href="./manifest.json" />
+  <link rel="icon" href="./assets/icons/JME-ico_mutilple_sized-maskable.ico" />
   <!-- preload -->
   <link rel="preload" href="./assets/i18n/zh_cn.json" as="fetch" crossorigin="anonymous" />
 </head>
@@ -242,14 +243,16 @@
         <!-- 标签页 -->
         <s-scroll-view id="editor-views">
         </s-scroll-view>
-        <!-- 空状态（无标签页）：类 VSCode 空白界面 -->
+        <!-- 空状态（无标签页） -->
         <div id="editor-empty" class="unselectable" hidden>
           <div class="editor-empty-watermark">
-            <svg viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true">
-              <path d="M260-120q-58 0-99-41t-41-99q0-58 41-99t99-41h60v-160h-60q-58 0-99-41t-41-99q0-58 41-99t99-41q58 0 99 41t41 99v60h160v-60q0-58 41-99t99-41q58 0 99 41t41 99q0 58-41 99t-99 41h-60v160h60q58 0 99 41t41 99q0 58-41 99t-99 41q-58 0-99-41t-41-99v-60H400v60q0 58-41 99t-99 41Zm0-80q25 0 42.5-17.5T320-260v-60h-60q-25 0-42.5 17.5T200-260q0 25 17.5 42.5T260-200Zm440 0q25 0 42.5-17.5T760-260q0-25-17.5-42.5T700-320h-60v60q0 25 17.5 42.5T700-200ZM400-400h160v-160H400v160ZM260-640h60v-60q0-25-17.5-42.5T260-760q-25 0-42.5 17.5T200-700q0 25 17.5 42.5T260-640Zm380 0h60q25 0 42.5-17.5T760-700q0-25-17.5-42.5T700-760q-25 0-42.5 17.5T640-700v60Z"></path>
-            </svg>
+            JME.
           </div>
           <div class="editor-empty-hints">
+            <a class="editor-empty-hint" href="https://github.com/StreackMC/Joyous/" target="_blank">
+              <span class="editor-empty-label" data-i18n>$about.get_joyous$</span>
+              <span class="editor-empty-keys"></span>
+            </a>
             <button class="editor-empty-hint" data-click="files.open">
               <span class="editor-empty-label" data-i18n>$editor.actions.openFile$</span>
               <span class="editor-empty-keys"><kbd>Ctrl</kbd><kbd>O</kbd></span>

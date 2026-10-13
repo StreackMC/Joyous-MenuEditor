@@ -229,6 +229,9 @@ s-tab::part(container) {
 .editor-empty-watermark {
   opacity: .1;
   pointer-events: none;
+  /* font-size: clamp(3rem, 2vw, 5rem); */
+  font-size: clamp(5rem, 2vw, 9rem);
+  text-align: center;
 }
 
 .editor-empty-watermark svg {

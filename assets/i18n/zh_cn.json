@@ -64,6 +64,7 @@
   },
   "about": {
     "title": "关于 Joyous 菜单编辑器",
+    "get_joyous": "获取“Joyous”插件",
     "update": {
       "tooltip": "更新",
       "tooltip_long": "有可用更新，请立即刷新页面以应用并防止未预料的结果。在此之前请先保存您的修改。",
